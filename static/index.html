@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa Corroios</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #16161d;
+    --surface2: #1e1e28;
+    --border: #2a2a38;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --accent: #f0c060;
+    --accent2: #60a0f0;
+    --good: #60d090;
+    --warn: #f09040;
+    --bad: #f06060;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(96,160,240,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(240,192,96,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    display: grid;
+    gap: 16px;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .location {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .clock {
+    text-align: right;
+  }
+
+  .clock-time {
+    font-family: 'Syne', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .clock-date {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: capitalize;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* WASHING MACHINE CARD */
+  .wash-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .wash-verdict {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .wash-icon {
+    font-size: 36px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .wash-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .wash-title.good { color: var(--good); }
+  .wash-title.warn { color: var(--warn); }
+  .wash-title.bad { color: var(--bad); }
+
+  .wash-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .wash-best-time {
+    text-align: right;
+  }
+
+  .wash-plan {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: right;
+    min-width: 160px;
+  }
+
+  .wash-plan-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .wash-plan-icon { font-size: 14px; }
+
+  .wash-plan-label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .wash-plan-time {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  .wash-plan-time.accent { color: var(--accent); }
+
+  .wash-plan-arrow {
+    font-size: 10px;
+    color: var(--border);
+    text-align: right;
+    padding-right: 4px;
+  }
+
+  /* WEATHER GRID */
+  .weather-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .weather-now {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .weather-temp-big {
+    font-family: 'Syne', sans-serif;
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  .weather-now-details {
+    flex: 1;
+  }
+
+  .weather-condition {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .weather-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .weather-meta-item {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .weather-stat {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .weather-stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .weather-stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  /* FORECAST STRIP */
+  .forecast-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .forecast-day {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .forecast-day-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .forecast-icon { font-size: 22px; margin-bottom: 6px; }
+
+  .forecast-temps {
+    font-size: 13px;
+  }
+
+  .forecast-max {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .forecast-min { color: var(--muted); }
+
+  .forecast-rain {
+    font-size: 11px;
+    color: var(--accent2);
+    margin-top: 4px;
+  }
+
+  /* HOURLY WASH WINDOWS */
+  .hourly-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .hour-slot {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+    position: relative;
+  }
+
+  .hour-slot.best {
+    background: rgba(96, 208, 144, 0.12);
+    border: 1px solid rgba(96, 208, 144, 0.3);
+  }
+
+  .hour-slot.ok {
+    background: rgba(240, 144, 64, 0.08);
+    border: 1px solid rgba(240, 144, 64, 0.2);
+  }
+
+  .hour-slot.bad {
+    opacity: 0.4;
+  }
+
+  .hour-label {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  .hour-icon { font-size: 14px; margin: 3px 0; }
+
+  .hour-rain {
+    font-size: 9px;
+    color: var(--accent2);
+  }
+
+  /* QUOTE */
+  .quote-card {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .quote-mark {
+    font-family: 'Syne', sans-serif;
+    font-size: 60px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 0.7;
+    flex-shrink: 0;
+    opacity: 0.4;
+  }
+
+  .quote-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* LOADING */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 14px;
+    gap: 10px;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FADE IN */
+  .fade-in {
+    animation: fadeIn 0.4s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* REFRESH INDICATOR */
+  .refresh-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--good);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 3s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 0 2px;
+  }
+
+  /* BURN-IN: night dimmer overlay */
+  #dimmer {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 3s ease;
+    z-index: 9999;
+  }
+  #dimmer.active { opacity: 0.88; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="loading"><div class="spinner"></div> A carregar...</div>
+</div>
+<div id="dimmer"></div>
+
+<script>
+const LAT = 38.6333;
+const LON = -9.0333;
+const LOCATION = "Corroios, Almada";
+
+const DAYS_PT = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// ─── TABLET PROTECTION ──────────────────────────────────────────────────────
+const NIGHT_DIM_START = 23;
+const NIGHT_DIM_END   = 7;
+const WATCHDOG_HOUR   = 4;
+const PIXEL_SHIFTS    = [[0,0],[2,0],[2,2],[0,2]];
+let shiftIdx = 0;
+
+let weatherData = null;
+
+function getWeatherIcon(rain, wind, uv) {
+  if (rain > 60) return '🌧️';
+  if (rain > 30) return '🌦️';
+  if (wind > 30) return '💨';
+  if (uv > 6) return '☀️';
+  if (uv > 3) return '⛅';
+  return '🌤️';
+}
+
+// ─── SUN POSITION (NOAA algorithm) ───────────────────────────────────────────
+function getSunTimes(date) {
+  const lat = LAT * Math.PI / 180;
+  const lon = LON;
+  const JD = Math.floor(date / 86400000) + 2440587.5;
+  const n = JD - 2451545.0;
+  const L = (280.46 + 0.9856474 * n) % 360;
+  const g = (357.528 + 0.9856003 * n) % 360;
+  const gR = g * Math.PI / 180;
+  const lambda = (L + 1.915 * Math.sin(gR) + 0.02 * Math.sin(2 * gR)) * Math.PI / 180;
+  const epsilon = 23.439 * Math.PI / 180;
+  const sinDec = Math.sin(epsilon) * Math.sin(lambda);
+  const dec = Math.asin(sinDec);
+  const cosDec = Math.cos(dec);
+  const cosLat = Math.cos(lat);
+  const sinLat = Math.sin(lat);
+  const cosHourAngle = (Math.cos(Math.PI * (90.833 / 180)) - sinLat * sinDec) / (cosLat * cosDec);
+  if (cosHourAngle > 1 || cosHourAngle < -1) return { sunrise: 6, sunset: 20 };
+  const H = Math.acos(cosHourAngle) * 180 / Math.PI;
+  const eqTime = (-7.655 * Math.sin(gR) + 9.873 * Math.sin(2 * lambda - 3.588));
+  const solarNoon = 720 - 4 * lon - eqTime;
+  const sunriseMin = solarNoon - 4 * H;
+  const sunsetMin = solarNoon + 4 * H;
+  return {
+    sunrise: sunriseMin / 60,
+    sunset: sunsetMin / 60,
+    solarNoon: solarNoon / 60
+  };
+}
+
+// ─── SHADOW / BUILDING LOGIC ─────────────────────────────────────────────────
+// António's cordas: 3rd floor, building in front same height, faces roughly South
+// Direct sun reaches the clothesline only after the sun clears the opposite building
+// In winter (low sun angle) shadow lingers longer → direct sun from ~13:30
+// In summer (high sun angle) shadow clears earlier → direct sun from ~12:00
+// We interpolate based on day of year
+function getSunStartHour() {
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  // Summer solstice ~172, Winter solstice ~355
+  // Sun angle at noon: 90 - (38.63 - declination)
+  // Declination ranges from -23.45° (winter) to +23.45° (summer)
+  const declination = -23.45 * Math.cos((360 / 365) * (dayOfYear + 10) * Math.PI / 180);
+  const noonSunAngle = 90 - (LAT - declination); // degrees above horizon at solar noon
+  // Building across the street blocks sun until it's high enough
+  // Assuming ~45° angle needed to clear same-height building at ~10m distance
+  // Higher sun angle in summer = shadow clears faster
+  // Interpolate: winter ~13:30, summer ~12:00
+  const winterStart = 13.5;
+  const summerStart = 12.0;
+  const t = (noonSunAngle - 28) / (75 - 28); // normalized 0-1 between winter/summer angles
+  const clipped = Math.max(0, Math.min(1, t));
+  return winterStart - clipped * (winterStart - summerStart);
+}
+
+function getSunEndHour() {
+  const times = getSunTimes(new Date());
+  // Leave 30min buffer before sunset (low angle = less drying power)
+  return times.sunset - 0.5;
+}
+
+// ─── WASH SCORE (drying window aware) ────────────────────────────────────────
+function getWashScore(rainProb, windSpeed, temp, uvIndex) {
+  let score = 100;
+  score -= rainProb * 1.2;
+  if (windSpeed > 40) score -= 20;
+  else if (windSpeed > 25) score -= 5;
+  else if (windSpeed > 10) score += 5; // gentle breeze helps drying
+  if (temp < 10) score -= 25;
+  else if (temp < 15) score -= 10;
+  if (uvIndex < 1) score -= 20;
+  else if (uvIndex < 3) score -= 8;
+  return Math.max(0, Math.min(100, score));
+}
+
+// ─── SMART WASH PLAN ─────────────────────────────────────────────────────────
+// WASH_DURATION: time from start wash to hanging clothes (machine cycle + hang)
+const WASH_DURATION = 2; // hours
+
+function getWashPlan(hourly) {
+  const now = new Date();
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const sunStart = getSunStartHour(); // e.g. 12.5 = 12:30
+  const sunEnd = getSunEndHour();     // e.g. 19.5 = 19:30
+  const dryingHoursAvailable = sunEnd - sunStart;
+
+  // Earliest hang time is when sun hits the cordas
+  // So latest wash start to catch the sun = sunStart - WASH_DURATION
+  // But never later than sunEnd - minimum_dry_time (need at least 2h of sun to dry)
+  const MIN_DRY_HOURS = 2.5;
+
+  // Find best wash start: must hang before sunEnd - MIN_DRY_HOURS
+  // Ideal: hang exactly at sunStart for max sun exposure
+  const idealWashStart = sunStart - WASH_DURATION;
+  const latestWashStart = sunEnd - MIN_DRY_HOURS - WASH_DURATION;
+
+  // Check weather quality during drying window (sunStart to sunEnd)
+  let dyingWindowScore = 0;
+  let dyingHours = 0;
+  for (let i = 0; i < hourly.time.length; i++) {
+    const dayOffset = Math.floor(i / 24);
+    if (dayOffset > 0) break;
+    const h = new Date(hourly.time[i]).getHours();
+    if (h >= Math.floor(sunStart) && h <= Math.ceil(sunEnd)) {
+      dyingWindowScore += getWashScore(
+        hourly.precipitation_probability[i],
+        hourly.windspeed_10m[i],
+        hourly.temperature_2m[i],
+        hourly.uv_index[i]
+      );
+      dyingHours++;
+    }
+  }
+  const avgDryScore = dyingHours > 0 ? dyingWindowScore / dyingHours : 0;
+
+  // Format hour to HH:MM
+  const fmt = h => {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  };
+
+  // Determine recommended wash start
+  let washStart = Math.max(currentHour + 0.25, idealWashStart); // at least 15min from now
+  washStart = Math.min(washStart, latestWashStart);
+  const hangTime = washStart + WASH_DURATION;
+  const expectedDryBy = Math.min(hangTime + Math.max(2, 5 - (avgDryScore / 25)), sunEnd);
+
+  const canDry = avgDryScore >= 40 && dryingHoursAvailable >= MIN_DRY_HOURS;
+  const tooLate = currentHour > latestWashStart;
+
+  return {
+    canDry,
+    tooLate,
+    avgDryScore,
+    washStart: fmt(washStart),
+    hangTime: fmt(hangTime),
+    dryBy: fmt(expectedDryBy),
+    sunStart: fmt(sunStart),
+    sunEnd: fmt(sunEnd),
+    dryingHours: dryingHoursAvailable.toFixed(1)
+  };
+}
+
+function getWashVerdict(plan) {
+  if (plan.tooLate) return { cls: 'bad', icon: '🌙', title: 'Tarde demais para hoje', sub: `Sol nas cordas só até às ${plan.sunEnd}. Tenta amanhã.` };
+  if (!plan.canDry) return { cls: 'bad', icon: '❌', title: 'Não é boa ideia', sub: 'Chuva ou pouco sol durante a janela de secagem.' };
+  if (plan.avgDryScore >= 70) return { cls: 'good', icon: '✅', title: 'Ótimo dia para lavar!', sub: `Sol nas cordas das ${plan.sunStart} às ${plan.sunEnd} (${plan.dryingHours}h)` };
+  return { cls: 'warn', icon: '⚠️', title: 'Pode arriscar', sub: `Sol parcial das ${plan.sunStart} às ${plan.sunEnd}. Fique atento.` };
+}
+
+function getHourlySlots(hourly) {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const sunStart = getSunStartHour();
+  const sunEnd = getSunEndHour();
+  const slots = [];
+
+  for (let i = 0; i < hourly.time.length; i++) {
+    const h = new Date(hourly.time[i]).getHours();
+    const dayOffset = Math.floor(i / 24);
+    if (dayOffset > 0) break;
+    if (h < currentHour) continue;
+    if (slots.length >= 8) break;
+
+    const score = getWashScore(
+      hourly.precipitation_probability[i],
+      hourly.windspeed_10m[i],
+      hourly.temperature_2m[i],
+      hourly.uv_index[i]
+    );
+
+    const rain = hourly.precipitation_probability[i];
+    const hasSun = h >= Math.floor(sunStart) && h <= Math.ceil(sunEnd);
+    slots.push({
+      hour: h,
+      rain,
+      score: hasSun ? score : 0, // no sun = no drying regardless of weather
+      hasSun,
+      icon: !hasSun ? '🏠' : getWeatherIcon(rain, hourly.windspeed_10m[i], hourly.uv_index[i])
+    });
+  }
+
+  return slots;
+}
+
+async function fetchWeather() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,precipitation_probability,windspeed_10m,uv_index&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max,weathercode&current_weather=true&timezone=Europe/Lisbon&forecast_days=3`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+function getQuote() {
+  const quotes = [
+    "A persistência é o caminho do êxito. — Charles Chaplin",
+    "O sucesso nasce do querer, da determinação e persistência. — Ayrton Senna",
+    "Grandes realizações são possíveis quando se dá importância aos pequenos começos.",
+    "A melhor forma de prever o futuro é criá-lo. — Peter Drucker",
+    "Não é sobre ter tempo, é sobre fazer tempo.",
+    "Cada dia é uma nova oportunidade de mudar a tua vida.",
+    "O investimento em conhecimento paga os melhores juros. — Benjamin Franklin",
+    "A jornada de mil milhas começa com um único passo. — Lao Tsé"
+  ];
+  const idx = new Date().getDate() % quotes.length;
+  return quotes[idx];
+}
+
+function updateClock() {
+  const el = document.getElementById('clock-time');
+  const el2 = document.getElementById('clock-date');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  el2.textContent = `${DAYS_PT[now.getDay()]}, ${now.getDate()} de ${MONTHS_PT[now.getMonth()]}`;
+}
+
+function startClock() {
+  updateClock();
+  const now = new Date();
+  const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+  setTimeout(() => { updateClock(); setInterval(updateClock, 60 * 1000); }, msToNextMinute);
+}
+
+function scheduleWatchdogReload() {
+  const now = new Date();
+  const target = new Date();
+  target.setHours(WATCHDOG_HOUR, 0, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  setTimeout(() => location.reload(), target - now);
+}
+
+function startBurnInProtection() {
+  function updateDimmer() {
+    const h = new Date().getHours();
+    document.getElementById('dimmer').classList.toggle('active', h >= NIGHT_DIM_START || h < NIGHT_DIM_END);
+  }
+  updateDimmer();
+  setInterval(updateDimmer, 60 * 1000);
+
+  setInterval(() => {
+    shiftIdx = (shiftIdx + 1) % PIXEL_SHIFTS.length;
+    const [x, y] = PIXEL_SHIFTS[shiftIdx];
+    document.getElementById('app').style.transform = `translate(${x}px, ${y}px)`;
+  }, 30 * 60 * 1000);
+}
+
+function render(data) {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const hourIdx = data.hourly.time.findIndex(t => new Date(t).getHours() === currentHour && Math.floor(data.hourly.time.indexOf(t) / 24) === 0);
+  const idx = hourIdx >= 0 ? hourIdx : 0;
+
+  const currentTemp = data.current_weather.temperature;
+  const currentWind = data.current_weather.windspeed;
+  const currentRain = data.hourly.precipitation_probability[idx] || 0;
+  const currentUV = data.hourly.uv_index[idx] || 0;
+  const currentIcon = getWeatherIcon(currentRain, currentWind, currentUV);
+
+  const plan = getWashPlan(data.hourly);
+  const verdict = getWashVerdict(plan);
+  const hourlySlots = getHourlySlots(data.hourly);
+
+  // Forecast days
+  const forecastDays = data.daily.time.slice(0,3).map((t, i) => {
+    const d = new Date(t);
+    const rain = data.daily.precipitation_probability_max[i];
+    const wind = data.daily.windspeed_10m_max[i];
+    return {
+      name: i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : DAYS_PT[d.getDay()],
+      max: Math.round(data.daily.temperature_2m_max[i]),
+      min: Math.round(data.daily.temperature_2m_min[i]),
+      rain,
+      icon: getWeatherIcon(rain, wind, 5)
+    };
+  });
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="topbar fade-in">
+      <div class="location">📍 ${LOCATION}</div>
+      <div class="clock">
+        <div class="clock-time" id="clock-time"></div>
+        <div class="clock-date" id="clock-date"></div>
+      </div>
+    </div>
+
+    <!-- WASHING MACHINE -->
+    <div class="wash-card fade-in">
+      <div class="wash-verdict">
+        <div class="wash-icon">${verdict.icon}</div>
+        <div>
+          <div class="wash-title ${verdict.cls}">${verdict.title}</div>
+          <div class="wash-subtitle">${verdict.sub}</div>
+        </div>
+      </div>
+      ${plan.canDry && !plan.tooLate ? `
+      <div class="wash-plan">
+        <div class="wash-plan-row">
+          <span class="wash-plan-icon">🫧</span>
+          <span class="wash-plan-label">Lavar às</span>
+          <span class="wash-plan-time">${plan.washStart}</span>
+        </div>
+        <div class="wash-plan-arrow">↓</div>
+        <div class="wash-plan-row">
+          <span class="wash-plan-icon">👕</span>
+          <span class="wash-plan-label">Estender às</span>
+          <span class="wash-plan-time">${plan.hangTime}</span>
+        </div>
+        <div class="wash-plan-arrow">↓</div>
+        <div class="wash-plan-row">
+          <span class="wash-plan-icon">✨</span>
+          <span class="wash-plan-label">Seco por volta das</span>
+          <span class="wash-plan-time accent">${plan.dryBy}</span>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <!-- HOURLY WASH SLOTS -->
+    <div class="card fade-in">
+      <div class="card-label">Janelas de secagem hoje</div>
+      <div class="hourly-grid">
+        ${hourlySlots.map(s => `
+          <div class="hour-slot ${!s.hasSun ? 'bad' : s.score >= 70 ? 'best' : s.score >= 45 ? 'ok' : 'bad'}" title="${!s.hasSun ? 'Sem sol direto' : ''}">
+            <div class="hour-label">${String(s.hour).padStart(2,'0')}h</div>
+            <div class="hour-icon">${s.icon}</div>
+            <div class="hour-rain">${s.hasSun ? s.rain+'%' : '🏠'}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- CURRENT WEATHER -->
+    <div class="card fade-in">
+      <div class="card-label">Tempo agora</div>
+      <div class="weather-now">
+        <div class="weather-temp-big">${Math.round(currentTemp)}°</div>
+        <div class="weather-now-details">
+          <div class="weather-condition">${currentIcon} ${currentRain > 50 ? 'Com chuva' : currentRain > 20 ? 'Possível chuva' : currentWind > 30 ? 'Ventoso' : currentUV > 6 ? 'Muito sol' : 'Tempo agradável'}</div>
+          <div class="weather-meta">
+            <span class="weather-meta-item">💧 ${currentRain}% chuva</span>
+            <span class="weather-meta-item">💨 ${Math.round(currentWind)} km/h</span>
+            <span class="weather-meta-item">☀️ UV ${Math.round(currentUV)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="forecast-strip">
+        ${forecastDays.map(d => `
+          <div class="forecast-day">
+            <div class="forecast-day-name">${d.name}</div>
+            <div class="forecast-icon">${d.icon}</div>
+            <div class="forecast-temps">
+              <span class="forecast-max">${d.max}°</span>
+              <span class="forecast-min"> / ${d.min}°</span>
+            </div>
+            <div class="forecast-rain">💧 ${d.rain}%</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- QUOTE -->
+    <div class="quote-card fade-in">
+      <div class="quote-mark">"</div>
+      <div class="quote-text">${getQuote()}</div>
+    </div>
+
+    <div class="status-bar fade-in">
+      <span><span class="refresh-dot"></span>Atualiza a cada 10 min</span>
+      <span>Última atualização: ${now.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'})}</span>
+    </div>
+  `;
+
+}
+
+async function init() {
+  try {
+    weatherData = await fetchWeather();
+    render(weatherData);
+  } catch(e) {
+    document.getElementById('app').innerHTML = `<div class="loading">❌ Sem dados. A tentar novamente em 5 min...</div>`;
+    setTimeout(init, 5 * 60 * 1000);
+  }
+}
+
+scheduleWatchdogReload();
+startBurnInProtection();
+startClock();
+init();
+setInterval(init, 10 * 60 * 1000);
+</script>
+</body>
+</html>
