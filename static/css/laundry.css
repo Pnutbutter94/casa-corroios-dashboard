@@ -1,0 +1,119 @@
+.wash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.wash-verdict {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wash-icon {
+  font-size: 36px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wash-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.wash-title.good { color: var(--good); }
+.wash-title.warn { color: var(--warn); }
+.wash-title.bad  { color: var(--bad); }
+
+.wash-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.wash-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+  min-width: 160px;
+}
+
+.wash-plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.wash-plan-icon { font-size: 14px; }
+
+.wash-plan-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.wash-plan-time {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 48px;
+  text-align: right;
+}
+
+.wash-plan-time.accent { color: var(--accent); }
+
+.wash-plan-arrow {
+  font-size: 10px;
+  color: var(--border);
+  text-align: right;
+  padding-right: 4px;
+}
+
+.hourly-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.hour-slot {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+  position: relative;
+}
+
+.hour-slot.best {
+  background: rgba(96, 208, 144, 0.12);
+  border: 1px solid rgba(96, 208, 144, 0.3);
+}
+
+.hour-slot.ok {
+  background: rgba(240, 144, 64, 0.08);
+  border: 1px solid rgba(240, 144, 64, 0.2);
+}
+
+.hour-slot.bad { opacity: 0.4; }
+
+.hour-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.hour-icon { font-size: 14px; margin: 3px 0; }
+
+.hour-rain {
+  font-size: 9px;
+  color: var(--accent2);
+}
