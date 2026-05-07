@@ -10,3 +10,4 @@ Small tweaks and non-urgent items to revisit.
 
 ## Features
 <!-- nothing yet -->
+- [ ] Auto-start on tablet reboot without manual Termux tap — Termux:Boot unreliable on Alcatel Android 10, needs alternative approach (Tasker, ADB, or manufacturer-specific autostart setting)
