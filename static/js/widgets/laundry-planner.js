@@ -12,12 +12,22 @@ function fmtDuration(min) {
   return h > 0 ? `${h}h${m > 0 ? String(m).padStart(2, '0') : ''}` : `${m}min`;
 }
 
+// ── COUNT DISPLAY ──────────────────────────────────────────────────────────
+
+function countHTML(cQty, wQty) {
+  if (cQty === 0 && wQty === 0) return `<span class="cnt-zero">0</span>`;
+  const parts = [];
+  if (cQty > 0) parts.push(`<span class="cnt-c">${cQty}</span>`);
+  if (wQty > 0) parts.push(`<span class="cnt-w">⚪${wQty}</span>`);
+  return parts.join('');
+}
+
 // ── LOAD PACKING ───────────────────────────────────────────────────────────
 
 function packLoads(items, counts, cycle) {
-  const units = items.flatMap(c => Array.from({ length: counts[c.id] }, () => c));
-  const loads  = [];
-  let current  = null;
+  const units = items.flatMap(c => Array.from({ length: counts[c.id] || 0 }, () => c));
+  const loads = [];
+  let current = null;
 
   for (const unit of units) {
     const unitEff = unit.kg * unit.bulk;
@@ -46,37 +56,31 @@ function finalise(load) {
   };
 }
 
-export function computeAllLoads(counts, whiteFlags) {
-  const active  = CLOTHES.filter(c => (counts[c.id] || 0) > 0);
-  const white   = active.filter(c => whiteFlags[c.id]);
-  const colored = active.filter(c => !whiteFlags[c.id]);
-  const casaCol = colored.filter(c => c.category === 'casa');
-  const ruaCol  = colored.filter(c => c.category === 'rua');
+export function computeAllLoads(coloredCounts, whiteCounts) {
+  const activeWhite   = CLOTHES.filter(c => (whiteCounts[c.id]   || 0) > 0);
+  const activeColored = CLOTHES.filter(c => (coloredCounts[c.id] || 0) > 0);
+  const casaCol = activeColored.filter(c => c.category === 'casa');
+  const ruaCol  = activeColored.filter(c => c.category === 'rua');
 
   const groups = [];
 
-  if (white.length > 0) {
-    groups.push({
-      key:   'white',
-      label: 'Brancos',
-      icon:  '⚪',
-      loads: packLoads(white, counts, CYCLES.cottons60),
-    });
+  if (activeWhite.length > 0) {
+    groups.push({ key: 'white', label: 'Brancos', icon: '⚪',
+      loads: packLoads(activeWhite, whiteCounts, CYCLES.cottons60) });
   }
 
   if (casaCol.length > 0 && ruaCol.length === 0) {
     groups.push({ key: 'casa', label: 'Casa + Desporto', icon: '🏠',
-      loads: packLoads(casaCol, counts, CYCLES.cottons40) });
+      loads: packLoads(casaCol, coloredCounts, CYCLES.cottons40) });
   } else if (ruaCol.length > 0 && casaCol.length === 0) {
     groups.push({ key: 'rua', label: 'Roupa de Rua', icon: '👕',
-      loads: packLoads(ruaCol, counts, CYCLES.eco30) });
+      loads: packLoads(ruaCol, coloredCounts, CYCLES.eco30) });
   } else if (casaCol.length > 0 && ruaCol.length > 0) {
-    // mixed casa + rua → compromise at 40°, note included in render
     groups.push({ key: 'mixed', label: 'Casa + Rua (misto)', icon: '🔀',
-      loads: packLoads([...casaCol, ...ruaCol], counts, CYCLES.cottons40) });
+      loads: packLoads([...casaCol, ...ruaCol], coloredCounts, CYCLES.cottons40) });
   }
 
-  return { groups, hasWhite: white.length > 0, hasColored: colored.length > 0 };
+  return { groups, hasWhite: activeWhite.length > 0, hasColored: activeColored.length > 0 };
 }
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
@@ -124,14 +128,16 @@ function loadCard(load, idx, groupKey) {
     </div>`;
 }
 
-export function renderPlanOutput(counts, whiteFlags) {
-  const hasAny = CLOTHES.some(c => (counts[c.id] || 0) > 0);
-  if (!hasAny) return `<div class="plan-empty">Seleciona a roupa acima · toca em ○ para marcar peças brancas</div>`;
+export function renderPlanOutput(coloredCounts, whiteCounts) {
+  const hasAny = CLOTHES.some(c => (coloredCounts[c.id] || 0) + (whiteCounts[c.id] || 0) > 0);
+  if (!hasAny) {
+    return `<div class="plan-empty">Seleciona a roupa acima · usa o modo ⚪ para peças brancas</div>`;
+  }
 
-  const { groups, hasWhite, hasColored } = computeAllLoads(counts, whiteFlags);
+  const { groups, hasWhite, hasColored } = computeAllLoads(coloredCounts, whiteCounts);
 
   const mixAlert = hasWhite && hasColored
-    ? `<div class="mix-alert">⚪ Brancos separados dos coloridos automaticamente. Se quiseres juntar, usa uma folha <strong>Colour Catcher</strong> (ex. Dr. Beckmann) e lava a 40°.</div>`
+    ? `<div class="mix-alert">⚪ Brancos e coloridos separados automaticamente. Se quiseres juntar, usa uma folha <strong>Colour Catcher</strong> (ex. Dr. Beckmann) e lava a 40°.</div>`
     : '';
 
   let loadIdx = 0;
@@ -164,7 +170,7 @@ function maintChip(icon, label, dateStr, limitDays, id) {
     </button>`;
 }
 
-export function renderPlannerHTML(counts, whiteFlags, maintenance) {
+export function renderPlannerHTML(coloredCounts, whiteCounts, plannerMode, maintenance) {
   const m = maintenance || {};
   return `
     <div class="card-label">Planear Lavagem</div>
@@ -172,54 +178,56 @@ export function renderPlannerHTML(counts, whiteFlags, maintenance) {
       ${maintChip('🥁', 'Tambor limpo', m.drum_clean, 30, 'drum_clean')}
       ${maintChip('🪨', 'Anti-calcário', m.descale, 90, 'descale')}
     </div>
+    <div class="mode-bar">
+      <button class="mode-btn${!plannerMode.white ? ' active' : ''}" data-mode="color">🌈 Cores</button>
+      <button class="mode-btn${plannerMode.white ? ' active' : ''}" data-mode="white">⚪ Brancos</button>
+    </div>
     <div class="clothes-grid">
       ${CLOTHES.map(cat => {
-        const qty     = counts[cat.id] || 0;
-        const isWhite = !!whiteFlags[cat.id];
+        const cQty = coloredCounts[cat.id] || 0;
+        const wQty = whiteCounts[cat.id]   || 0;
         return `
           <div class="clothes-row">
-            <button class="white-btn${isWhite ? ' active' : ''}" data-id="${cat.id}" title="Marcar como branco"></button>
             <span class="clothes-icon">${cat.icon}</span>
             <span class="clothes-label">${cat.label}</span>
             <div class="clothes-counter">
               <button class="counter-btn" data-id="${cat.id}" data-delta="-1">−</button>
-              <span class="clothes-count${qty > 0 ? ' nonzero' : ''}" id="count-${cat.id}">${qty}</span>
+              <div class="count-display" id="count-${cat.id}">${countHTML(cQty, wQty)}</div>
               <button class="counter-btn" data-id="${cat.id}" data-delta="1">+</button>
             </div>
           </div>`;
       }).join('')}
     </div>
     <div id="plan-output">
-      ${renderPlanOutput(counts, whiteFlags)}
+      ${renderPlanOutput(coloredCounts, whiteCounts)}
     </div>
     <button class="reset-btn" id="reset-btn">🔄 Nova lavagem</button>`;
 }
 
-export function bindPlannerEvents(counts, whiteFlags, onMaintUpdate, onReset) {
-  document.querySelectorAll('.white-btn').forEach(btn => {
+export function bindPlannerEvents(coloredCounts, whiteCounts, plannerMode, onMaintUpdate, onReset) {
+  // mode toggle — updates plannerMode.white in-place (object ref persists)
+  document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      whiteFlags[id] = !whiteFlags[id];
-      btn.classList.toggle('active', !!whiteFlags[id]);
-      const out = document.getElementById('plan-output');
-      if (out) out.innerHTML = renderPlanOutput(counts, whiteFlags);
+      plannerMode.white = btn.dataset.mode === 'white';
+      document.querySelectorAll('.mode-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === (plannerMode.white ? 'white' : 'color'))
+      );
     });
   });
 
+  // +/− buttons — write to whiteCount or coloredCount based on current mode
   document.querySelectorAll('.counter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id    = btn.dataset.id;
-      const delta = parseInt(btn.dataset.delta, 10);
-      counts[id]  = Math.max(0, (counts[id] || 0) + delta);
+      const id     = btn.dataset.id;
+      const delta  = parseInt(btn.dataset.delta, 10);
+      const target = plannerMode.white ? whiteCounts : coloredCounts;
+      target[id]   = Math.max(0, (target[id] || 0) + delta);
 
-      const span = document.getElementById('count-' + id);
-      if (span) {
-        span.textContent = counts[id];
-        span.classList.toggle('nonzero', counts[id] > 0);
-      }
+      const display = document.getElementById('count-' + id);
+      if (display) display.innerHTML = countHTML(coloredCounts[id] || 0, whiteCounts[id] || 0);
 
       const out = document.getElementById('plan-output');
-      if (out) out.innerHTML = renderPlanOutput(counts, whiteFlags);
+      if (out) out.innerHTML = renderPlanOutput(coloredCounts, whiteCounts);
     });
   });
 

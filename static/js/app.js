@@ -12,21 +12,22 @@ import {
 
 let weatherData     = null;
 let activeTab       = 'casa';
-let clothesCounts   = {};
-let whiteFlags      = {};
+let coloredCounts   = {};
+let whiteCounts     = {};
+const plannerMode   = { white: false }; // object so ref survives re-binds
 let maintenanceData = {};
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
   const card = document.getElementById('planner-card');
   if (!card) return;
-  card.innerHTML = renderPlannerHTML(clothesCounts, whiteFlags, maintenanceData);
-  bindPlannerEvents(clothesCounts, whiteFlags, onMaintUpdate, onReset);
+  card.innerHTML = renderPlannerHTML(coloredCounts, whiteCounts, plannerMode, maintenanceData);
+  bindPlannerEvents(coloredCounts, whiteCounts, plannerMode, onMaintUpdate, onReset);
 }
 
 function onReset() {
-  Object.keys(clothesCounts).forEach(k => delete clothesCounts[k]);
-  Object.keys(whiteFlags).forEach(k => delete whiteFlags[k]);
+  Object.keys(coloredCounts).forEach(k => delete coloredCounts[k]);
+  Object.keys(whiteCounts).forEach(k => delete whiteCounts[k]);
   refreshPlannerCard();
 }
 
@@ -150,7 +151,7 @@ function render(data) {
       </div>
 
       <div class="card fade-in" id="planner-card">
-        ${renderPlannerHTML(clothesCounts, whiteFlags, maintenanceData)}
+        ${renderPlannerHTML(coloredCounts, whiteCounts, plannerMode, maintenanceData)}
       </div>
     </div>
 
@@ -166,7 +167,7 @@ function render(data) {
   `;
 
   updateClock();
-  bindPlannerEvents(clothesCounts, whiteFlags, onMaintUpdate, onReset);
+  bindPlannerEvents(coloredCounts, whiteCounts, plannerMode, onMaintUpdate, onReset);
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────

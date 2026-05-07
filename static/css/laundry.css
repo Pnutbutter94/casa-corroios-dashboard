@@ -118,22 +118,64 @@
   color: var(--accent2);
 }
 
-/* ── WHITE TOGGLE ────────────────────────────────────── */
-.white-btn {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1.5px solid var(--muted);
-  background: transparent;
-  cursor: pointer;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, border-color 0.15s;
+/* ── MODE BAR (Cores / Brancos) ──────────────────────── */
+.mode-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 14px;
 }
 
-.white-btn.active {
-  background: #e8e8f0;
-  border-color: #e8e8f0;
+.mode-btn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+
+.mode-btn.active {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* ── COUNT DISPLAY ───────────────────────────────────── */
+.count-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 42px;
+  justify-content: center;
+}
+
+.cnt-zero {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.cnt-c {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.cnt-w {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #c8c8d8;
 }
 
 /* ── DRUM BAR (per load) ─────────────────────────────── */
@@ -311,16 +353,6 @@
 
 .counter-btn:active { background: var(--border); }
 
-.clothes-count {
-  min-width: 18px;
-  text-align: center;
-  font-family: 'Syne', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.clothes-count.nonzero { color: var(--accent); }
 
 /* ── PLAN OUTPUT ─────────────────────────────────────── */
 .plan-output {
