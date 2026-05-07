@@ -1,14 +1,16 @@
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 import urllib.request
 import json
 import os
 import time
+import datetime
 
 app = Flask(__name__)
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 CACHE_FILE = os.path.join(BASE_DIR, 'cache', 'weather.json')
+MAINT_FILE = os.path.join(BASE_DIR, 'cache', 'maintenance.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
 WEATHER_URL = (
@@ -57,6 +59,34 @@ def weather():
         if cached:
             return jsonify(cached['data'])  # stale beats nothing
         return jsonify({'error': 'Sem dados meteorológicos'}), 503
+
+
+@app.route('/api/maintenance', methods=['GET'])
+def get_maintenance():
+    try:
+        with open(MAINT_FILE) as f:
+            return jsonify(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return jsonify({})
+
+
+@app.route('/api/maintenance', methods=['POST'])
+def post_maintenance():
+    data  = request.get_json()
+    mtype = data.get('type') if data else None
+    if mtype not in ('drum_clean', 'descale'):
+        return jsonify({'error': 'invalid type'}), 400
+
+    try:
+        with open(MAINT_FILE) as f:
+            maint = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        maint = {}
+
+    maint[mtype] = datetime.date.today().isoformat()
+    with open(MAINT_FILE, 'w') as f:
+        json.dump(maint, f)
+    return jsonify(maint)
 
 
 @app.route('/', defaults={'path': 'index.html'})

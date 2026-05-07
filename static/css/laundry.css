@@ -117,3 +117,196 @@
   font-size: 9px;
   color: var(--accent2);
 }
+
+/* ── MAINTENANCE CHIPS ───────────────────────────────── */
+.maint-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.maint-chip {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.maint-chip.overdue {
+  border-color: rgba(240, 144, 64, 0.5);
+  background: rgba(240, 144, 64, 0.08);
+}
+
+.maint-chip.ok {
+  border-color: rgba(96, 208, 144, 0.3);
+}
+
+.maint-chip-icon { font-size: 16px; }
+
+.maint-chip-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2px 0 1px;
+}
+
+.maint-chip.overdue .maint-chip-label { color: var(--warn); }
+
+.maint-chip-date {
+  font-size: 11px;
+  color: var(--text);
+}
+
+/* ── CLOTHES SELECTOR ────────────────────────────────── */
+.clothes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.clothes-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+
+.clothes-icon { font-size: 18px; flex-shrink: 0; }
+
+.clothes-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.clothes-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.counter-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+}
+
+.counter-btn:active { background: var(--border); }
+
+.clothes-count {
+  min-width: 18px;
+  text-align: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.clothes-count.nonzero { color: var(--accent); }
+
+/* ── PLAN OUTPUT ─────────────────────────────────────── */
+.plan-output {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 20px 0 4px;
+}
+
+.load-card {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.load-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.load-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.load-cycle {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.load-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.load-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.load-items {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.load-warn {
+  font-size: 12px;
+  color: var(--warn);
+  margin-bottom: 8px;
+}
+
+.load-detergent {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  font-size: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.det-label { color: var(--muted); }
+.det-value { font-family: 'Syne', sans-serif; font-weight: 700; text-align: right; }

@@ -1,13 +1,31 @@
-import { LOCATION, DAYS_PT }                              from './config.js';
-import { scheduleWatchdogReload, startBurnInProtection }   from './tablet.js';
-import { getWeatherIcon }                                  from './utils/icons.js';
-import { updateClock, startClock }                         from './widgets/clock.js';
-import { fetchWeather }                                    from './widgets/weather.js';
-import { getWashPlan, getWashVerdict, getHourlySlots }     from './widgets/laundry.js';
-import { getQuote }                                        from './widgets/quote.js';
+import { LOCATION, DAYS_PT }                                            from './config.js';
+import { scheduleWatchdogReload, startBurnInProtection }                   from './tablet.js';
+import { getWeatherIcon }                                                  from './utils/icons.js';
+import { updateClock, startClock }                                         from './widgets/clock.js';
+import { fetchWeather }                                                    from './widgets/weather.js';
+import { getWashPlan, getWashVerdict, getHourlySlots }                     from './widgets/laundry.js';
+import { getQuote }                                                        from './widgets/quote.js';
+import {
+  renderPlannerHTML, bindPlannerEvents, renderPlanOutput,
+  fetchMaintenance, postMaintenance,
+} from './widgets/laundry-planner.js';
 
-let weatherData  = null;
-let activeTab    = 'casa';
+let weatherData     = null;
+let activeTab       = 'casa';
+let clothesCounts   = {};
+let maintenanceData = {};
+
+// ── MAINTENANCE UPDATE ──────────────────────────────────────────────────────
+async function onMaintUpdate(type) {
+  const date = await postMaintenance(type);
+  if (!date) return;
+  maintenanceData[type] = date;
+  const card = document.getElementById('planner-card');
+  if (card) {
+    card.innerHTML = renderPlannerHTML(clothesCounts, maintenanceData);
+    bindPlannerEvents(clothesCounts, onMaintUpdate);
+  }
+}
 
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────
 function initTabs() {
@@ -120,6 +138,10 @@ function render(data) {
             </div>`).join('')}
         </div>
       </div>
+
+      <div class="card fade-in" id="planner-card">
+        ${renderPlannerHTML(clothesCounts, maintenanceData)}
+      </div>
     </div>
 
     <!-- IOT TAB -->
@@ -134,12 +156,14 @@ function render(data) {
   `;
 
   updateClock();
+  bindPlannerEvents(clothesCounts, onMaintUpdate);
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
   try {
-    weatherData = await fetchWeather();
+    weatherData     = await fetchWeather();
+    maintenanceData = await fetchMaintenance();
     render(weatherData);
   } catch (e) {
     document.getElementById('app').innerHTML = `<div class="loading">❌ Sem dados. A tentar novamente em 5 min...</div>`;
