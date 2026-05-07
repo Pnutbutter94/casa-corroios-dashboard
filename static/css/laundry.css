@@ -118,6 +118,70 @@
   color: var(--accent2);
 }
 
+/* ── PROFILE SELECTOR ───────────────────────────────── */
+.profile-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.profile-btn {
+  padding: 10px 6px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.profile-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(240, 192, 96, 0.08);
+}
+
+/* ── WEIGHT BAR ──────────────────────────────────────── */
+.weight-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.weight-bar-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.weight-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent2);
+  transition: width 0.25s ease;
+}
+
+.weight-bar-fill.warn   { background: var(--warn); }
+.weight-bar-fill.danger { background: var(--bad);  }
+
+.weight-bar-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 /* ── MAINTENANCE CHIPS ───────────────────────────────── */
 .maint-row {
   display: flex;
@@ -310,3 +374,10 @@
 
 .det-label { color: var(--muted); }
 .det-value { font-family: 'Syne', sans-serif; font-weight: 700; text-align: right; }
+
+.det-note {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--accent2);
+}

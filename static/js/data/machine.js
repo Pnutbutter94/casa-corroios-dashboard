@@ -5,34 +5,41 @@ export const MACHINE = {
 };
 
 export const CYCLES = {
-  cottons:    { label: 'Algodão 60°',    temp: 60, duration: 120, maxKg: 8, rpm: 1400 },
-  eco:        { label: 'Eco 40°',        temp: 40, duration: 180, maxKg: 8, rpm: 1200 },
-  synthetics: { label: 'Sintéticos 40°', temp: 40, duration:  70, maxKg: 4, rpm: 1200 },
-  wool:       { label: 'Lã 30°',         temp: 30, duration:  45, maxKg: 2, rpm:  800 },
-  sport:      { label: 'Desporto 30°',   temp: 30, duration:  60, maxKg: 4, rpm:  800 },
-  denim:      { label: 'Ganga 40°',      temp: 40, duration:  70, maxKg: 4, rpm:  800 },
+  cottons60: { label: 'Algodão 60°', temp: 60, duration: 120, maxKg: 8, rpm: 1400 },
+  cottons40: { label: 'Algodão 40°', temp: 40, duration: 120, maxKg: 8, rpm: 1400 },
+  eco30:     { label: 'Eco 30°',     temp: 30, duration: 180, maxKg: 8, rpm: 1200 },
 };
 
-// cycle to use for each item group
-export const GROUP_CYCLE = {
-  hot:    'cottons',
-  colors: 'eco',
-  denim:  'denim',
-  wool:   'wool',
-  sport:  'sport',
+export const PROFILES = {
+  brancos: { label: 'Brancos',        icon: '⚪', cycle: 'cottons60' },
+  rua:     { label: 'Roupa de Rua',   icon: '👕', cycle: 'eco30'     },
+  casa:    { label: 'Casa + Desporto',icon: '🏠', cycle: 'cottons40' },
 };
 
+// profile: 'rua'  → visible in Rua + Brancos
+//          'casa' → visible in Casa + Desporto + Brancos
 export const CLOTHES = [
-  { id: 'sheets',    label: 'Lençóis',        icon: '🛏️', kg: 1.5, group: 'hot'    },
-  { id: 'towels',    label: 'Toalhas',         icon: '🛁',  kg: 0.6, group: 'hot'    },
-  { id: 'tshirts',   label: 'T-shirts',        icon: '👕',  kg: 0.2, group: 'colors' },
-  { id: 'socks',     label: 'Meias',           icon: '🧦',  kg: 0.05,group: 'colors' },
-  { id: 'underwear', label: 'Roupa interior',  icon: '🩲',  kg: 0.1, group: 'colors' },
-  { id: 'pyjamas',   label: 'Pijamas',         icon: '😴',  kg: 0.4, group: 'colors' },
-  { id: 'shirts',    label: 'Camisas',         icon: '👔',  kg: 0.3, group: 'colors' },
-  { id: 'trousers',  label: 'Calças',          icon: '👖',  kg: 0.5, group: 'colors' },
-  { id: 'hoodies',   label: 'Camisolas',       icon: '🧥',  kg: 0.5, group: 'colors' },
-  { id: 'denim',     label: 'Ganga/Jeans',     icon: '🔵',  kg: 0.6, group: 'denim'  },
-  { id: 'wool',      label: 'Lã',              icon: '🧶',  kg: 0.3, group: 'wool'   },
-  { id: 'sport',     label: 'Desporto',        icon: '🏃',  kg: 0.3, group: 'sport'  },
+  // Roupa de Rua
+  { id: 'tshirt',     label: 'T-shirt',           icon: '👕', kg: 0.18, profile: 'rua'  },
+  { id: 'shirt',      label: 'Camisa',             icon: '👔', kg: 0.25, profile: 'rua'  },
+  { id: 'trousers',   label: 'Calças',             icon: '👖', kg: 0.45, profile: 'rua'  },
+  { id: 'jeans',      label: 'Jeans/Ganga',        icon: '🔵', kg: 0.80, profile: 'rua'  },
+  { id: 'hoodie',     label: 'Camisola/Hoodie',    icon: '🧥', kg: 0.60, profile: 'rua'  },
+  { id: 'boxers',     label: 'Cuecas homem',       icon: '🩲', kg: 0.10, profile: 'rua'  },
+  { id: 'panties',    label: 'Cuecas mulher',      icon: '🩱', kg: 0.04, profile: 'rua'  },
+  { id: 'socks',      label: 'Meias (par)',         icon: '🧦', kg: 0.06, profile: 'rua'  },
+  { id: 'pyjamas',    label: 'Pijamas',             icon: '😴', kg: 0.45, profile: 'rua'  },
+
+  // Casa + Desporto
+  { id: 'towel',      label: 'Toalha de banho',    icon: '🛁', kg: 0.65, profile: 'casa' },
+  { id: 'facetowel',  label: 'Toalha de rosto',    icon: '🧖', kg: 0.22, profile: 'casa' },
+  { id: 'hairtowel',  label: 'Toalha de cabelo',   icon: '💆', kg: 0.25, profile: 'casa' },
+  { id: 'sheet',      label: 'Lençol casal',        icon: '🛏️', kg: 0.55, profile: 'casa' },
+  { id: 'duvetcover', label: 'Capa de edredão',    icon: '🛌', kg: 0.75, profile: 'casa' },
+  { id: 'duvet',      label: 'Edredão',            icon: '🌨️', kg: 1.50, profile: 'casa' },
+  { id: 'pillow',     label: 'Fronha de almofada', icon: '💤', kg: 0.12, profile: 'casa' },
+  { id: 'dishcloth',  label: 'Pano de loiça',      icon: '🧹', kg: 0.10, profile: 'casa' },
+  { id: 'sporttop',   label: 'Top desporto',       icon: '🏃', kg: 0.15, profile: 'casa' },
+  { id: 'sportshort', label: 'Calções desporto',   icon: '🩳', kg: 0.15, profile: 'casa' },
+  { id: 'leggings',   label: 'Leggings',           icon: '🦵', kg: 0.22, profile: 'casa' },
 ];

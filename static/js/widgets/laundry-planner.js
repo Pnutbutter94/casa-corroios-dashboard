@@ -1,7 +1,6 @@
-import { CLOTHES, CYCLES, GROUP_CYCLE, MACHINE } from '../data/machine.js';
+import { CLOTHES, CYCLES, PROFILES, MACHINE } from '../data/machine.js';
 
-// Corroios ~150 mg/L CaCO3 → moderately hard → bump dose by 20%
-const HARD_WATER_FACTOR = 1.2;
+const HARD_WATER_FACTOR = 1.2; // Corroios ~150 mg/L CaCO3
 
 function detergentML(kg) {
   return Math.min(70, Math.max(20, Math.round(35 * (kg / 4.5) * HARD_WATER_FACTOR)));
@@ -13,64 +12,81 @@ function fmtDuration(min) {
   return h > 0 ? `${h}h${m > 0 ? String(m).padStart(2, '0') : ''}` : `${m}min`;
 }
 
-export function computeLoads(counts) {
-  const groups = {};
-  for (const cat of CLOTHES) {
-    const qty = counts[cat.id] || 0;
-    if (qty === 0) continue;
-    if (!groups[cat.group]) groups[cat.group] = [];
-    groups[cat.group].push({ ...cat, qty });
-  }
+function visibleClothes(profile) {
+  return CLOTHES.filter(c => c.profile === profile || profile === 'brancos');
+}
+
+function totalKgOf(counts, profile) {
+  return visibleClothes(profile).reduce((sum, c) => sum + (counts[c.id] || 0) * c.kg, 0);
+}
+
+export function computeLoads(counts, profile) {
+  const cycle = CYCLES[PROFILES[profile].cycle];
+  const items = visibleClothes(profile).filter(c => (counts[c.id] || 0) > 0);
+
+  // flatten to individual units, greedy-pack into loads
+  const units = items.flatMap(c => Array.from({ length: counts[c.id] }, () => c));
 
   const loads = [];
-  for (const [group, items] of Object.entries(groups)) {
-    const cycleKey = GROUP_CYCLE[group];
-    const cycle    = CYCLES[cycleKey];
+  let current = null;
 
-    // flatten to individual units, then pack greedily into loads
-    const units = [];
-    for (const item of items) {
-      for (let i = 0; i < item.qty; i++) units.push(item);
+  for (const unit of units) {
+    if (!current || current.totalKg + unit.kg > cycle.maxKg) {
+      if (current) loads.push(finalise(current));
+      current = { cycle, tally: {}, totalKg: 0, hasDuvet: false };
     }
-
-    let load = null;
-    for (const unit of units) {
-      if (!load || load.totalKg + unit.kg > cycle.maxKg) {
-        if (load) loads.push(finalise(load));
-        load = { cycleKey, cycle, tally: {}, totalKg: 0 };
-      }
-      if (!load.tally[unit.id]) {
-        load.tally[unit.id] = { label: unit.label, icon: unit.icon, qty: 0 };
-      }
-      load.tally[unit.id].qty++;
-      load.totalKg += unit.kg;
-    }
-    if (load) loads.push(finalise(load));
+    if (!current.tally[unit.id]) current.tally[unit.id] = { label: unit.label, qty: 0 };
+    current.tally[unit.id].qty++;
+    current.totalKg += unit.kg;
+    if (unit.id === 'duvet') current.hasDuvet = true;
   }
+  if (current) loads.push(finalise(current));
 
   return loads;
 }
 
 function finalise(load) {
   return {
-    ...load,
-    items:    Object.values(load.tally),
-    totalKg:  Math.round(load.totalKg * 100) / 100,
-    overloaded: load.totalKg > MACHINE.capacity * 0.85,
+    cycle:     load.cycle,
+    items:     Object.values(load.tally),
+    totalKg:   Math.round(load.totalKg * 100) / 100,
+    overloaded: load.totalKg > MACHINE.capacity * 0.9,
+    hasDuvet:  load.hasDuvet,
   };
 }
 
-export function renderPlanOutput(counts) {
-  const total = Object.values(counts).reduce((s, v) => s + v, 0);
-  if (total === 0) {
-    return `<div class="plan-empty">Seleciona a roupa acima para planear as lavagens</div>`;
+export function renderPlanOutput(counts, profile) {
+  const cycle    = CYCLES[PROFILES[profile].cycle];
+  const totalKg  = totalKgOf(counts, profile);
+  const roundKg  = Math.round(totalKg * 100) / 100;
+  const pct      = Math.min(100, (totalKg / cycle.maxKg) * 100);
+  const barCls   = pct > 90 ? 'danger' : pct > 70 ? 'warn' : 'ok';
+  const hasItems = visibleClothes(profile).some(c => (counts[c.id] || 0) > 0);
+
+  const weightBar = `
+    <div class="weight-bar-wrap">
+      <div class="weight-bar-track">
+        <div class="weight-bar-fill ${barCls}" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      <span class="weight-bar-text">⚖️ ${roundKg.toFixed(2)} / ${cycle.maxKg} kg</span>
+    </div>`;
+
+  if (!hasItems) {
+    return weightBar + `<div class="plan-empty">Seleciona a roupa acima para planear as lavagens</div>`;
   }
 
-  const loads = computeLoads(counts);
-  return loads.map((load, i) => {
+  const loads  = computeLoads(counts, profile);
+  const liquid = profile === 'rua'
+    ? '<span class="det-note">Usa detergente líquido — dissolve melhor a 30°</span>'
+    : '';
+
+  const cards = loads.map((load, i) => {
     const det      = detergentML(load.totalKg);
     const itemList = load.items.map(it => `${it.qty}× ${it.label}`).join(', ');
-    const warn     = load.overloaded
+    const duvetWarn = load.hasDuvet && load.items.length > 1
+      ? `<div class="load-warn">🌨️ O edredão precisa de espaço — considera uma lavagem separada</div>`
+      : '';
+    const overWarn = load.overloaded
       ? `<div class="load-warn">⚠️ Máquina quase cheia — não compactes demasiado</div>`
       : '';
 
@@ -81,12 +97,12 @@ export function renderPlanOutput(counts) {
           <span class="load-cycle">${load.cycle.label}</span>
         </div>
         <div class="load-meta">
-          <span class="load-chip">⚖️ ${load.totalKg.toFixed(1)} kg</span>
+          <span class="load-chip">⚖️ ${load.totalKg.toFixed(2)} kg</span>
           <span class="load-chip">⏱ ${fmtDuration(load.cycle.duration)}</span>
           <span class="load-chip">💨 ${load.cycle.rpm} rpm</span>
         </div>
         <div class="load-items">${itemList}</div>
-        ${warn}
+        ${duvetWarn}${overWarn}
         <div class="load-detergent">
           <span class="det-label">🧴 Detergente líquido</span>
           <span class="det-value">${det} mL</span>
@@ -95,8 +111,11 @@ export function renderPlanOutput(counts) {
           <span class="det-label">⚗️ Anti-calcário</span>
           <span class="det-value">1 past. Calgon</span>
         </div>
+        ${liquid}
       </div>`;
   }).join('');
+
+  return weightBar + cards;
 }
 
 function maintDaysAgo(dateStr) {
@@ -105,9 +124,9 @@ function maintDaysAgo(dateStr) {
 }
 
 function maintChip(icon, label, dateStr, limitDays, id) {
-  const days    = maintDaysAgo(dateStr);
-  const overdue = days === null || days >= limitDays;
-  const cls     = overdue ? 'overdue' : 'ok';
+  const days     = maintDaysAgo(dateStr);
+  const overdue  = days === null || days >= limitDays;
+  const cls      = overdue ? 'overdue' : 'ok';
   const dateText = days === null ? 'Nunca feito'
     : days === 0 ? 'Hoje'
     : `há ${days} dia${days !== 1 ? 's' : ''}`;
@@ -120,7 +139,7 @@ function maintChip(icon, label, dateStr, limitDays, id) {
     </button>`;
 }
 
-export function renderPlannerHTML(counts, maintenance) {
+export function renderPlannerHTML(counts, profile, maintenance) {
   const m = maintenance || {};
   return `
     <div class="card-label">Planear Lavagem</div>
@@ -128,8 +147,14 @@ export function renderPlannerHTML(counts, maintenance) {
       ${maintChip('🥁', 'Tambor limpo', m.drum_clean, 30, 'drum_clean')}
       ${maintChip('🪨', 'Anti-calcário', m.descale, 90, 'descale')}
     </div>
+    <div class="profile-bar">
+      ${Object.entries(PROFILES).map(([key, p]) => `
+        <button class="profile-btn${profile === key ? ' active' : ''}" data-profile="${key}">
+          ${p.icon} ${p.label}
+        </button>`).join('')}
+    </div>
     <div class="clothes-grid">
-      ${CLOTHES.map(cat => {
+      ${visibleClothes(profile).map(cat => {
         const qty = counts[cat.id] || 0;
         return `
           <div class="clothes-row">
@@ -143,12 +168,16 @@ export function renderPlannerHTML(counts, maintenance) {
           </div>`;
       }).join('')}
     </div>
-    <div class="plan-output" id="plan-output">
-      ${renderPlanOutput(counts)}
+    <div id="plan-output">
+      ${renderPlanOutput(counts, profile)}
     </div>`;
 }
 
-export function bindPlannerEvents(counts, onMaintUpdate) {
+export function bindPlannerEvents(counts, profile, onProfileChange, onMaintUpdate) {
+  document.querySelectorAll('.profile-btn').forEach(btn => {
+    btn.addEventListener('click', () => onProfileChange(btn.dataset.profile));
+  });
+
   document.querySelectorAll('.counter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id    = btn.dataset.id;
@@ -162,7 +191,7 @@ export function bindPlannerEvents(counts, onMaintUpdate) {
       }
 
       const out = document.getElementById('plan-output');
-      if (out) out.innerHTML = renderPlanOutput(counts);
+      if (out) out.innerHTML = renderPlanOutput(counts, profile);
     });
   });
 
