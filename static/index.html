@@ -665,8 +665,8 @@ function getHourlySlots(hourly) {
 }
 
 async function fetchWeather() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,precipitation_probability,windspeed_10m,uv_index&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max,weathercode&current_weather=true&timezone=Europe/Lisbon&forecast_days=3`;
-  const res = await fetch(url);
+  const res = await fetch('/api/weather');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
