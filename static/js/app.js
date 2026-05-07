@@ -1,13 +1,28 @@
-import { LOCATION, DAYS_PT }                        from './config.js';
-import { scheduleWatchdogReload, startBurnInProtection } from './tablet.js';
-import { getWeatherIcon }                            from './utils/icons.js';
-import { updateClock, startClock }                   from './widgets/clock.js';
-import { fetchWeather }                              from './widgets/weather.js';
-import { getWashPlan, getWashVerdict, getHourlySlots } from './widgets/laundry.js';
-import { getQuote }                                  from './widgets/quote.js';
+import { LOCATION, DAYS_PT }                              from './config.js';
+import { scheduleWatchdogReload, startBurnInProtection }   from './tablet.js';
+import { getWeatherIcon }                                  from './utils/icons.js';
+import { updateClock, startClock }                         from './widgets/clock.js';
+import { fetchWeather }                                    from './widgets/weather.js';
+import { getWashPlan, getWashVerdict, getHourlySlots }     from './widgets/laundry.js';
+import { getQuote }                                        from './widgets/quote.js';
 
-let weatherData = null;
+let weatherData  = null;
+let activeTab    = 'casa';
 
+// ── TAB SWITCHING ──────────────────────────────────────────────────────────
+function initTabs() {
+  document.getElementById('header-location').textContent = `📍 ${LOCATION}`;
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === `tab-${activeTab}`));
+    });
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
 function render(data) {
   const now         = new Date();
   const currentHour = now.getHours();
@@ -31,88 +46,97 @@ function render(data) {
       name: i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : DAYS_PT[new Date(t).getDay()],
       max:  Math.round(data.daily.temperature_2m_max[i]),
       min:  Math.round(data.daily.temperature_2m_min[i]),
-      rain,
-      icon: getWeatherIcon(rain, wind, 5)
+      rain, icon: getWeatherIcon(rain, wind, 5)
     };
   });
 
   document.getElementById('app').innerHTML = `
-    <div class="topbar fade-in">
-      <div class="location">📍 ${LOCATION}</div>
-      <div class="clock">
-        <div class="clock-time" id="clock-time"></div>
-        <div class="clock-date" id="clock-date"></div>
-      </div>
-    </div>
 
-    <div class="wash-card fade-in">
-      <div class="wash-verdict">
-        <div class="wash-icon">${verdict.icon}</div>
-        <div>
-          <div class="wash-title ${verdict.cls}">${verdict.title}</div>
-          <div class="wash-subtitle">${verdict.sub}</div>
-        </div>
-      </div>
-      ${plan.canDry && !plan.tooLate ? `
-      <div class="wash-plan">
-        <div class="wash-plan-row"><span class="wash-plan-icon">🫧</span><span class="wash-plan-label">Lavar às</span><span class="wash-plan-time">${plan.washStart}</span></div>
-        <div class="wash-plan-arrow">↓</div>
-        <div class="wash-plan-row"><span class="wash-plan-icon">👕</span><span class="wash-plan-label">Estender às</span><span class="wash-plan-time">${plan.hangTime}</span></div>
-        <div class="wash-plan-arrow">↓</div>
-        <div class="wash-plan-row"><span class="wash-plan-icon">✨</span><span class="wash-plan-label">Seco por volta das</span><span class="wash-plan-time accent">${plan.dryBy}</span></div>
-      </div>` : ''}
-    </div>
-
-    <div class="card fade-in">
-      <div class="card-label">Janelas de secagem hoje</div>
-      <div class="hourly-grid">
-        ${hourlySlots.map(s => `
-          <div class="hour-slot ${!s.hasSun ? 'bad' : s.score >= 70 ? 'best' : s.score >= 45 ? 'ok' : 'bad'}">
-            <div class="hour-label">${String(s.hour).padStart(2,'0')}h</div>
-            <div class="hour-icon">${s.icon}</div>
-            <div class="hour-rain">${s.hasSun ? s.rain + '%' : '🏠'}</div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <div class="card fade-in">
-      <div class="card-label">Tempo agora</div>
-      <div class="weather-now">
-        <div class="weather-temp-big">${Math.round(currentTemp)}°</div>
-        <div class="weather-now-details">
-          <div class="weather-condition">${currentIcon} ${currentRain > 50 ? 'Com chuva' : currentRain > 20 ? 'Possível chuva' : currentWind > 30 ? 'Ventoso' : currentUV > 6 ? 'Muito sol' : 'Tempo agradável'}</div>
-          <div class="weather-meta">
-            <span class="weather-meta-item">💧 ${currentRain}% chuva</span>
-            <span class="weather-meta-item">💨 ${Math.round(currentWind)} km/h</span>
-            <span class="weather-meta-item">☀️ UV ${Math.round(currentUV)}</span>
+    <!-- CASA TAB -->
+    <div class="tab-page ${activeTab === 'casa' ? 'active' : ''}" id="tab-casa">
+      <div class="card fade-in">
+        <div class="card-label">Tempo agora</div>
+        <div class="weather-now">
+          <div class="weather-temp-big">${Math.round(currentTemp)}°</div>
+          <div class="weather-now-details">
+            <div class="weather-condition">${currentIcon} ${currentRain > 50 ? 'Com chuva' : currentRain > 20 ? 'Possível chuva' : currentWind > 30 ? 'Ventoso' : currentUV > 6 ? 'Muito sol' : 'Tempo agradável'}</div>
+            <div class="weather-meta">
+              <span class="weather-meta-item">💧 ${currentRain}% chuva</span>
+              <span class="weather-meta-item">💨 ${Math.round(currentWind)} km/h</span>
+              <span class="weather-meta-item">☀️ UV ${Math.round(currentUV)}</span>
+            </div>
           </div>
         </div>
+        <div class="forecast-strip">
+          ${forecastDays.map(d => `
+            <div class="forecast-day">
+              <div class="forecast-day-name">${d.name}</div>
+              <div class="forecast-icon">${d.icon}</div>
+              <div class="forecast-temps"><span class="forecast-max">${d.max}°</span><span class="forecast-min"> / ${d.min}°</span></div>
+              <div class="forecast-rain">💧 ${d.rain}%</div>
+            </div>`).join('')}
+        </div>
       </div>
-      <div class="forecast-strip">
-        ${forecastDays.map(d => `
-          <div class="forecast-day">
-            <div class="forecast-day-name">${d.name}</div>
-            <div class="forecast-icon">${d.icon}</div>
-            <div class="forecast-temps"><span class="forecast-max">${d.max}°</span><span class="forecast-min"> / ${d.min}°</span></div>
-            <div class="forecast-rain">💧 ${d.rain}%</div>
-          </div>`).join('')}
+
+      <div class="quote-card fade-in">
+        <div class="quote-mark">"</div>
+        <div class="quote-text">${getQuote()}</div>
+      </div>
+
+      <div class="status-bar fade-in">
+        <span><span class="refresh-dot"></span>Atualiza a cada 10 min</span>
+        <span>Última atualização: ${now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
     </div>
 
-    <div class="quote-card fade-in">
-      <div class="quote-mark">"</div>
-      <div class="quote-text">${getQuote()}</div>
+    <!-- ROUPA TAB -->
+    <div class="tab-page ${activeTab === 'roupa' ? 'active' : ''}" id="tab-roupa">
+      <div class="wash-card fade-in">
+        <div class="wash-verdict">
+          <div class="wash-icon">${verdict.icon}</div>
+          <div>
+            <div class="wash-title ${verdict.cls}">${verdict.title}</div>
+            <div class="wash-subtitle">${verdict.sub}</div>
+          </div>
+        </div>
+        ${plan.canDry && !plan.tooLate ? `
+        <div class="wash-plan">
+          <div class="wash-plan-row"><span class="wash-plan-icon">🫧</span><span class="wash-plan-label">Lavar às</span><span class="wash-plan-time">${plan.washStart}</span></div>
+          <div class="wash-plan-arrow">↓</div>
+          <div class="wash-plan-row"><span class="wash-plan-icon">👕</span><span class="wash-plan-label">Estender às</span><span class="wash-plan-time">${plan.hangTime}</span></div>
+          <div class="wash-plan-arrow">↓</div>
+          <div class="wash-plan-row"><span class="wash-plan-icon">✨</span><span class="wash-plan-label">Seco por volta das</span><span class="wash-plan-time accent">${plan.dryBy}</span></div>
+        </div>` : ''}
+      </div>
+
+      <div class="card fade-in">
+        <div class="card-label">Janelas de secagem hoje</div>
+        <div class="hourly-grid">
+          ${hourlySlots.map(s => `
+            <div class="hour-slot ${!s.hasSun ? 'bad' : s.score >= 70 ? 'best' : s.score >= 45 ? 'ok' : 'bad'}">
+              <div class="hour-label">${String(s.hour).padStart(2,'0')}h</div>
+              <div class="hour-icon">${s.icon}</div>
+              <div class="hour-rain">${s.hasSun ? s.rain + '%' : '🏠'}</div>
+            </div>`).join('')}
+        </div>
+      </div>
     </div>
 
-    <div class="status-bar fade-in">
-      <span><span class="refresh-dot"></span>Atualiza a cada 10 min</span>
-      <span>Última atualização: ${now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+    <!-- IOT TAB -->
+    <div class="tab-page ${activeTab === 'iot' ? 'active' : ''}" id="tab-iot">
+      <div class="card fade-in iot-placeholder">
+        <div class="icon">💡</div>
+        <div class="title">IoT em breve</div>
+        <div class="sub">Home Assistant será instalado em breve.<br>Sensores, luzes e tomadas aparecerão aqui.</div>
+      </div>
     </div>
+
   `;
 
   updateClock();
 }
 
+// ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
   try {
     weatherData = await fetchWeather();
@@ -123,8 +147,10 @@ async function init() {
   }
 }
 
+// ── BOOT ───────────────────────────────────────────────────────────────────
 scheduleWatchdogReload();
 startBurnInProtection();
+initTabs();
 startClock();
 init();
 setInterval(init, 10 * 60 * 1000);

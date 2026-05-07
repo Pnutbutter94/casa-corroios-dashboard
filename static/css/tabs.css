@@ -1,0 +1,88 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── HEADER ─────────────────────────────────────────── */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── TAB BAR ─────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  flex: 1;
+  padding: 14px 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── TAB CONTENT ─────────────────────────────────────── */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tab-page {
+  display: none;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+.tab-page.active {
+  display: grid;
+}
+
+/* ── IOT PLACEHOLDER ─────────────────────────────────── */
+.iot-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--muted);
+  gap: 12px;
+  text-align: center;
+}
+
+.iot-placeholder .icon { font-size: 48px; }
+.iot-placeholder .title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.iot-placeholder .sub { font-size: 13px; line-height: 1.6; }
