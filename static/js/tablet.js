@@ -23,6 +23,6 @@ export function startBurnInProtection() {
   setInterval(() => {
     shiftIdx = (shiftIdx + 1) % PIXEL_SHIFTS.length;
     const [x, y] = PIXEL_SHIFTS[shiftIdx];
-    document.getElementById('app').style.transform = `translate(${x}px, ${y}px)`;
+    document.querySelector('.app-shell').style.transform = `translate(${x}px, ${y}px)`;
   }, 30 * 60 * 1000);
 }
