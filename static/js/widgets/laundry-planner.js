@@ -1,4 +1,4 @@
-import { CLOTHES, CYCLES, PROFILES, MACHINE } from '../data/machine.js';
+import { CLOTHES, CYCLES, MACHINE } from '../data/machine.js';
 
 const HARD_WATER_FACTOR = 1.2; // Corroios ~150 mg/L CaCO3
 
@@ -12,110 +12,136 @@ function fmtDuration(min) {
   return h > 0 ? `${h}h${m > 0 ? String(m).padStart(2, '0') : ''}` : `${m}min`;
 }
 
-function visibleClothes(profile) {
-  return CLOTHES.filter(c => c.profile === profile || profile === 'brancos');
-}
+// ── LOAD PACKING ───────────────────────────────────────────────────────────
 
-function totalKgOf(counts, profile) {
-  return visibleClothes(profile).reduce((sum, c) => sum + (counts[c.id] || 0) * c.kg, 0);
-}
-
-export function computeLoads(counts, profile) {
-  const cycle = CYCLES[PROFILES[profile].cycle];
-  const items = visibleClothes(profile).filter(c => (counts[c.id] || 0) > 0);
-
-  // flatten to individual units, greedy-pack into loads
+function packLoads(items, counts, cycle) {
   const units = items.flatMap(c => Array.from({ length: counts[c.id] }, () => c));
-
-  const loads = [];
-  let current = null;
+  const loads  = [];
+  let current  = null;
 
   for (const unit of units) {
-    if (!current || current.totalKg + unit.kg > cycle.maxKg) {
+    const unitEff = unit.kg * unit.bulk;
+    if (!current || current.effectiveKg + unitEff > MACHINE.capacity) {
       if (current) loads.push(finalise(current));
-      current = { cycle, tally: {}, totalKg: 0, hasDuvet: false };
+      current = { cycle, tally: {}, realKg: 0, effectiveKg: 0, hasDuvet: false };
     }
     if (!current.tally[unit.id]) current.tally[unit.id] = { label: unit.label, qty: 0 };
     current.tally[unit.id].qty++;
-    current.totalKg += unit.kg;
+    current.realKg     += unit.kg;
+    current.effectiveKg += unitEff;
     if (unit.id === 'duvet') current.hasDuvet = true;
   }
   if (current) loads.push(finalise(current));
-
   return loads;
 }
 
 function finalise(load) {
   return {
-    cycle:     load.cycle,
-    items:     Object.values(load.tally),
-    totalKg:   Math.round(load.totalKg * 100) / 100,
-    overloaded: load.totalKg > MACHINE.capacity * 0.9,
-    hasDuvet:  load.hasDuvet,
+    cycle:       load.cycle,
+    items:       Object.values(load.tally),
+    realKg:      Math.round(load.realKg * 100) / 100,
+    effectiveKg: Math.round(load.effectiveKg * 100) / 100,
+    drumPct:     Math.min(100, (load.effectiveKg / MACHINE.capacity) * 100),
+    hasDuvet:    load.hasDuvet,
   };
 }
 
-export function renderPlanOutput(counts, profile) {
-  const cycle    = CYCLES[PROFILES[profile].cycle];
-  const totalKg  = totalKgOf(counts, profile);
-  const roundKg  = Math.round(totalKg * 100) / 100;
-  const pct      = Math.min(100, (totalKg / cycle.maxKg) * 100);
-  const barCls   = pct > 90 ? 'danger' : pct > 70 ? 'warn' : 'ok';
-  const hasItems = visibleClothes(profile).some(c => (counts[c.id] || 0) > 0);
+export function computeAllLoads(counts, whiteFlags) {
+  const active  = CLOTHES.filter(c => (counts[c.id] || 0) > 0);
+  const white   = active.filter(c => whiteFlags[c.id]);
+  const colored = active.filter(c => !whiteFlags[c.id]);
+  const casaCol = colored.filter(c => c.category === 'casa');
+  const ruaCol  = colored.filter(c => c.category === 'rua');
 
-  const weightBar = `
-    <div class="weight-bar-wrap">
-      <div class="weight-bar-track">
-        <div class="weight-bar-fill ${barCls}" style="width:${pct.toFixed(1)}%"></div>
-      </div>
-      <span class="weight-bar-text">⚖️ ${roundKg.toFixed(2)} / ${cycle.maxKg} kg</span>
-    </div>`;
+  const groups = [];
 
-  if (!hasItems) {
-    return weightBar + `<div class="plan-empty">Seleciona a roupa acima para planear as lavagens</div>`;
+  if (white.length > 0) {
+    groups.push({
+      key:   'white',
+      label: 'Brancos',
+      icon:  '⚪',
+      loads: packLoads(white, counts, CYCLES.cottons60),
+    });
   }
 
-  const loads  = computeLoads(counts, profile);
-  const liquid = profile === 'rua'
-    ? '<span class="det-note">Usa detergente líquido — dissolve melhor a 30°</span>'
+  if (casaCol.length > 0 && ruaCol.length === 0) {
+    groups.push({ key: 'casa', label: 'Casa + Desporto', icon: '🏠',
+      loads: packLoads(casaCol, counts, CYCLES.cottons40) });
+  } else if (ruaCol.length > 0 && casaCol.length === 0) {
+    groups.push({ key: 'rua', label: 'Roupa de Rua', icon: '👕',
+      loads: packLoads(ruaCol, counts, CYCLES.eco30) });
+  } else if (casaCol.length > 0 && ruaCol.length > 0) {
+    // mixed casa + rua → compromise at 40°, note included in render
+    groups.push({ key: 'mixed', label: 'Casa + Rua (misto)', icon: '🔀',
+      loads: packLoads([...casaCol, ...ruaCol], counts, CYCLES.cottons40) });
+  }
+
+  return { groups, hasWhite: white.length > 0, hasColored: colored.length > 0 };
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+
+function loadCard(load, idx, groupKey) {
+  const det      = detergentML(load.realKg);
+  const itemList = load.items.map(it => `${it.qty}× ${it.label}`).join(', ');
+  const pct      = load.drumPct.toFixed(0);
+  const barCls   = load.drumPct > 85 ? 'danger' : load.drumPct > 65 ? 'warn' : 'ok';
+
+  const duvetWarn = load.hasDuvet && load.items.length > 1
+    ? `<div class="load-warn">🌨️ Edredão precisa de espaço — considera uma lavagem separada</div>` : '';
+  const mixNote = groupKey === 'mixed'
+    ? `<div class="load-warn">🔀 Roupa de casa e de rua juntas — ciclo a 40° como compromisso</div>` : '';
+  const liqNote = groupKey === 'rua'
+    ? `<span class="det-note">Usa detergente líquido — dissolve melhor a 30°</span>` : '';
+
+  return `
+    <div class="load-card">
+      <div class="load-header">
+        <span class="load-num">Lavagem ${idx + 1}</span>
+        <span class="load-cycle">${load.cycle.label}</span>
+      </div>
+      <div class="drum-bar-wrap">
+        <div class="drum-bar-track">
+          <div class="drum-bar-fill ${barCls}" style="width:${pct}%"></div>
+        </div>
+        <span class="drum-bar-text">${pct}% tambor · ${load.realKg.toFixed(2)} kg</span>
+      </div>
+      <div class="load-meta">
+        <span class="load-chip">⏱ ${fmtDuration(load.cycle.duration)}</span>
+        <span class="load-chip">💨 ${load.cycle.rpm} rpm</span>
+      </div>
+      <div class="load-items">${itemList}</div>
+      ${duvetWarn}${mixNote}
+      <div class="load-detergent">
+        <span class="det-label">🧴 Detergente líquido</span>
+        <span class="det-value">${det} mL</span>
+        <span class="det-label">💧 Amaciador</span>
+        <span class="det-value">25 mL</span>
+        <span class="det-label">⚗️ Anti-calcário</span>
+        <span class="det-value">1 past. Calgon</span>
+      </div>
+      ${liqNote}
+    </div>`;
+}
+
+export function renderPlanOutput(counts, whiteFlags) {
+  const hasAny = CLOTHES.some(c => (counts[c.id] || 0) > 0);
+  if (!hasAny) return `<div class="plan-empty">Seleciona a roupa acima · toca em ○ para marcar peças brancas</div>`;
+
+  const { groups, hasWhite, hasColored } = computeAllLoads(counts, whiteFlags);
+
+  const mixAlert = hasWhite && hasColored
+    ? `<div class="mix-alert">⚪ Brancos separados dos coloridos automaticamente. Se quiseres juntar, usa uma folha <strong>Colour Catcher</strong> (ex. Dr. Beckmann) e lava a 40°.</div>`
     : '';
 
-  const cards = loads.map((load, i) => {
-    const det      = detergentML(load.totalKg);
-    const itemList = load.items.map(it => `${it.qty}× ${it.label}`).join(', ');
-    const duvetWarn = load.hasDuvet && load.items.length > 1
-      ? `<div class="load-warn">🌨️ O edredão precisa de espaço — considera uma lavagem separada</div>`
-      : '';
-    const overWarn = load.overloaded
-      ? `<div class="load-warn">⚠️ Máquina quase cheia — não compactes demasiado</div>`
-      : '';
-
-    return `
-      <div class="load-card">
-        <div class="load-header">
-          <span class="load-num">Lavagem ${i + 1}</span>
-          <span class="load-cycle">${load.cycle.label}</span>
-        </div>
-        <div class="load-meta">
-          <span class="load-chip">⚖️ ${load.totalKg.toFixed(2)} kg</span>
-          <span class="load-chip">⏱ ${fmtDuration(load.cycle.duration)}</span>
-          <span class="load-chip">💨 ${load.cycle.rpm} rpm</span>
-        </div>
-        <div class="load-items">${itemList}</div>
-        ${duvetWarn}${overWarn}
-        <div class="load-detergent">
-          <span class="det-label">🧴 Detergente líquido</span>
-          <span class="det-value">${det} mL</span>
-          <span class="det-label">💧 Amaciador</span>
-          <span class="det-value">25 mL</span>
-          <span class="det-label">⚗️ Anti-calcário</span>
-          <span class="det-value">1 past. Calgon</span>
-        </div>
-        ${liquid}
-      </div>`;
+  let loadIdx = 0;
+  const cards = groups.map(g => {
+    const header = `<div class="group-header">${g.icon} ${g.label}</div>`;
+    const inner  = g.loads.map(l => loadCard(l, loadIdx++, g.key)).join('');
+    return header + inner;
   }).join('');
 
-  return weightBar + cards;
+  return mixAlert + cards;
 }
 
 function maintDaysAgo(dateStr) {
@@ -130,7 +156,6 @@ function maintChip(icon, label, dateStr, limitDays, id) {
   const dateText = days === null ? 'Nunca feito'
     : days === 0 ? 'Hoje'
     : `há ${days} dia${days !== 1 ? 's' : ''}`;
-
   return `
     <button class="maint-chip ${cls}" data-maint="${id}">
       <div class="maint-chip-icon">${icon}</div>
@@ -139,7 +164,7 @@ function maintChip(icon, label, dateStr, limitDays, id) {
     </button>`;
 }
 
-export function renderPlannerHTML(counts, profile, maintenance) {
+export function renderPlannerHTML(counts, whiteFlags, maintenance) {
   const m = maintenance || {};
   return `
     <div class="card-label">Planear Lavagem</div>
@@ -147,17 +172,13 @@ export function renderPlannerHTML(counts, profile, maintenance) {
       ${maintChip('🥁', 'Tambor limpo', m.drum_clean, 30, 'drum_clean')}
       ${maintChip('🪨', 'Anti-calcário', m.descale, 90, 'descale')}
     </div>
-    <div class="profile-bar">
-      ${Object.entries(PROFILES).map(([key, p]) => `
-        <button class="profile-btn${profile === key ? ' active' : ''}" data-profile="${key}">
-          ${p.icon} ${p.label}
-        </button>`).join('')}
-    </div>
     <div class="clothes-grid">
-      ${visibleClothes(profile).map(cat => {
-        const qty = counts[cat.id] || 0;
+      ${CLOTHES.map(cat => {
+        const qty     = counts[cat.id] || 0;
+        const isWhite = !!whiteFlags[cat.id];
         return `
           <div class="clothes-row">
+            <button class="white-btn${isWhite ? ' active' : ''}" data-id="${cat.id}" title="Marcar como branco"></button>
             <span class="clothes-icon">${cat.icon}</span>
             <span class="clothes-label">${cat.label}</span>
             <div class="clothes-counter">
@@ -169,13 +190,20 @@ export function renderPlannerHTML(counts, profile, maintenance) {
       }).join('')}
     </div>
     <div id="plan-output">
-      ${renderPlanOutput(counts, profile)}
-    </div>`;
+      ${renderPlanOutput(counts, whiteFlags)}
+    </div>
+    <button class="reset-btn" id="reset-btn">🔄 Nova lavagem</button>`;
 }
 
-export function bindPlannerEvents(counts, profile, onProfileChange, onMaintUpdate) {
-  document.querySelectorAll('.profile-btn').forEach(btn => {
-    btn.addEventListener('click', () => onProfileChange(btn.dataset.profile));
+export function bindPlannerEvents(counts, whiteFlags, onMaintUpdate, onReset) {
+  document.querySelectorAll('.white-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      whiteFlags[id] = !whiteFlags[id];
+      btn.classList.toggle('active', !!whiteFlags[id]);
+      const out = document.getElementById('plan-output');
+      if (out) out.innerHTML = renderPlanOutput(counts, whiteFlags);
+    });
   });
 
   document.querySelectorAll('.counter-btn').forEach(btn => {
@@ -191,13 +219,16 @@ export function bindPlannerEvents(counts, profile, onProfileChange, onMaintUpdat
       }
 
       const out = document.getElementById('plan-output');
-      if (out) out.innerHTML = renderPlanOutput(counts, profile);
+      if (out) out.innerHTML = renderPlanOutput(counts, whiteFlags);
     });
   });
 
   document.querySelectorAll('.maint-chip').forEach(chip => {
     chip.addEventListener('click', () => onMaintUpdate(chip.dataset.maint));
   });
+
+  const resetBtn = document.getElementById('reset-btn');
+  if (resetBtn) resetBtn.addEventListener('click', onReset);
 }
 
 export async function fetchMaintenance() {
@@ -205,9 +236,7 @@ export async function fetchMaintenance() {
     const r = await fetch('/api/maintenance');
     if (r.ok) return await r.json();
     return {};
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 
 export async function postMaintenance(type) {
@@ -222,7 +251,5 @@ export async function postMaintenance(type) {
       return data[type] || new Date().toISOString().split('T')[0];
     }
     return null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }

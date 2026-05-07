@@ -50,7 +50,10 @@
 /* ── TAB CONTENT ─────────────────────────────────────── */
 .tab-content {
   flex: 1;
+  min-height: 0;                    /* required for flex child to scroll */
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .tab-page {

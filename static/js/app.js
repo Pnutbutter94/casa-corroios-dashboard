@@ -6,36 +6,35 @@ import { fetchWeather }                                                    from 
 import { getWashPlan, getWashVerdict, getHourlySlots }                     from './widgets/laundry.js';
 import { getQuote }                                                        from './widgets/quote.js';
 import {
-  renderPlannerHTML, bindPlannerEvents, renderPlanOutput,
+  renderPlannerHTML, bindPlannerEvents,
   fetchMaintenance, postMaintenance,
 } from './widgets/laundry-planner.js';
 
 let weatherData     = null;
 let activeTab       = 'casa';
 let clothesCounts   = {};
+let whiteFlags      = {};
 let maintenanceData = {};
-let currentProfile  = 'rua';
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
-function onProfileChange(newProfile) {
-  currentProfile = newProfile;
-  Object.keys(clothesCounts).forEach(k => delete clothesCounts[k]);
+function refreshPlannerCard() {
   const card = document.getElementById('planner-card');
-  if (card) {
-    card.innerHTML = renderPlannerHTML(clothesCounts, currentProfile, maintenanceData);
-    bindPlannerEvents(clothesCounts, currentProfile, onProfileChange, onMaintUpdate);
-  }
+  if (!card) return;
+  card.innerHTML = renderPlannerHTML(clothesCounts, whiteFlags, maintenanceData);
+  bindPlannerEvents(clothesCounts, whiteFlags, onMaintUpdate, onReset);
+}
+
+function onReset() {
+  Object.keys(clothesCounts).forEach(k => delete clothesCounts[k]);
+  Object.keys(whiteFlags).forEach(k => delete whiteFlags[k]);
+  refreshPlannerCard();
 }
 
 async function onMaintUpdate(type) {
   const date = await postMaintenance(type);
   if (!date) return;
   maintenanceData[type] = date;
-  const card = document.getElementById('planner-card');
-  if (card) {
-    card.innerHTML = renderPlannerHTML(clothesCounts, currentProfile, maintenanceData);
-    bindPlannerEvents(clothesCounts, currentProfile, onProfileChange, onMaintUpdate);
-  }
+  refreshPlannerCard();
 }
 
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────
@@ -151,7 +150,7 @@ function render(data) {
       </div>
 
       <div class="card fade-in" id="planner-card">
-        ${renderPlannerHTML(clothesCounts, currentProfile, maintenanceData)}
+        ${renderPlannerHTML(clothesCounts, whiteFlags, maintenanceData)}
       </div>
     </div>
 
@@ -167,7 +166,7 @@ function render(data) {
   `;
 
   updateClock();
-  bindPlannerEvents(clothesCounts, currentProfile, onProfileChange, onMaintUpdate);
+  bindPlannerEvents(clothesCounts, whiteFlags, onMaintUpdate, onReset);
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
