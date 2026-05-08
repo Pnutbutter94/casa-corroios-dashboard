@@ -9,13 +9,17 @@ import {
   renderPlannerHTML, bindPlannerEvents,
   fetchMaintenance, postMaintenance,
 } from './widgets/laundry-planner.js';
+import {
+  refeic, initRefeicoes, renderRefeicoes, bindRefeicoes,
+} from './widgets/refeicoes.js';
 
-let weatherData     = null;
-let activeTab       = 'casa';
-let coloredCounts   = {};
-let whiteCounts     = {};
-const plannerMode   = { white: false }; // object so ref survives re-binds
-let maintenanceData = {};
+let weatherData       = null;
+let activeTab         = 'casa';
+let coloredCounts     = {};
+let whiteCounts       = {};
+const plannerMode     = { white: false }; // object so ref survives re-binds
+let maintenanceData   = {};
+let refeicInitialised = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -38,15 +42,29 @@ async function onMaintUpdate(type) {
   refreshPlannerCard();
 }
 
+// ── REFEIÇÕES ──────────────────────────────────────────────────────────────
+function refreshRefeicoes() {
+  const card = document.getElementById('refeicoes-card');
+  if (!card) return;
+  card.innerHTML = renderRefeicoes();
+  bindRefeicoes(card, refreshRefeicoes);
+}
+
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────
 function initTabs() {
   document.getElementById('header-location').textContent = `📍 ${LOCATION}`;
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       activeTab = btn.dataset.tab;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === `tab-${activeTab}`));
+
+      if (activeTab === 'refeicoes' && !refeicInitialised) {
+        refeicInitialised = true;
+        await initRefeicoes();
+        refreshRefeicoes();
+      }
     });
   });
 }
@@ -155,6 +173,13 @@ function render(data) {
       </div>
     </div>
 
+    <!-- REFEIÇÕES TAB -->
+    <div class="tab-page ${activeTab === 'refeicoes' ? 'active' : ''}" id="tab-refeicoes">
+      <div class="card fade-in" id="refeicoes-card">
+        <div class="plan-empty">A carregar refeições…</div>
+      </div>
+    </div>
+
     <!-- IOT TAB -->
     <div class="tab-page ${activeTab === 'iot' ? 'active' : ''}" id="tab-iot">
       <div class="card fade-in iot-placeholder">
@@ -168,6 +193,10 @@ function render(data) {
 
   updateClock();
   bindPlannerEvents(coloredCounts, whiteCounts, plannerMode, onMaintUpdate, onReset);
+
+  if (activeTab === 'refeicoes' && refeicInitialised) {
+    refreshRefeicoes();
+  }
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────

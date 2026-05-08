@@ -1,0 +1,450 @@
+[
+  {
+    "id": "frango_assado",
+    "name": "Frango assado no forno",
+    "prepTime": 15, "cookTime": 75, "servings": 4, "difficulty": 1,
+    "tags": ["forno", "frango", "clássico"],
+    "ingredients": [
+      { "productId": "frango",    "qty": 1200, "unit": "g" },
+      { "productId": "alho",      "qty": 4,    "unit": "dente" },
+      { "productId": "louro",     "qty": 2,    "unit": "un" },
+      { "productId": "azeite",    "qty": 50,   "unit": "ml" },
+      { "productId": "vinho_branco","qty": 100,"unit": "ml", "optional": true },
+      { "productId": "colorau",   "qty": 10,   "unit": "g" },
+      { "productId": "sal",       "qty": 10,   "unit": "g" }
+    ],
+    "steps": [
+      "Pré-aquece o forno a 200°C.",
+      "Faz golpes no frango e esfrega com alho picado, sal, colorau e azeite.",
+      "Coloca numa assadeira com o louro e rega com o vinho branco.",
+      "Assa durante 75 minutos, regando com o molho a meio da cozedura.",
+      "Descansa 10 minutos antes de servir."
+    ]
+  },
+  {
+    "id": "bolonhesa",
+    "name": "Esparguete à bolonhesa",
+    "prepTime": 10, "cookTime": 40, "servings": 4, "difficulty": 1,
+    "tags": ["massa", "carne", "clássico"],
+    "ingredients": [
+      { "productId": "massa_esparguete","qty": 400,"unit": "g" },
+      { "productId": "carne_picada",    "qty": 500,"unit": "g" },
+      { "productId": "tomate_lata",     "qty": 1,  "unit": "lata" },
+      { "productId": "cebola",          "qty": 1,  "unit": "un" },
+      { "productId": "alho",            "qty": 2,  "unit": "dente" },
+      { "productId": "azeite",          "qty": 30, "unit": "ml" },
+      { "productId": "oregaos",         "qty": 5,  "unit": "g", "optional": true },
+      { "productId": "queijo_ralado",   "qty": 60, "unit": "g", "optional": true }
+    ],
+    "steps": [
+      "Refoga a cebola e o alho picados em azeite até dourar.",
+      "Junta a carne picada e cozinha até perder a cor rosada.",
+      "Adiciona o tomate pelado, esmaga bem e tempera com sal e orégãos.",
+      "Deixa apurar em lume brando 25 minutos.",
+      "Coze o esparguete al dente conforme indicação da embalagem.",
+      "Serve o molho sobre a massa, com queijo ralado a gosto."
+    ]
+  },
+  {
+    "id": "arroz_frango",
+    "name": "Arroz de frango",
+    "prepTime": 10, "cookTime": 45, "servings": 4, "difficulty": 1,
+    "tags": ["arroz", "frango", "clássico"],
+    "ingredients": [
+      { "productId": "frango",      "qty": 800, "unit": "g" },
+      { "productId": "arroz",       "qty": 320, "unit": "g" },
+      { "productId": "cebola",      "qty": 1,   "unit": "un" },
+      { "productId": "alho",        "qty": 2,   "unit": "dente" },
+      { "productId": "tomate",      "qty": 1,   "unit": "un", "optional": true },
+      { "productId": "azeite",      "qty": 40,  "unit": "ml" },
+      { "productId": "louro",       "qty": 1,   "unit": "un" },
+      { "productId": "colorau",     "qty": 5,   "unit": "g" },
+      { "productId": "sal",         "qty": 8,   "unit": "g" }
+    ],
+    "steps": [
+      "Corta o frango em pedaços e tempera com sal e colorau.",
+      "Refoga a cebola e o alho em azeite. Junta o frango e doura bem.",
+      "Adiciona o tomate picado e o louro, deixa apurar 5 minutos.",
+      "Cobre com água quente (aprox. 700 ml) e cozinha 20 minutos.",
+      "Junta o arroz, acerta o sal e cozinha mais 18 minutos.",
+      "Deixa repousar 5 minutos com a panela tapada antes de servir."
+    ]
+  },
+  {
+    "id": "bacalhau_bras",
+    "name": "Bacalhau à Brás",
+    "prepTime": 20, "cookTime": 20, "servings": 3, "difficulty": 2,
+    "tags": ["bacalhau", "peixe", "português"],
+    "ingredients": [
+      { "productId": "bacalhau",      "qty": 400, "unit": "g" },
+      { "productId": "batata_congelada","qty": 300,"unit": "g" },
+      { "productId": "ovos",          "qty": 4,   "unit": "un" },
+      { "productId": "cebola",        "qty": 2,   "unit": "un" },
+      { "productId": "alho",          "qty": 2,   "unit": "dente" },
+      { "productId": "azeite",        "qty": 50,  "unit": "ml" },
+      { "productId": "azeitonas",     "qty": 50,  "unit": "g", "optional": true },
+      { "productId": "sal",           "qty": 5,   "unit": "g" }
+    ],
+    "steps": [
+      "Demolha e desfia o bacalhau em lascas (usa bacalhau dessalgado se disponível).",
+      "Frita as batatas palha — ou usa batata frita congelada tipo palha.",
+      "Refoga a cebola e o alho em bastante azeite até dourar.",
+      "Junta o bacalhau desfiado e salteia 3 minutos.",
+      "Bate os ovos, tempera e junta à mistura fora do lume.",
+      "Mexe rapidamente até os ovos cozinharem cremosos.",
+      "Serve com batata palha por cima e azeitonas."
+    ]
+  },
+  {
+    "id": "caldo_verde",
+    "name": "Caldo verde",
+    "prepTime": 15, "cookTime": 30, "servings": 4, "difficulty": 1,
+    "tags": ["sopa", "português", "vegetais"],
+    "ingredients": [
+      { "productId": "batata",    "qty": 600, "unit": "g" },
+      { "productId": "couve",     "qty": 200, "unit": "g" },
+      { "productId": "chourico",  "qty": 100, "unit": "g", "optional": true },
+      { "productId": "cebola",    "qty": 1,   "unit": "un" },
+      { "productId": "alho",      "qty": 2,   "unit": "dente" },
+      { "productId": "azeite",    "qty": 40,  "unit": "ml" },
+      { "productId": "sal",       "qty": 8,   "unit": "g" }
+    ],
+    "steps": [
+      "Cozinha as batatas, cebola e alho em água com sal durante 20 minutos.",
+      "Tritura tudo com a varinha mágica até obter um caldo cremoso.",
+      "Corta a couve em juliana fina. Junta ao caldo e cozinha mais 5 minutos.",
+      "Adiciona o chouriço às rodelas e deixa ferver 2 minutos.",
+      "Rega com um fio de azeite antes de servir."
+    ]
+  },
+  {
+    "id": "sopa_legumes",
+    "name": "Sopa de legumes",
+    "prepTime": 15, "cookTime": 30, "servings": 4, "difficulty": 1,
+    "tags": ["sopa", "vegetais", "simples"],
+    "ingredients": [
+      { "productId": "batata",    "qty": 400, "unit": "g" },
+      { "productId": "cenoura",   "qty": 2,   "unit": "un" },
+      { "productId": "courgette", "qty": 1,   "unit": "un" },
+      { "productId": "cebola",    "qty": 1,   "unit": "un" },
+      { "productId": "espinafres","qty": 100, "unit": "g", "optional": true },
+      { "productId": "azeite",    "qty": 30,  "unit": "ml" },
+      { "productId": "sal",       "qty": 8,   "unit": "g" }
+    ],
+    "steps": [
+      "Descasca e corta todos os legumes em pedaços.",
+      "Cobre com água, tempera com sal e cozinha 25 minutos.",
+      "Tritura com varinha mágica.",
+      "Junta os espinafres e cozinha mais 3 minutos.",
+      "Rega com azeite e serve."
+    ]
+  },
+  {
+    "id": "massa_atum",
+    "name": "Massa com atum",
+    "prepTime": 5, "cookTime": 20, "servings": 2, "difficulty": 1,
+    "tags": ["massa", "peixe", "rápido"],
+    "ingredients": [
+      { "productId": "massa_penne",  "qty": 250, "unit": "g" },
+      { "productId": "atum_lata",    "qty": 2,   "unit": "lata" },
+      { "productId": "tomate_polpa", "qty": 200, "unit": "ml" },
+      { "productId": "cebola",       "qty": 1,   "unit": "un" },
+      { "productId": "azeite",       "qty": 30,  "unit": "ml" },
+      { "productId": "oregaos",      "qty": 3,   "unit": "g", "optional": true }
+    ],
+    "steps": [
+      "Coze a massa al dente em água salgada.",
+      "Refoga a cebola picada em azeite.",
+      "Junta a polpa de tomate e o atum escorrido. Tempera com orégãos.",
+      "Apura 5 minutos em lume brando.",
+      "Mistura com a massa escorrida e serve."
+    ]
+  },
+  {
+    "id": "panados",
+    "name": "Panados de frango",
+    "prepTime": 15, "cookTime": 15, "servings": 3, "difficulty": 1,
+    "tags": ["frango", "frito", "simples"],
+    "ingredients": [
+      { "productId": "frango",     "qty": 600, "unit": "g" },
+      { "productId": "ovos",       "qty": 2,   "unit": "un" },
+      { "productId": "pao_ralado", "qty": 150, "unit": "g" },
+      { "productId": "farinha",    "qty": 80,  "unit": "g" },
+      { "productId": "azeite",     "qty": 80,  "unit": "ml" },
+      { "productId": "limao",      "qty": 1,   "unit": "un", "optional": true },
+      { "productId": "sal",        "qty": 5,   "unit": "g" }
+    ],
+    "steps": [
+      "Corta o frango em filetes finos e bate levemente.",
+      "Tempera com sal. Passa pela farinha, ovo batido e pão ralado.",
+      "Frita em azeite quente 3-4 minutos de cada lado.",
+      "Escorre em papel absorvente e serve com limão."
+    ]
+  },
+  {
+    "id": "omelete",
+    "name": "Omelete de legumes",
+    "prepTime": 10, "cookTime": 10, "servings": 2, "difficulty": 1,
+    "tags": ["ovos", "rápido", "simples"],
+    "ingredients": [
+      { "productId": "ovos",       "qty": 4,  "unit": "un" },
+      { "productId": "cogumelos_lata","qty": 1,"unit": "lata", "optional": true },
+      { "productId": "pimento",    "qty": 1,  "unit": "un", "optional": true },
+      { "productId": "queijo_ralado","qty": 50,"unit": "g", "optional": true },
+      { "productId": "azeite",     "qty": 20, "unit": "ml" },
+      { "productId": "sal",        "qty": 4,  "unit": "g" }
+    ],
+    "steps": [
+      "Bate os ovos com sal.",
+      "Salteia os legumes cortados em azeite quente.",
+      "Verte os ovos sobre os legumes.",
+      "Deixa cozer em lume médio até firmar nas bordas.",
+      "Dobra ao meio, polvilha com queijo e serve."
+    ]
+  },
+  {
+    "id": "bifes_frigideira",
+    "name": "Bifes na frigideira",
+    "prepTime": 5, "cookTime": 15, "servings": 2, "difficulty": 1,
+    "tags": ["carne", "rápido", "simples"],
+    "ingredients": [
+      { "productId": "bifes",      "qty": 2,  "unit": "un" },
+      { "productId": "alho",       "qty": 2,  "unit": "dente" },
+      { "productId": "louro",      "qty": 1,  "unit": "un" },
+      { "productId": "azeite",     "qty": 30, "unit": "ml" },
+      { "productId": "vinho_branco","qty": 50,"unit": "ml", "optional": true },
+      { "productId": "sal",        "qty": 5,  "unit": "g" }
+    ],
+    "steps": [
+      "Tempera os bifes com sal, alho esmagado e louro.",
+      "Aquece a frigideira com azeite bem quente.",
+      "Sela os bifes 2 minutos de cada lado.",
+      "Junta o vinho e deixa apurar 2 minutos.",
+      "Serve com o molho e batatas fritas ou arroz."
+    ]
+  },
+  {
+    "id": "costeletas_grelha",
+    "name": "Costeletas de porco grelhadas",
+    "prepTime": 5, "cookTime": 20, "servings": 2, "difficulty": 1,
+    "tags": ["carne", "grelhado", "simples"],
+    "ingredients": [
+      { "productId": "costeletas",  "qty": 4,  "unit": "un" },
+      { "productId": "alho",        "qty": 2,  "unit": "dente" },
+      { "productId": "piri_piri",   "qty": 10, "unit": "ml", "optional": true },
+      { "productId": "azeite",      "qty": 30, "unit": "ml" },
+      { "productId": "sal",         "qty": 5,  "unit": "g" }
+    ],
+    "steps": [
+      "Tempera as costeletas com sal, alho e piri-piri.",
+      "Pincela com azeite.",
+      "Grelha na grelha ou chapa 8-10 minutos de cada lado.",
+      "Serve com arroz e salada."
+    ]
+  },
+  {
+    "id": "carbonara",
+    "name": "Esparguete carbonara",
+    "prepTime": 10, "cookTime": 20, "servings": 2, "difficulty": 2,
+    "tags": ["massa", "ovos", "italiano"],
+    "ingredients": [
+      { "productId": "massa_esparguete","qty": 250,"unit": "g" },
+      { "productId": "bacon",          "qty": 150,"unit": "g" },
+      { "productId": "ovos",           "qty": 3,  "unit": "un" },
+      { "productId": "queijo_ralado",  "qty": 60, "unit": "g" },
+      { "productId": "azeite",         "qty": 15, "unit": "ml" },
+      { "productId": "sal",            "qty": 5,  "unit": "g" }
+    ],
+    "steps": [
+      "Coze o esparguete em água salgada al dente. Reserva 100 ml da água.",
+      "Frita o bacon em cubos até estalar.",
+      "Bate os ovos com o queijo ralado.",
+      "Fora do lume, mistura a massa escorrida com o bacon.",
+      "Junta a mistura de ovos e um pouco da água da massa.",
+      "Mexe rapidamente — o calor da massa cozinha os ovos em creme.",
+      "Serve imediatamente."
+    ]
+  },
+  {
+    "id": "salmon_forno",
+    "name": "Salmão no forno",
+    "prepTime": 5, "cookTime": 20, "servings": 2, "difficulty": 1,
+    "tags": ["peixe", "forno", "rápido"],
+    "ingredients": [
+      { "productId": "salmon",      "qty": 400, "unit": "g" },
+      { "productId": "limao",       "qty": 1,   "unit": "un" },
+      { "productId": "alho",        "qty": 2,   "unit": "dente" },
+      { "productId": "azeite",      "qty": 30,  "unit": "ml" },
+      { "productId": "oregaos",     "qty": 3,   "unit": "g", "optional": true },
+      { "productId": "sal",         "qty": 5,   "unit": "g" }
+    ],
+    "steps": [
+      "Pré-aquece o forno a 200°C.",
+      "Coloca o salmão numa assadeira forrada com papel vegetal.",
+      "Rega com azeite, sumo de limão, alho picado e orégãos. Tempera com sal.",
+      "Assa 15-20 minutos.",
+      "Serve com arroz de legumes ou salada."
+    ]
+  },
+  {
+    "id": "arroz_legumes",
+    "name": "Arroz de legumes",
+    "prepTime": 10, "cookTime": 25, "servings": 3, "difficulty": 1,
+    "tags": ["arroz", "vegetais", "simples"],
+    "ingredients": [
+      { "productId": "arroz",        "qty": 300, "unit": "g" },
+      { "productId": "cenoura",      "qty": 1,   "unit": "un" },
+      { "productId": "pimento",      "qty": 1,   "unit": "un", "optional": true },
+      { "productId": "milho_lata",   "qty": 1,   "unit": "lata", "optional": true },
+      { "productId": "cebola",       "qty": 1,   "unit": "un" },
+      { "productId": "azeite",       "qty": 30,  "unit": "ml" },
+      { "productId": "sal",          "qty": 6,   "unit": "g" }
+    ],
+    "steps": [
+      "Refoga a cebola e a cenoura em cubos no azeite.",
+      "Adiciona o pimento e o milho. Salteia 3 minutos.",
+      "Junta o arroz e frita 1 minuto.",
+      "Cobre com água quente (aprox. 600 ml). Tempera com sal.",
+      "Cozinha em lume brando 18 minutos tapado.",
+      "Deixa repousar 5 minutos antes de servir."
+    ]
+  },
+  {
+    "id": "grao_bacalhau",
+    "name": "Grão com bacalhau",
+    "prepTime": 10, "cookTime": 25, "servings": 3, "difficulty": 1,
+    "tags": ["bacalhau", "leguminosas", "português"],
+    "ingredients": [
+      { "productId": "bacalhau",   "qty": 300, "unit": "g" },
+      { "productId": "grao_lata",  "qty": 1,   "unit": "lata" },
+      { "productId": "cebola",     "qty": 1,   "unit": "un" },
+      { "productId": "alho",       "qty": 2,   "unit": "dente" },
+      { "productId": "ovos",       "qty": 2,   "unit": "un", "optional": true },
+      { "productId": "azeite",     "qty": 50,  "unit": "ml" },
+      { "productId": "sal",        "qty": 5,   "unit": "g" }
+    ],
+    "steps": [
+      "Dessalga o bacalhau e desfia em lascas.",
+      "Coze os ovos (10 minutos) e parte-os em quartos.",
+      "Escorre e passa o grão por água fria.",
+      "Refoga a cebola e o alho em azeite.",
+      "Junta o bacalhau e o grão. Salteia 5 minutos.",
+      "Serve com os ovos e rega com azeite cru."
+    ]
+  },
+  {
+    "id": "pescada_cozida",
+    "name": "Pescada cozida com batatas",
+    "prepTime": 10, "cookTime": 25, "servings": 2, "difficulty": 1,
+    "tags": ["peixe", "cozido", "simples"],
+    "ingredients": [
+      { "productId": "pescada",    "qty": 400, "unit": "g" },
+      { "productId": "batata",     "qty": 400, "unit": "g" },
+      { "productId": "cenoura",    "qty": 1,   "unit": "un", "optional": true },
+      { "productId": "ovos",       "qty": 2,   "unit": "un", "optional": true },
+      { "productId": "azeite",     "qty": 50,  "unit": "ml" },
+      { "productId": "sal",        "qty": 8,   "unit": "g" }
+    ],
+    "steps": [
+      "Coze as batatas e cenouras em água salgada durante 15 minutos.",
+      "Junta a pescada e os ovos à água. Cozinha mais 10 minutos.",
+      "Escorre tudo, descasca os ovos e parte-os.",
+      "Serve com um fio generoso de azeite cru."
+    ]
+  },
+  {
+    "id": "feijao_portuguesa",
+    "name": "Feijão à portuguesa",
+    "prepTime": 10, "cookTime": 35, "servings": 4, "difficulty": 1,
+    "tags": ["leguminosas", "chouriço", "português"],
+    "ingredients": [
+      { "productId": "feijao_lata",  "qty": 2,   "unit": "lata" },
+      { "productId": "chourico",     "qty": 150, "unit": "g" },
+      { "productId": "cebola",       "qty": 1,   "unit": "un" },
+      { "productId": "alho",         "qty": 2,   "unit": "dente" },
+      { "productId": "tomate_polpa", "qty": 200, "unit": "ml" },
+      { "productId": "azeite",       "qty": 40,  "unit": "ml" },
+      { "productId": "louro",        "qty": 1,   "unit": "un" },
+      { "productId": "sal",          "qty": 5,   "unit": "g" }
+    ],
+    "steps": [
+      "Refoga a cebola, alho e louro no azeite.",
+      "Junta o chouriço às rodelas e doura levemente.",
+      "Adiciona a polpa de tomate, tempera e cozinha 5 minutos.",
+      "Escorre o feijão, junta ao molho e mistura.",
+      "Cozinha em lume brando 20 minutos.",
+      "Acerta o sal e serve com arroz ou pão."
+    ]
+  },
+  {
+    "id": "massa_cogumelos",
+    "name": "Massa com cogumelos",
+    "prepTime": 5, "cookTime": 20, "servings": 2, "difficulty": 1,
+    "tags": ["massa", "vegetais", "rápido"],
+    "ingredients": [
+      { "productId": "massa_fusilli","qty": 250, "unit": "g" },
+      { "productId": "cogumelos_lata","qty": 1,  "unit": "lata" },
+      { "productId": "natas",        "qty": 100, "unit": "ml" },
+      { "productId": "alho",         "qty": 2,   "unit": "dente" },
+      { "productId": "azeite",       "qty": 20,  "unit": "ml" },
+      { "productId": "queijo_ralado","qty": 40,  "unit": "g", "optional": true },
+      { "productId": "sal",          "qty": 5,   "unit": "g" }
+    ],
+    "steps": [
+      "Coze a massa al dente em água salgada.",
+      "Refoga o alho em azeite até dourar.",
+      "Junta os cogumelos escorridos e salteia 5 minutos.",
+      "Adiciona as natas e deixa reduzir 3 minutos.",
+      "Mistura com a massa, polvilha com queijo e serve."
+    ]
+  },
+  {
+    "id": "almondega_molho",
+    "name": "Almôndegas em molho de tomate",
+    "prepTime": 20, "cookTime": 30, "servings": 3, "difficulty": 2,
+    "tags": ["carne", "massa", "italiano"],
+    "ingredients": [
+      { "productId": "almondega_mix","qty": 500, "unit": "g" },
+      { "productId": "tomate_lata",  "qty": 1,   "unit": "lata" },
+      { "productId": "pao_ralado",   "qty": 80,  "unit": "g" },
+      { "productId": "ovos",         "qty": 1,   "unit": "un" },
+      { "productId": "alho",         "qty": 2,   "unit": "dente" },
+      { "productId": "cebola",       "qty": 1,   "unit": "un" },
+      { "productId": "azeite",       "qty": 40,  "unit": "ml" },
+      { "productId": "oregaos",      "qty": 5,   "unit": "g", "optional": true }
+    ],
+    "steps": [
+      "Mistura a carne com pão ralado, ovo, alho e sal. Forma bolas.",
+      "Doura as almôndegas em azeite numa frigideira larga.",
+      "Retira as almôndegas e refoga a cebola no mesmo azeite.",
+      "Junta o tomate pelado, esmaga e tempera com orégãos.",
+      "Coloca as almôndegas no molho e cozinha tapado 20 minutos.",
+      "Serve com esparguete ou pão."
+    ]
+  },
+  {
+    "id": "frango_tacho",
+    "name": "Frango no tacho com batatas",
+    "prepTime": 15, "cookTime": 60, "servings": 4, "difficulty": 1,
+    "tags": ["frango", "batata", "tacho"],
+    "ingredients": [
+      { "productId": "frango",     "qty": 1000,"unit": "g" },
+      { "productId": "batata",     "qty": 600, "unit": "g" },
+      { "productId": "cebola",     "qty": 1,   "unit": "un" },
+      { "productId": "alho",       "qty": 3,   "unit": "dente" },
+      { "productId": "tomate",     "qty": 2,   "unit": "un", "optional": true },
+      { "productId": "vinho_branco","qty": 100,"unit": "ml", "optional": true },
+      { "productId": "azeite",     "qty": 50,  "unit": "ml" },
+      { "productId": "louro",      "qty": 1,   "unit": "un" },
+      { "productId": "sal",        "qty": 8,   "unit": "g" }
+    ],
+    "steps": [
+      "Tempera o frango com sal, alho e louro.",
+      "Doura o frango no tacho com azeite em lume alto.",
+      "Junta a cebola, o tomate e o vinho. Deixa apurar 5 minutos.",
+      "Adiciona as batatas cortadas em cubos e cobre com água quente.",
+      "Tapa e cozinha em lume médio 45 minutos.",
+      "Serve com pão para molhar no molho."
+    ]
+  }
+]
