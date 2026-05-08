@@ -12,6 +12,7 @@ BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 DATA_DIR   = os.path.join(BASE_DIR, 'data')
 CACHE_FILE = os.path.join(BASE_DIR, 'cache', 'weather.json')
+CUSTOM_PRODUCTS_FILE = os.path.join(BASE_DIR, 'cache', 'custom_products.json')
 MAINT_FILE = os.path.join(BASE_DIR, 'cache', 'maintenance.json')
 INV_FILE   = os.path.join(BASE_DIR, 'cache', 'inventory.json')
 PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
@@ -99,9 +100,33 @@ def post_maintenance():
 def get_products():
     try:
         with open(os.path.join(DATA_DIR, 'products.json')) as f:
-            return jsonify(json.load(f))
+            catalogue = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return jsonify([])
+        catalogue = []
+    try:
+        with open(CUSTOM_PRODUCTS_FILE) as f:
+            custom = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        custom = []
+    return jsonify(catalogue + custom)
+
+
+@app.route('/api/products', methods=['POST'])
+def add_custom_product():
+    item = request.get_json()
+    if not item or not item.get('name'):
+        return jsonify({'error': 'name required'}), 400
+    try:
+        with open(CUSTOM_PRODUCTS_FILE) as f:
+            custom = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        custom = []
+    item['id'] = 'custom_' + str(uuid.uuid4())[:8]
+    item.setdefault('category', 'outro')
+    custom.append(item)
+    with open(CUSTOM_PRODUCTS_FILE, 'w') as f:
+        json.dump(custom, f)
+    return jsonify(item), 201
 
 
 # ── REFEIÇÕES: Recipes ────────────────────────────────────────────────────────

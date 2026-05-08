@@ -18,10 +18,18 @@ export const refeic = {
 // modal state lives here — not in refeic.state
 let _mealEl    = null;
 let _mealState = { day: null, meal: null, type: null, recipe: null, note: '' };
-let _addEl     = null;
-let _addState  = { name: '', productId: null, quantity: '', unit: 'un', location: 'frigorifico' };
+let _addEl       = null;
+let _addState    = { name: '', productId: null, quantity: '', unit: 'un', location: 'frigorifico' };
+let _editInvEl   = null;
+let _editInvState = { id: null, name: '', quantity: 0, unit: 'un', location: 'frigorifico' };
 
 const UNITS = ['un', 'g', 'kg', 'ml', 'L', 'lata', 'pacote', 'caixa'];
+
+function _qtyStep(unit) {
+  if (unit === 'g' || unit === 'ml') return 50;
+  if (unit === 'kg' || unit === 'L') return 0.1;
+  return 1;
+}
 
 // ── DATA LOADING ──────────────────────────────────────────────────────────────
 
@@ -121,10 +129,12 @@ function renderInventario() {
   const list = shown.length === 0
     ? `<div class="inv-empty">Nada aqui ainda</div>`
     : shown.map(it => `
-      <div class="inv-item" data-inv-id="${it.id}">
-        <span class="inv-item-name">${it.name}</span>
-        ${invLocation === 'all' ? `<span class="inv-item-loc">${LOC_LABELS[it.location] || it.location}</span>` : ''}
-        ${it.quantityKnown ? `<span class="inv-item-qty">${it.quantity} ${it.unit || ''}</span>` : ''}
+      <div class="inv-item">
+        <div class="inv-item-body" data-edit-inv="${it.id}">
+          <span class="inv-item-name">${it.name}</span>
+          ${invLocation === 'all' ? `<span class="inv-item-loc">${LOC_LABELS[it.location] || it.location}</span>` : ''}
+          <span class="inv-item-qty">${it.quantityKnown ? `${it.quantity} ${it.unit || ''}` : '— sem qtd'}</span>
+        </div>
         <button class="inv-item-del" data-del-inv="${it.id}">×</button>
       </div>`).join('');
 
@@ -394,6 +404,14 @@ export function bindRefeicoes(container, onRefresh) {
     });
   }
 
+  // inventory: tap item body to edit
+  container.querySelectorAll('[data-edit-inv]').forEach(el => {
+    el.addEventListener('click', () => {
+      const item = refeic.data.inventory.find(it => it.id === el.dataset.editInv);
+      if (item) openEditInvModal(item, onRefresh);
+    });
+  });
+
   // inventory: delete
   container.querySelectorAll('[data-del-inv]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -534,16 +552,34 @@ function _bindAddModal(onRefresh) {
   });
 
   _addEl.querySelector('#add-save').addEventListener('click', async () => {
-    const qty = parseFloat(_addState.quantity);
+    const nameVal = (_addEl.querySelector('#add-name').value || _addState.name).trim();
+    const unitVal = _addEl.querySelector('#add-unit').value;
+    const qty     = parseFloat(_addState.quantity);
+    if (!nameVal) return;
+
+    // save as custom product if not in catalogue — makes it appear in suggestions next time
+    let productId = _addState.productId;
+    if (!productId) {
+      const pr = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameVal, unit: unitVal, defaultQty: isNaN(qty) ? 1 : qty, category: 'outro' }),
+      });
+      if (pr.ok) {
+        const saved = await pr.json();
+        refeic.data.products.push(saved);
+        productId = saved.id;
+      }
+    }
+
     const item = {
-      productId:     _addState.productId,
-      name:          (_addEl.querySelector('#add-name').value || _addState.name).trim(),
+      productId,
+      name:          nameVal,
       location:      _addState.location,
       quantity:      isNaN(qty) ? null : qty,
-      unit:          _addEl.querySelector('#add-unit').value,
+      unit:          unitVal,
       quantityKnown: !isNaN(qty) && qty > 0,
     };
-    if (!item.name) return;
     const r = await fetch('/api/inventory', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -569,4 +605,129 @@ function _openAddModal(onRefresh) {
   _addEl = wrap.firstElementChild;
   document.body.appendChild(_addEl);
   _bindAddModal(onRefresh);
+}
+
+// ── EDIT INVENTORY MODAL (body-level) ─────────────────────────────────────────
+
+function _renderEditInvModal() {
+  const { name, quantity, unit, location } = _editInvState;
+  const step    = _qtyStep(unit);
+  const unitOpts = UNITS.map(u =>
+    `<option value="${u}"${u === unit ? ' selected' : ''}>${u}</option>`
+  ).join('');
+  const locBtns = ['frigorifico', 'congelador', 'despensa'].map(loc => `
+    <button class="add-loc-btn${location === loc ? ' selected' : ''}" data-edit-loc="${loc}">
+      ${LOC_LABELS[loc]}
+    </button>`).join('');
+
+  return `
+    <div class="ref-modal-backdrop">
+      <div class="ref-modal">
+        <div class="ref-modal-title">${name}</div>
+
+        <div class="ref-section-label">Quantidade</div>
+        <div class="edit-qty-row">
+          <button class="edit-qty-btn" id="edit-qty-minus">−</button>
+          <input class="edit-qty-num" id="edit-qty" type="number" min="0" step="${step}"
+                 value="${quantity ?? ''}" inputmode="decimal">
+          <select class="edit-qty-unit" id="edit-unit">${unitOpts}</select>
+          <button class="edit-qty-btn" id="edit-qty-plus">+</button>
+        </div>
+
+        <div class="ref-section-label">Local</div>
+        <div class="add-loc-row">${locBtns}</div>
+
+        <div class="ref-modal-actions">
+          <button class="ref-btn ref-btn-danger"   id="edit-inv-delete">Apagar</button>
+          <button class="ref-btn ref-btn-primary"  id="edit-inv-save">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _bindEditInvModal(onRefresh) {
+  if (!_editInvEl) return;
+
+  const qtyInput = _editInvEl.querySelector('#edit-qty');
+  const unitSel  = _editInvEl.querySelector('#edit-unit');
+
+  if (qtyInput) qtyInput.addEventListener('input', e => {
+    _editInvState.quantity = parseFloat(e.target.value);
+  });
+  if (unitSel) unitSel.addEventListener('change', e => {
+    _editInvState.unit = e.target.value;
+  });
+
+  _editInvEl.querySelector('#edit-qty-minus').addEventListener('click', () => {
+    const step   = _qtyStep(_editInvState.unit);
+    const newVal = Math.max(0, Math.round(((_editInvState.quantity || 0) - step) * 1000) / 1000);
+    _editInvState.quantity = newVal;
+    if (qtyInput) qtyInput.value = newVal;
+  });
+
+  _editInvEl.querySelector('#edit-qty-plus').addEventListener('click', () => {
+    const step   = _qtyStep(_editInvState.unit);
+    const newVal = Math.round(((_editInvState.quantity || 0) + step) * 1000) / 1000;
+    _editInvState.quantity = newVal;
+    if (qtyInput) qtyInput.value = newVal;
+  });
+
+  _editInvEl.querySelectorAll('[data-edit-loc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _editInvState.location = btn.dataset.editLoc;
+      _editInvEl.querySelectorAll('[data-edit-loc]').forEach(b =>
+        b.classList.toggle('selected', b.dataset.editLoc === _editInvState.location)
+      );
+    });
+  });
+
+  _editInvEl.querySelector('#edit-inv-delete').addEventListener('click', async () => {
+    await fetch(`/api/inventory/${_editInvState.id}`, { method: 'DELETE' });
+    refeic.data.inventory = refeic.data.inventory.filter(it => it.id !== _editInvState.id);
+    _editInvEl.remove(); _editInvEl = null;
+    onRefresh();
+  });
+
+  _editInvEl.querySelector('#edit-inv-save').addEventListener('click', async () => {
+    const qty  = parseFloat(_editInvEl.querySelector('#edit-qty').value);
+    const unit = _editInvEl.querySelector('#edit-unit').value;
+    const patch = {
+      quantity:      isNaN(qty) ? null : qty,
+      unit,
+      location:      _editInvState.location,
+      quantityKnown: !isNaN(qty) && qty > 0,
+    };
+    const r = await fetch(`/api/inventory/${_editInvState.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (r.ok) {
+      const updated = await r.json();
+      const idx = refeic.data.inventory.findIndex(it => it.id === _editInvState.id);
+      if (idx >= 0) refeic.data.inventory[idx] = updated;
+    }
+    _editInvEl.remove(); _editInvEl = null;
+    onRefresh();
+  });
+
+  _editInvEl.addEventListener('click', e => {
+    if (e.target === _editInvEl) { _editInvEl.remove(); _editInvEl = null; }
+  });
+}
+
+function openEditInvModal(item, onRefresh) {
+  if (_editInvEl) { _editInvEl.remove(); _editInvEl = null; }
+  _editInvState = {
+    id:       item.id,
+    name:     item.name,
+    quantity: item.quantity ?? 0,
+    unit:     item.unit || 'un',
+    location: item.location || 'frigorifico',
+  };
+  const wrap = document.createElement('div');
+  wrap.innerHTML = _renderEditInvModal();
+  _editInvEl = wrap.firstElementChild;
+  document.body.appendChild(_editInvEl);
+  _bindEditInvModal(onRefresh);
 }

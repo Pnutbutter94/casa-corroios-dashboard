@@ -372,11 +372,84 @@
   color: var(--text);
 }
 
+/* ── EDIT INVENTORY MODAL ────────────────────────────────── */
+.edit-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.edit-qty-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.edit-qty-btn:active { background: var(--border); }
+
+.edit-qty-num {
+  flex: 1;
+  padding: 10px 4px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  min-width: 0;
+}
+
+.edit-qty-unit {
+  width: 68px;
+  padding: 10px 4px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  text-align: center;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+}
+
+/* ── INVENTORY ITEM BODY ─────────────────────────────────── */
+.inv-item-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 0;
+}
+
 .inv-item-qty {
+  margin-left: auto;
   font-family: 'Syne', sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .inv-item-loc {
