@@ -18,6 +18,10 @@ export const refeic = {
 // modal state lives here — not in refeic.state
 let _mealEl    = null;
 let _mealState = { day: null, meal: null, type: null, recipe: null, note: '' };
+let _addEl     = null;
+let _addState  = { name: '', productId: null, quantity: '', unit: 'un', location: 'frigorifico' };
+
+const UNITS = ['un', 'g', 'kg', 'ml', 'L', 'lata', 'pacote', 'caixa'];
 
 // ── DATA LOADING ──────────────────────────────────────────────────────────────
 
@@ -445,7 +449,7 @@ function _updateSuggestions(container) {
   });
 }
 
-async function _doAdd(container, onRefresh) {
+function _doAdd(container, onRefresh) {
   const input = container.querySelector('#inv-search-input');
   if (!input) return;
   const raw = input.value.trim();
@@ -455,23 +459,114 @@ async function _doAdd(container, onRefresh) {
   const product = refeic.data.products.find(p => p.name.toLowerCase() === q)
                || refeic.data.products.find(p => p.name.toLowerCase().includes(q));
 
-  const item = {
-    productId:     product ? product.id    : null,
-    name:          product ? product.name  : raw,
-    location:      refeic.state.invLocation === 'all' ? 'frigorifico' : refeic.state.invLocation,
-    quantity:      product ? product.defaultQty : null,
-    unit:          product ? product.unit  : null,
-    quantityKnown: false,
+  const defaultLoc = refeic.state.invLocation !== 'all' ? refeic.state.invLocation : 'frigorifico';
+
+  _addState = {
+    name:      raw,
+    productId: product && product.name.toLowerCase() === q ? product.id : null,
+    unit:      product ? product.unit      : 'un',
+    quantity:  product ? String(product.defaultQty) : '',
+    location:  defaultLoc,
   };
 
-  const r = await fetch('/api/inventory', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item),
+  input.value = '';
+  _openAddModal(onRefresh);
+}
+
+function _renderAddModal() {
+  const { name, unit, quantity, location } = _addState;
+  const unitOpts = UNITS.map(u =>
+    `<option value="${u}"${u === unit ? ' selected' : ''}>${u}</option>`
+  ).join('');
+  const locBtns = ['frigorifico', 'congelador', 'despensa'].map(loc => `
+    <button class="add-loc-btn${location === loc ? ' selected' : ''}" data-add-loc="${loc}">
+      ${LOC_LABELS[loc]}
+    </button>`).join('');
+
+  return `
+    <div class="ref-modal-backdrop">
+      <div class="ref-modal">
+        <div class="ref-modal-title">Adicionar ao inventário</div>
+
+        <div class="ref-section-label">Nome</div>
+        <input class="ref-modal-note" id="add-name" type="text" value="${name.replace(/"/g, '&quot;')}" placeholder="Nome do produto">
+
+        <div class="ref-section-label">Quantidade</div>
+        <div class="add-qty-row">
+          <input class="add-qty-input" id="add-qty" type="number" min="0" step="any"
+                 value="${quantity}" placeholder="ex. 500" inputmode="decimal">
+          <select class="add-unit-select" id="add-unit">${unitOpts}</select>
+        </div>
+
+        <div class="ref-section-label">Local</div>
+        <div class="add-loc-row">${locBtns}</div>
+
+        <div class="ref-modal-actions">
+          <button class="ref-btn ref-btn-secondary" id="add-cancel">Cancelar</button>
+          <button class="ref-btn ref-btn-primary"   id="add-save">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _bindAddModal(onRefresh) {
+  if (!_addEl) return;
+
+  const nameInput = _addEl.querySelector('#add-name');
+  const qtyInput  = _addEl.querySelector('#add-qty');
+  const unitSel   = _addEl.querySelector('#add-unit');
+
+  if (nameInput) nameInput.addEventListener('input', e => { _addState.name = e.target.value; });
+  if (qtyInput)  qtyInput.addEventListener('input',  e => { _addState.quantity = e.target.value; });
+  if (unitSel)   unitSel.addEventListener('change',  e => { _addState.unit = e.target.value; });
+
+  _addEl.querySelectorAll('[data-add-loc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _addState.location = btn.dataset.addLoc;
+      _addEl.querySelectorAll('[data-add-loc]').forEach(b =>
+        b.classList.toggle('selected', b.dataset.addLoc === _addState.location)
+      );
+    });
   });
-  if (r.ok) {
-    refeic.data.inventory.push(await r.json());
-    input.value = '';
-  }
-  onRefresh();
+
+  _addEl.querySelector('#add-cancel').addEventListener('click', () => {
+    _addEl.remove(); _addEl = null;
+  });
+
+  _addEl.querySelector('#add-save').addEventListener('click', async () => {
+    const qty = parseFloat(_addState.quantity);
+    const item = {
+      productId:     _addState.productId,
+      name:          (_addEl.querySelector('#add-name').value || _addState.name).trim(),
+      location:      _addState.location,
+      quantity:      isNaN(qty) ? null : qty,
+      unit:          _addEl.querySelector('#add-unit').value,
+      quantityKnown: !isNaN(qty) && qty > 0,
+    };
+    if (!item.name) return;
+    const r = await fetch('/api/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+    if (r.ok) refeic.data.inventory.push(await r.json());
+    _addEl.remove(); _addEl = null;
+    onRefresh();
+  });
+
+  _addEl.addEventListener('click', e => {
+    if (e.target === _addEl) { _addEl.remove(); _addEl = null; }
+  });
+
+  // focus qty field so keyboard opens
+  if (qtyInput) setTimeout(() => qtyInput.focus(), 100);
+}
+
+function _openAddModal(onRefresh) {
+  if (_addEl) { _addEl.remove(); _addEl = null; }
+  const wrap = document.createElement('div');
+  wrap.innerHTML = _renderAddModal();
+  _addEl = wrap.firstElementChild;
+  document.body.appendChild(_addEl);
+  _bindAddModal(onRefresh);
 }

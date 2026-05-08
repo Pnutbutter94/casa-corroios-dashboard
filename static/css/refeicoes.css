@@ -410,6 +410,70 @@
   padding: 20px 0;
 }
 
+/* ── ADD ITEM MODAL ──────────────────────────────────────── */
+.add-qty-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.add-qty-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  outline: none;
+  text-align: center;
+}
+
+.add-unit-select {
+  width: 80px;
+  padding: 10px 6px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+  text-align: center;
+  -webkit-appearance: none;
+}
+
+.add-loc-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.add-loc-btn {
+  flex: 1;
+  padding: 10px 4px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.add-loc-btn.selected {
+  border-color: var(--accent);
+  background: rgba(240, 192, 96, 0.1);
+  color: var(--accent);
+}
+
 /* ── PRODUCT SEARCH DROPDOWN ─────────────────────────────── */
 .inv-search-wrap {
   position: relative;
