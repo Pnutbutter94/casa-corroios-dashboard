@@ -1,6 +1,5 @@
 // Refeições widget — planner, inventory, recipes
 
-const DAYS_PT  = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const MEAL_TYPES = [
   { id: 'recipe',    label: '🍳 Receita' },
@@ -8,24 +7,17 @@ const MEAL_TYPES = [
   { id: 'external',  label: '🍽️ Fora' },
   { id: 'empty',     label: '⬜ Em branco' },
 ];
-const LOCATIONS = ['frigorifico', 'congelador', 'despensa'];
-const LOC_LABELS = { frigorifico: '🧊 Frigorífico', congelador: '❄️ Congelador', despensa: '🗄️ Despensa' };
+const LOCATIONS   = ['all', 'frigorifico', 'congelador', 'despensa'];
+const LOC_LABELS  = { all: '🔍 Tudo', frigorifico: '🧊 Frigorífico', congelador: '❄️ Congelador', despensa: '🗄️ Despensa' };
 
 export const refeic = {
-  data: { products: [], recipes: [], inventory: [], planner: {} },
-  state: {
-    activeTab: 'plano',
-    invLocation: 'frigorifico',
-    invSearch: '',
-    modalOpen: false,
-    editDay: null,   // 'YYYY-MM-DD'
-    editMeal: null,  // 'lunch' | 'dinner'
-    editType: null,
-    editRecipe: null,
-    editNote: '',
-    recipeDetail: null,
-  },
+  data:  { products: [], recipes: [], inventory: [], planner: {} },
+  state: { activeTab: 'plano', invLocation: 'all', invSearch: '' },
 };
+
+// modal state lives here — not in refeic.state
+let _mealEl    = null;
+let _mealState = { day: null, meal: null, type: null, recipe: null, note: '' };
 
 // ── DATA LOADING ──────────────────────────────────────────────────────────────
 
@@ -44,9 +36,7 @@ export async function initRefeicoes() {
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-function dateStr(d) {
-  return d.toISOString().split('T')[0];
-}
+function dateStr(d) { return d.toISOString().split('T')[0]; }
 
 function weekDays() {
   const today = new Date();
@@ -62,30 +52,18 @@ function matchScore(recipe) {
   const inv = refeic.data.inventory;
   const required = recipe.ingredients.filter(i => !i.optional);
   if (required.length === 0) return 100;
-  const have = required.filter(ing =>
-    inv.some(it => it.productId === ing.productId)
-  ).length;
+  const have = required.filter(ing => inv.some(it => it.productId === ing.productId)).length;
   return Math.round((have / required.length) * 100);
 }
 
-function matchClass(score) {
-  return score >= 80 ? 'good' : score >= 50 ? 'warn' : 'low';
-}
-
-function productName(pid) {
-  const p = refeic.data.products.find(x => x.id === pid);
-  return p ? p.name : pid;
-}
-
-function hasInInventory(pid) {
-  return refeic.data.inventory.some(it => it.productId === pid);
-}
+function matchClass(score) { return score >= 80 ? 'good' : score >= 50 ? 'warn' : 'low'; }
+function productName(pid) { return (refeic.data.products.find(x => x.id === pid) || {}).name || pid; }
+function hasInInventory(pid) { return refeic.data.inventory.some(it => it.productId === pid); }
 
 // ── RENDER: PLANO ─────────────────────────────────────────────────────────────
 
-function mealLabel(day, slot) {
-  const entry = refeic.data.planner[dateStr(day)];
-  const meal  = entry && entry[slot];
+function mealLabel(ds, slot) {
+  const meal = refeic.data.planner[ds]?.[slot];
   if (!meal || meal.type === 'empty') return `<span class="meal-slot-content empty">—</span>`;
   if (meal.type === 'external')  return `<span class="meal-slot-content">🍽️ Fora</span>`;
   if (meal.type === 'readyMeal') return `<span class="meal-slot-content">📦 ${meal.note || 'Pré-feito'}</span>`;
@@ -93,19 +71,15 @@ function mealLabel(day, slot) {
     const r = refeic.data.recipes.find(x => x.id === meal.recipeId);
     return `<span class="meal-slot-content">${r ? r.name : meal.recipeId}</span>`;
   }
-  if (meal.note) return `<span class="meal-slot-content">${meal.note}</span>`;
-  return `<span class="meal-slot-content empty">—</span>`;
+  return meal.note ? `<span class="meal-slot-content">${meal.note}</span>` : `<span class="meal-slot-content empty">—</span>`;
 }
 
 function renderPlano() {
-  const days = weekDays();
-  const todayStr = dateStr(days[0]);
-
-  const rows = days.map(d => {
-    const ds = dateStr(d);
+  const todayStr = dateStr(new Date());
+  const rows = weekDays().map(d => {
+    const ds      = dateStr(d);
     const isToday = ds === todayStr;
-    const entry = refeic.data.planner[ds] || {};
-    const away  = entry.atHome === false;
+    const away    = refeic.data.planner[ds]?.atHome === false;
     return `
       <div class="day-row${isToday ? ' today' : ''}">
         <div class="day-header">
@@ -116,41 +90,36 @@ function renderPlano() {
         <div class="meals-row">
           <div class="meal-slot" data-day="${ds}" data-meal="lunch">
             <div class="meal-slot-type">Almoço</div>
-            ${mealLabel(d, 'lunch')}
+            ${mealLabel(ds, 'lunch')}
           </div>
           <div class="meal-slot" data-day="${ds}" data-meal="dinner">
             <div class="meal-slot-type">Jantar</div>
-            ${mealLabel(d, 'dinner')}
+            ${mealLabel(ds, 'dinner')}
           </div>
         </div>
       </div>`;
   }).join('');
-
   return `<div class="week-grid">${rows}</div>`;
 }
 
 // ── RENDER: INVENTÁRIO ────────────────────────────────────────────────────────
 
 function renderInventario() {
-  const { invLocation, invSearch } = refeic.state;
-  const inv = refeic.data.inventory.filter(it => it.location === invLocation);
+  const { invLocation } = refeic.state;
+  const allItems = refeic.data.inventory;
+  const shown    = invLocation === 'all' ? allItems : allItems.filter(it => it.location === invLocation);
 
   const locBtns = LOCATIONS.map(loc => `
     <button class="inv-loc-btn${invLocation === loc ? ' active' : ''}" data-loc="${loc}">
       ${LOC_LABELS[loc]}
     </button>`).join('');
 
-  let items = inv;
-  if (invSearch) {
-    const q = invSearch.toLowerCase();
-    items = inv.filter(it => it.name.toLowerCase().includes(q));
-  }
-
-  const list = items.length === 0
+  const list = shown.length === 0
     ? `<div class="inv-empty">Nada aqui ainda</div>`
-    : items.map(it => `
+    : shown.map(it => `
       <div class="inv-item" data-inv-id="${it.id}">
         <span class="inv-item-name">${it.name}</span>
+        ${invLocation === 'all' ? `<span class="inv-item-loc">${LOC_LABELS[it.location] || it.location}</span>` : ''}
         ${it.quantityKnown ? `<span class="inv-item-qty">${it.quantity} ${it.unit || ''}</span>` : ''}
         <button class="inv-item-del" data-del-inv="${it.id}">×</button>
       </div>`).join('');
@@ -158,7 +127,8 @@ function renderInventario() {
   return `
     <div class="inv-add-bar">
       <div class="inv-search-wrap">
-        <input class="inv-search" id="inv-search-input" type="text" placeholder="Procurar produto…" value="${invSearch}" autocomplete="off">
+        <input class="inv-search" id="inv-search-input" type="text"
+               placeholder="Escreve e clica Adicionar…" autocomplete="off">
         <div class="inv-suggestions" id="inv-suggestions" style="display:none"></div>
       </div>
       <button class="inv-add-btn" id="inv-add-btn">+ Adicionar</button>
@@ -173,12 +143,11 @@ function renderReceitas() {
   const sorted = [...refeic.data.recipes].sort((a, b) => matchScore(b) - matchScore(a));
   const cards = sorted.map(r => {
     const score = matchScore(r);
-    const cls   = matchClass(score);
     return `
       <div class="recipe-card" data-recipe="${r.id}">
         <div class="recipe-card-header">
           <span class="recipe-card-name">${r.name}</span>
-          <span class="recipe-card-match ${cls}">${score}%</span>
+          <span class="recipe-card-match ${matchClass(score)}">${score}%</span>
         </div>
         <div class="recipe-card-meta">
           <span class="recipe-card-chip">⏱ ${r.prepTime + r.cookTime} min</span>
@@ -190,9 +159,33 @@ function renderReceitas() {
   return `<div class="recipes-grid">${cards}</div>`;
 }
 
-// ── RECIPE DETAIL MODAL ───────────────────────────────────────────────────────
+// ── MAIN RENDER ───────────────────────────────────────────────────────────────
 
-function renderRecipeDetail(r) {
+export function renderRefeicoes() {
+  const { activeTab } = refeic.state;
+  const tabBtns = [
+    { id: 'plano',      label: '📅 Plano' },
+    { id: 'inventario', label: '🛒 Inventário' },
+    { id: 'receitas',   label: '🍳 Receitas' },
+  ].map(t => `
+    <button class="ref-tab-btn${activeTab === t.id ? ' active' : ''}" data-ref-tab="${t.id}">
+      ${t.label}
+    </button>`).join('');
+
+  let pageContent = '';
+  if (activeTab === 'plano')      pageContent = renderPlano();
+  if (activeTab === 'inventario') pageContent = renderInventario();
+  if (activeTab === 'receitas')   pageContent = renderReceitas();
+
+  return `
+    <div class="card-label">Refeições</div>
+    <div class="ref-tab-bar">${tabBtns}</div>
+    <div class="ref-tab-page active">${pageContent}</div>`;
+}
+
+// ── RECIPE DETAIL MODAL (body-level) ──────────────────────────────────────────
+
+function openRecipeDetail(r) {
   const ings = r.ingredients.map(ing => {
     const have = hasInInventory(ing.productId);
     return `
@@ -209,8 +202,8 @@ function renderRecipeDetail(r) {
       <span>${s}</span>
     </div>`).join('');
 
-  return `
-    <div class="ref-modal-backdrop" id="recipe-detail-backdrop">
+  const html = `
+    <div class="ref-modal-backdrop">
       <div class="ref-modal">
         <div class="ref-modal-title">${r.name}</div>
         <div class="ref-section-label">Ingredientes</div>
@@ -218,51 +211,59 @@ function renderRecipeDetail(r) {
         <div class="ref-section-label">Preparação</div>
         <div class="recipe-steps">${steps}</div>
         <div class="ref-modal-actions">
-          <button class="ref-btn ref-btn-secondary" id="recipe-detail-close">Fechar</button>
+          <button class="ref-btn ref-btn-secondary">Fechar</button>
         </div>
       </div>
     </div>`;
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  const el = wrap.firstElementChild;
+  document.body.appendChild(el);
+
+  const close = () => el.remove();
+  el.querySelector('.ref-btn-secondary').addEventListener('click', close);
+  el.addEventListener('click', e => { if (e.target === el) close(); });
 }
 
-// ── MEAL PICKER MODAL ─────────────────────────────────────────────────────────
+// ── MEAL PICKER MODAL (body-level) ────────────────────────────────────────────
 
-function renderMealModal() {
-  const { editDay, editMeal, editType, editRecipe, editNote } = refeic.state;
-  const mealLabel = editMeal === 'lunch' ? 'Almoço' : 'Jantar';
-  const d = new Date(editDay + 'T12:00:00');
-  const title = `${mealLabel} · ${DAYS_FULL[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+function _renderMealModalHTML() {
+  const { day, meal, type, recipe, note } = _mealState;
+  const mLabel = meal === 'lunch' ? 'Almoço' : 'Jantar';
+  const d = new Date(day + 'T12:00:00');
+  const title = `${mLabel} · ${DAYS_FULL[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
 
   const typeBtns = MEAL_TYPES.map(t => `
-    <button class="meal-type-btn${editType === t.id ? ' selected' : ''}" data-meal-type="${t.id}">
+    <button class="meal-type-btn${type === t.id ? ' selected' : ''}" data-meal-type="${t.id}">
       ${t.label}
     </button>`).join('');
 
   const sorted = [...refeic.data.recipes].sort((a, b) => matchScore(b) - matchScore(a));
-  const recipeRows = editType === 'recipe' ? `
+  const recipeRows = type === 'recipe' ? `
     <div class="ref-section-label">Receita</div>
     <div class="recipe-list">
       ${sorted.map(r => {
         const score = matchScore(r);
-        const cls   = matchClass(score);
         return `
-          <div class="recipe-pick-row${editRecipe === r.id ? ' selected' : ''}" data-pick-recipe="${r.id}">
+          <div class="recipe-pick-row${recipe === r.id ? ' selected' : ''}" data-pick-recipe="${r.id}">
             <span class="recipe-pick-name">${r.name}</span>
             <span class="recipe-pick-meta">${r.prepTime + r.cookTime}min</span>
-            <span class="recipe-pick-match ${cls}">${score}%</span>
+            <span class="recipe-pick-match ${matchClass(score)}">${score}%</span>
           </div>`;
       }).join('')}
     </div>` : '';
 
-  const noteField = editType && editType !== 'empty' ? `
+  const noteField = type && type !== 'empty' ? `
     <div class="ref-section-label">Nota (opcional)</div>
-    <textarea class="ref-modal-note" id="meal-note" rows="2" placeholder="ex. com arroz branco…">${editNote}</textarea>` : '';
+    <textarea class="ref-modal-note" id="meal-note" rows="2" placeholder="ex. com arroz branco…">${note}</textarea>` : '';
 
-  const existing = refeic.data.planner[editDay]?.[editMeal];
-  const clearBtn = existing && existing.type !== 'empty' ? `
-    <button class="ref-btn ref-btn-danger" id="meal-clear-btn">Limpar</button>` : '';
+  const existing = refeic.data.planner[day]?.[meal];
+  const clearBtn = existing && existing.type !== 'empty'
+    ? `<button class="ref-btn ref-btn-danger" id="meal-clear-btn">Limpar</button>` : '';
 
   return `
-    <div class="ref-modal-backdrop" id="meal-modal-backdrop">
+    <div class="ref-modal-backdrop">
       <div class="ref-modal">
         <div class="ref-modal-title">${title}</div>
         <div class="meal-type-grid">${typeBtns}</div>
@@ -277,37 +278,76 @@ function renderMealModal() {
     </div>`;
 }
 
-// ── MAIN RENDER ───────────────────────────────────────────────────────────────
+function _bindMealModal(onRefreshCard) {
+  if (!_mealEl) return;
 
-export function renderRefeicoes() {
-  const { activeTab } = refeic.state;
+  _mealEl.querySelectorAll('.meal-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _mealState.type   = btn.dataset.mealType;
+      if (_mealState.type !== 'recipe') _mealState.recipe = null;
+      _refreshMealModal(onRefreshCard);
+    });
+  });
 
-  const tabBtns = [
-    { id: 'plano',       label: '📅 Plano' },
-    { id: 'inventario',  label: '🛒 Inventário' },
-    { id: 'receitas',    label: '🍳 Receitas' },
-  ].map(t => `
-    <button class="ref-tab-btn${activeTab === t.id ? ' active' : ''}" data-ref-tab="${t.id}">
-      ${t.label}
-    </button>`).join('');
+  _mealEl.querySelectorAll('.recipe-pick-row').forEach(row => {
+    row.addEventListener('click', () => {
+      _mealState.recipe = row.dataset.pickRecipe;
+      _refreshMealModal(onRefreshCard);
+    });
+  });
 
-  let pageContent = '';
-  if (activeTab === 'plano')      pageContent = renderPlano();
-  if (activeTab === 'inventario') pageContent = renderInventario();
-  if (activeTab === 'receitas')   pageContent = renderReceitas();
+  const noteEl = _mealEl.querySelector('#meal-note');
+  if (noteEl) noteEl.addEventListener('input', e => { _mealState.note = e.target.value; });
 
-  let modal = '';
-  if (refeic.state.modalOpen === 'meal')   modal = renderMealModal();
-  if (refeic.state.recipeDetail)           modal = renderRecipeDetail(refeic.state.recipeDetail);
+  const saveBtn = _mealEl.querySelector('#meal-save-btn');
+  if (saveBtn) saveBtn.addEventListener('click', async () => {
+    const { day, meal, type, recipe, note } = _mealState;
+    const entry = (!type || type === 'empty')
+      ? { type: 'empty' }
+      : { type, recipeId: recipe || undefined, note: note || undefined };
+    await _saveMeal(day, meal, entry);
+    _closeMealModal();
+    onRefreshCard();
+  });
 
-  return `
-    <div class="card-label">Refeições</div>
-    <div class="ref-tab-bar">${tabBtns}</div>
-    <div class="ref-tab-page active">${pageContent}</div>
-    ${modal}`;
+  const clearBtn = _mealEl.querySelector('#meal-clear-btn');
+  if (clearBtn) clearBtn.addEventListener('click', async () => {
+    await _saveMeal(_mealState.day, _mealState.meal, { type: 'empty' });
+    _closeMealModal();
+    onRefreshCard();
+  });
+
+  const cancelBtn = _mealEl.querySelector('#meal-cancel-btn');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => _closeMealModal());
+
+  _mealEl.addEventListener('click', e => { if (e.target === _mealEl) _closeMealModal(); });
 }
 
-// ── EVENTS ────────────────────────────────────────────────────────────────────
+function _refreshMealModal(onRefreshCard) {
+  if (!_mealEl) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = _renderMealModalHTML();
+  _mealEl.innerHTML = wrap.firstElementChild.innerHTML;
+  _bindMealModal(onRefreshCard);
+}
+
+function _closeMealModal() {
+  if (_mealEl) { _mealEl.remove(); _mealEl = null; }
+}
+
+function openMealModal(day, meal, onRefreshCard) {
+  _closeMealModal();
+  const existing       = refeic.data.planner[day]?.[meal];
+  _mealState           = { day, meal, type: existing?.type || null, recipe: existing?.recipeId || null, note: existing?.note || '' };
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = _renderMealModalHTML();
+  _mealEl = wrap.firstElementChild;
+  document.body.appendChild(_mealEl);
+  _bindMealModal(onRefreshCard);
+}
+
+// ── EVENTS (card-level) ───────────────────────────────────────────────────────
 
 export function bindRefeicoes(container, onRefresh) {
 
@@ -319,74 +359,11 @@ export function bindRefeicoes(container, onRefresh) {
     });
   });
 
-  // planner: open meal modal
+  // planner: open meal modal (body-level)
   container.querySelectorAll('.meal-slot').forEach(slot => {
     slot.addEventListener('click', () => {
-      const { day, meal } = slot.dataset;
-      const existing = refeic.data.planner[day]?.[meal];
-      refeic.state.editDay    = day;
-      refeic.state.editMeal   = meal;
-      refeic.state.editType   = existing?.type || null;
-      refeic.state.editRecipe = existing?.recipeId || null;
-      refeic.state.editNote   = existing?.note || '';
-      refeic.state.modalOpen  = 'meal';
-      onRefresh();
+      openMealModal(slot.dataset.day, slot.dataset.meal, onRefresh);
     });
-  });
-
-  // meal type buttons
-  container.querySelectorAll('.meal-type-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      refeic.state.editType = btn.dataset.mealType;
-      if (refeic.state.editType !== 'recipe') refeic.state.editRecipe = null;
-      onRefresh();
-    });
-  });
-
-  // recipe pick
-  container.querySelectorAll('.recipe-pick-row').forEach(row => {
-    row.addEventListener('click', () => {
-      refeic.state.editRecipe = row.dataset.pickRecipe;
-      onRefresh();
-    });
-  });
-
-  // meal note
-  const noteEl = container.querySelector('#meal-note');
-  if (noteEl) noteEl.addEventListener('input', e => { refeic.state.editNote = e.target.value; });
-
-  // save meal
-  const saveBtn = container.querySelector('#meal-save-btn');
-  if (saveBtn) saveBtn.addEventListener('click', async () => {
-    const { editDay, editMeal, editType, editRecipe, editNote } = refeic.state;
-    if (!editType || editType === 'empty') {
-      await _saveMeal(editDay, editMeal, { type: 'empty' });
-    } else {
-      await _saveMeal(editDay, editMeal, { type: editType, recipeId: editRecipe || undefined, note: editNote || undefined });
-    }
-    refeic.state.modalOpen = false;
-    onRefresh();
-  });
-
-  // clear meal
-  const clearBtn = container.querySelector('#meal-clear-btn');
-  if (clearBtn) clearBtn.addEventListener('click', async () => {
-    await _saveMeal(refeic.state.editDay, refeic.state.editMeal, { type: 'empty' });
-    refeic.state.modalOpen = false;
-    onRefresh();
-  });
-
-  // cancel modal
-  const cancelBtn = container.querySelector('#meal-cancel-btn');
-  if (cancelBtn) cancelBtn.addEventListener('click', () => {
-    refeic.state.modalOpen = false;
-    onRefresh();
-  });
-
-  // backdrop close
-  const backdrop = container.querySelector('#meal-modal-backdrop');
-  if (backdrop) backdrop.addEventListener('click', e => {
-    if (e.target === backdrop) { refeic.state.modalOpen = false; onRefresh(); }
   });
 
   // inventory: location tabs
@@ -397,19 +374,19 @@ export function bindRefeicoes(container, onRefresh) {
     });
   });
 
-  // inventory: search input
+  // inventory: search + add
   const searchInput = container.querySelector('#inv-search-input');
   if (searchInput) {
-    searchInput.addEventListener('input', e => {
-      refeic.state.invSearch = e.target.value;
-      _updateSuggestions(container);
-    });
+    searchInput.addEventListener('input', () => _updateSuggestions(container));
     searchInput.addEventListener('focus', () => _updateSuggestions(container));
-    searchInput.addEventListener('blur', () => {
+    searchInput.addEventListener('blur',  () => {
       setTimeout(() => {
         const sug = container.querySelector('#inv-suggestions');
         if (sug) sug.style.display = 'none';
       }, 200);
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') _doAdd(container, onRefresh);
     });
   }
 
@@ -423,28 +400,15 @@ export function bindRefeicoes(container, onRefresh) {
     });
   });
 
-  // inventory: add button
   const addBtn = container.querySelector('#inv-add-btn');
-  if (addBtn) addBtn.addEventListener('click', () => _addFromSearch(container, onRefresh));
+  if (addBtn) addBtn.addEventListener('click', () => _doAdd(container, onRefresh));
 
-  // recipes: open detail
+  // recipes: open detail (body-level)
   container.querySelectorAll('.recipe-card').forEach(card => {
     card.addEventListener('click', () => {
       const r = refeic.data.recipes.find(x => x.id === card.dataset.recipe);
-      if (r) { refeic.state.recipeDetail = r; onRefresh(); }
+      if (r) openRecipeDetail(r);
     });
-  });
-
-  // recipe detail close
-  const recipeClose = container.querySelector('#recipe-detail-close');
-  if (recipeClose) recipeClose.addEventListener('click', () => {
-    refeic.state.recipeDetail = null;
-    onRefresh();
-  });
-
-  const recipeBackdrop = container.querySelector('#recipe-detail-backdrop');
-  if (recipeBackdrop) recipeBackdrop.addEventListener('click', e => {
-    if (e.target === recipeBackdrop) { refeic.state.recipeDetail = null; onRefresh(); }
   });
 }
 
@@ -467,9 +431,7 @@ function _updateSuggestions(container) {
   if (!input || !sug) return;
   const q = input.value.toLowerCase().trim();
   if (!q) { sug.style.display = 'none'; return; }
-  const matches = refeic.data.products
-    .filter(p => p.name.toLowerCase().includes(q))
-    .slice(0, 8);
+  const matches = refeic.data.products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
   if (matches.length === 0) { sug.style.display = 'none'; return; }
   sug.innerHTML = matches.map(p =>
     `<div class="inv-suggestion" data-pid="${p.id}" data-pname="${p.name}">${p.name}</div>`
@@ -478,25 +440,27 @@ function _updateSuggestions(container) {
   sug.querySelectorAll('.inv-suggestion').forEach(row => {
     row.addEventListener('mousedown', () => {
       input.value = row.dataset.pname;
-      refeic.state.invSearch = row.dataset.pname;
       sug.style.display = 'none';
     });
   });
 }
 
-async function _addFromSearch(container, onRefresh) {
+async function _doAdd(container, onRefresh) {
   const input = container.querySelector('#inv-search-input');
-  if (!input || !input.value.trim()) return;
-  const q = input.value.trim().toLowerCase();
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) { input.focus(); return; }
+
+  const q       = raw.toLowerCase();
   const product = refeic.data.products.find(p => p.name.toLowerCase() === q)
                || refeic.data.products.find(p => p.name.toLowerCase().includes(q));
 
   const item = {
-    productId:     product ? product.id : null,
-    name:          product ? product.name : input.value.trim(),
-    location:      refeic.state.invLocation,
+    productId:     product ? product.id    : null,
+    name:          product ? product.name  : raw,
+    location:      refeic.state.invLocation === 'all' ? 'frigorifico' : refeic.state.invLocation,
     quantity:      product ? product.defaultQty : null,
-    unit:          product ? product.unit : null,
+    unit:          product ? product.unit  : null,
     quantityKnown: false,
   };
 
@@ -506,9 +470,7 @@ async function _addFromSearch(container, onRefresh) {
     body: JSON.stringify(item),
   });
   if (r.ok) {
-    const saved = await r.json();
-    refeic.data.inventory.push(saved);
-    refeic.state.invSearch = '';
+    refeic.data.inventory.push(await r.json());
     input.value = '';
   }
   onRefresh();

@@ -137,8 +137,8 @@ def get_inventory():
 @app.route('/api/inventory', methods=['POST'])
 def add_inventory():
     item = request.get_json()
-    if not item or not item.get('productId'):
-        return jsonify({'error': 'productId required'}), 400
+    if not item or not item.get('name'):
+        return jsonify({'error': 'name required'}), 400
     inv = _load_inv()
     item['id'] = str(uuid.uuid4())[:8]
     inv.append(item)
