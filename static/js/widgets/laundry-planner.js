@@ -1,9 +1,15 @@
 import { CLOTHES, CYCLES, MACHINE } from '../data/machine.js';
 
-const HARD_WATER_FACTOR = 1.2; // Corroios ~150 mg/L CaCO3
-
+// Dosing: label-based estimates for Corroios water (~150 mg/L, zone B/medium).
+// These are starting points — real dose depends on brand and soil level.
 function detergentML(kg) {
-  return Math.min(70, Math.max(20, Math.round(35 * (kg / 4.5) * HARD_WATER_FACTOR)));
+  // ~35 mL base for any load + 6 mL per kg
+  return Math.round(Math.min(100, 35 + 6 * kg));
+}
+
+function softenerML(kg) {
+  // ~25 mL base + 4 mL per kg
+  return Math.round(Math.min(65, 25 + 4 * kg));
 }
 
 function fmtDuration(min) {
@@ -86,7 +92,8 @@ export function computeAllLoads(coloredCounts, whiteCounts) {
 // ── RENDER ─────────────────────────────────────────────────────────────────
 
 function loadCard(load, idx, groupKey) {
-  const det      = detergentML(load.realKg);
+  const det  = detergentML(load.realKg);
+  const soft = softenerML(load.realKg);
   const itemList = load.items.map(it => `${it.qty}× ${it.label}`).join(', ');
   const pct      = load.drumPct.toFixed(0);
   const barCls   = load.drumPct > 85 ? 'danger' : load.drumPct > 65 ? 'warn' : 'ok';
@@ -120,10 +127,13 @@ function loadCard(load, idx, groupKey) {
         <span class="det-label">🧴 Detergente líquido</span>
         <span class="det-value">${det} mL</span>
         <span class="det-label">💧 Amaciador</span>
-        <span class="det-value">25 mL</span>
+        <span class="det-value">${soft} mL</span>
+        <span class="det-label">🌸 Perfumador</span>
+        <span class="det-value">20 mL</span>
         <span class="det-label">⚗️ Anti-calcário</span>
         <span class="det-value">1 past. Calgon</span>
       </div>
+      <span class="det-note">⚠️ Experimental — ajusta conforme o rótulo da tua marca</span>
       ${liqNote}
     </div>`;
 }
