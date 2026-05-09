@@ -11,8 +11,20 @@ const LOCATIONS   = ['all', 'frigorifico', 'congelador', 'despensa'];
 const LOC_LABELS  = { all: '🔍 Tudo', frigorifico: '🧊 Frigorífico', congelador: '❄️ Congelador', despensa: '🗄️ Despensa' };
 
 export const refeic = {
-  data:  { products: [], recipes: [], inventory: [], planner: {} },
+  data:  { products: [], recipes: [], inventory: [], planner: {}, shopping: [] },
   state: { activeTab: 'plano', invLocation: 'all', invSearch: '' },
+};
+
+const CAT_LABELS_PT = {
+  carne: 'Carnes', peixe: 'Peixe', laticinios: 'Laticínios',
+  secos: 'Secos e Grãos', legumes: 'Legumes e Frutas',
+  conservas: 'Conservas', congelados: 'Congelados',
+  temperos: 'Temperos', padaria: 'Padaria', outro: 'Outros',
+};
+const CAT_ICONS = {
+  carne: '🥩', peixe: '🐟', laticinios: '🥛', secos: '🌾',
+  legumes: '🥦', conservas: '🥫', congelados: '❄️',
+  temperos: '🧂', padaria: '🍞', outro: '🛒',
 };
 
 // modal state lives here — not in refeic.state
@@ -35,16 +47,18 @@ function _qtyStep(unit) {
 // ── DATA LOADING ──────────────────────────────────────────────────────────────
 
 export async function initRefeicoes() {
-  const [products, recipes, inventory, planner] = await Promise.all([
+  const [products, recipes, inventory, planner, shopping] = await Promise.all([
     fetch('/api/products').then(r => r.ok ? r.json() : []),
     fetch('/api/recipes').then(r => r.ok ? r.json() : []),
     fetch('/api/inventory').then(r => r.ok ? r.json() : []),
     fetch('/api/planner').then(r => r.ok ? r.json() : {}),
+    fetch('/api/shopping').then(r => r.ok ? r.json() : []),
   ]);
   refeic.data.products  = products;
   refeic.data.recipes   = recipes;
   refeic.data.inventory = inventory;
   refeic.data.planner   = planner;
+  refeic.data.shopping  = shopping;
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -194,14 +208,108 @@ function renderReceitas() {
   return `<div class="recipes-grid">${cards}</div>`;
 }
 
+// ── RENDER: LISTA DE COMPRAS ──────────────────────────────────────────────────
+
+function _generateFromPlan() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const seen = new Map();
+  Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    return dateStr(d);
+  }).forEach(ds => {
+    const entry = refeic.data.planner[ds];
+    if (!entry) return;
+    ['lunch', 'dinner'].forEach(slot => {
+      const meal = entry[slot];
+      if (!meal || meal.type !== 'recipe' || !meal.recipeId) return;
+      const recipe = refeic.data.recipes.find(r => r.id === meal.recipeId);
+      if (!recipe) return;
+      recipe.ingredients.forEach(ing => {
+        if (ing.optional || seen.has(ing.productId)) return;
+        if (_invHasIngredient(ing)) return;
+        const p = refeic.data.products.find(x => x.id === ing.productId);
+        seen.set(ing.productId, {
+          productId: ing.productId,
+          name:      p ? p.name : ing.productId,
+          quantity:  ing.qty,
+          unit:      ing.unit,
+          category:  p ? p.category : 'outro',
+          source:    'recipe',
+          checked:   false,
+        });
+      });
+    });
+  });
+  return Array.from(seen.values());
+}
+
+function renderLista() {
+  const shop      = refeic.data.shopping;
+  const unchecked = shop.filter(i => !i.checked);
+  const checked   = shop.filter(i => i.checked);
+
+  const grouped = {};
+  unchecked.forEach(item => {
+    const cat = item.category || 'outro';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(item);
+  });
+
+  const catOrder = ['carne','peixe','laticinios','secos','legumes',
+                    'conservas','congelados','temperos','padaria','outro'];
+
+  let listHTML = '';
+  catOrder.forEach(cat => {
+    if (!grouped[cat]) return;
+    listHTML += `<div class="lista-category">${CAT_ICONS[cat] || '🛒'} ${CAT_LABELS_PT[cat] || cat}</div>`;
+    listHTML += grouped[cat].map(item => `
+      <div class="lista-item">
+        <button class="lista-check" data-check-id="${item.id}">⬜</button>
+        <span class="lista-item-name">${item.name}</span>
+        ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${item.unit || ''}</span>` : ''}
+        <button class="lista-del" data-del-shop="${item.id}">×</button>
+      </div>`).join('');
+  });
+
+  const checkedHTML = checked.length === 0 ? '' : `
+    <div class="lista-done-section">
+      <div class="lista-category lista-category-done">✅ No carrinho (${checked.length})</div>
+      ${checked.map(item => `
+        <div class="lista-item lista-item-done">
+          <button class="lista-check" data-check-id="${item.id}">✅</button>
+          <span class="lista-item-name">${item.name}</span>
+          ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${item.unit || ''}</span>` : ''}
+          <button class="lista-del" data-del-shop="${item.id}">×</button>
+        </div>`).join('')}
+      <button class="ref-btn ref-btn-danger lista-clear-btn" id="lista-clear-done">
+        🗑️ Limpar concluídos (${checked.length})
+      </button>
+    </div>`;
+
+  const emptyMsg = shop.length === 0
+    ? `<div class="inv-empty">Lista vazia · gera a partir do plano da semana ou adiciona manualmente</div>` : '';
+
+  return `
+    <div class="lista-toolbar">
+      <button class="lista-gen-btn" id="lista-generate">🔄 Gerar da semana</button>
+      <button class="lista-add-btn" id="lista-add">+ Adicionar</button>
+    </div>
+    ${emptyMsg}
+    <div class="lista-items">${listHTML}</div>
+    ${checkedHTML}`;
+}
+
 // ── MAIN RENDER ───────────────────────────────────────────────────────────────
 
 export function renderRefeicoes() {
   const { activeTab } = refeic.state;
   const tabBtns = [
     { id: 'plano',      label: '📅 Plano' },
-    { id: 'inventario', label: '🛒 Inventário' },
+    { id: 'inventario', label: '📦 Inventário' },
     { id: 'receitas',   label: '🍳 Receitas' },
+    { id: 'lista',      label: '🛒 Lista' },
   ].map(t => `
     <button class="ref-tab-btn${activeTab === t.id ? ' active' : ''}" data-ref-tab="${t.id}">
       ${t.label}
@@ -211,6 +319,7 @@ export function renderRefeicoes() {
   if (activeTab === 'plano')      pageContent = renderPlano();
   if (activeTab === 'inventario') pageContent = renderInventario();
   if (activeTab === 'receitas')   pageContent = renderReceitas();
+  if (activeTab === 'lista')      pageContent = renderLista();
 
   return `
     <div class="card-label">Refeições</div>
@@ -453,6 +562,72 @@ export function bindRefeicoes(container, onRefresh) {
       if (r) openRecipeDetail(r);
     });
   });
+
+  // lista: generate from plan
+  const genBtn = container.querySelector('#lista-generate');
+  if (genBtn) genBtn.addEventListener('click', async () => {
+    const generated = _generateFromPlan();
+    if (generated.length === 0) {
+      genBtn.textContent = '✅ Tudo em casa!';
+      setTimeout(() => { genBtn.textContent = '🔄 Gerar da semana'; }, 2000);
+      return;
+    }
+    // skip items already in the unchecked list (by productId or name)
+    const existing = refeic.data.shopping.filter(i => !i.checked);
+    const toAdd = generated.filter(g =>
+      !existing.some(e => (g.productId && e.productId === g.productId) || e.name === g.name)
+    );
+    if (toAdd.length === 0) {
+      genBtn.textContent = '✅ Lista já atualizada';
+      setTimeout(() => { genBtn.textContent = '🔄 Gerar da semana'; }, 2000);
+      return;
+    }
+    const r = await fetch('/api/shopping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(toAdd),
+    });
+    if (r.ok) refeic.data.shopping = await r.json();
+    onRefresh();
+  });
+
+  // lista: manual add
+  const listaAddBtn = container.querySelector('#lista-add');
+  if (listaAddBtn) listaAddBtn.addEventListener('click', () => _openShopAddModal(onRefresh));
+
+  // lista: check/uncheck
+  container.querySelectorAll('[data-check-id]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id   = btn.dataset.checkId;
+      const item = refeic.data.shopping.find(i => i.id === id);
+      if (!item) return;
+      const r = await fetch(`/api/shopping/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checked: !item.checked }),
+      });
+      if (r.ok) item.checked = !item.checked;
+      onRefresh();
+    });
+  });
+
+  // lista: delete single item
+  container.querySelectorAll('[data-del-shop]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.delShop;
+      await fetch(`/api/shopping/${id}`, { method: 'DELETE' });
+      refeic.data.shopping = refeic.data.shopping.filter(i => i.id !== id);
+      onRefresh();
+    });
+  });
+
+  // lista: clear done
+  const clearDoneBtn = container.querySelector('#lista-clear-done');
+  if (clearDoneBtn) clearDoneBtn.addEventListener('click', async () => {
+    const r = await fetch('/api/shopping/done', { method: 'DELETE' });
+    if (r.ok) refeic.data.shopping = await r.json();
+    onRefresh();
+  });
 }
 
 // ── INTERNAL HELPERS ──────────────────────────────────────────────────────────
@@ -626,6 +801,97 @@ function _openAddModal(onRefresh) {
   _addEl = wrap.firstElementChild;
   document.body.appendChild(_addEl);
   _bindAddModal(onRefresh);
+}
+
+// ── SHOP ADD MODAL (body-level) ───────────────────────────────────────────────
+
+function _openShopAddModal(onRefresh) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="ref-modal-backdrop">
+      <div class="ref-modal">
+        <div class="ref-modal-title">Adicionar à lista</div>
+        <div class="ref-section-label">Produto</div>
+        <div class="inv-search-wrap" style="margin-bottom:12px">
+          <input class="inv-search" id="shop-add-input" type="text"
+                 placeholder="Escreve o produto…" autocomplete="off">
+          <div class="inv-suggestions" id="shop-add-suggestions" style="display:none"></div>
+        </div>
+        <div class="ref-section-label">Quantidade (opcional)</div>
+        <div class="add-qty-row">
+          <input class="add-qty-input" id="shop-add-qty" type="number" min="0" step="any"
+                 placeholder="ex. 500" inputmode="decimal">
+          <select class="add-unit-select" id="shop-add-unit">
+            ${UNITS.map(u => `<option value="${u}">${u}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ref-modal-actions">
+          <button class="ref-btn ref-btn-secondary" id="shop-add-cancel">Cancelar</button>
+          <button class="ref-btn ref-btn-primary"   id="shop-add-save">Adicionar</button>
+        </div>
+      </div>
+    </div>`;
+  const el = wrap.firstElementChild;
+  document.body.appendChild(el);
+
+  const input   = el.querySelector('#shop-add-input');
+  const sug     = el.querySelector('#shop-add-suggestions');
+  const qtyInp  = el.querySelector('#shop-add-qty');
+  const unitSel = el.querySelector('#shop-add-unit');
+  let selectedProduct = null;
+
+  const showSug = () => {
+    const q = input.value.toLowerCase().trim();
+    if (!q) { sug.style.display = 'none'; return; }
+    const matches = refeic.data.products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
+    if (!matches.length) { sug.style.display = 'none'; return; }
+    sug.innerHTML = matches.map(p =>
+      `<div class="inv-suggestion" data-pid="${p.id}" data-pname="${p.name}"
+            data-punit="${p.unit}" data-pqty="${p.defaultQty || ''}">${p.name}</div>`
+    ).join('');
+    sug.style.display = 'block';
+    sug.querySelectorAll('.inv-suggestion').forEach(row => {
+      row.addEventListener('mousedown', () => {
+        selectedProduct = { id: row.dataset.pid, name: row.dataset.pname,
+                            unit: row.dataset.punit, defaultQty: row.dataset.pqty };
+        input.value = selectedProduct.name;
+        unitSel.value = selectedProduct.unit || 'un';
+        if (selectedProduct.defaultQty) qtyInp.value = selectedProduct.defaultQty;
+        sug.style.display = 'none';
+      });
+    });
+  };
+  input.addEventListener('input',  () => { selectedProduct = null; showSug(); });
+  input.addEventListener('focus',  showSug);
+  input.addEventListener('blur',   () => setTimeout(() => { sug.style.display = 'none'; }, 200));
+  setTimeout(() => input.focus(), 80);
+
+  el.querySelector('#shop-add-cancel').addEventListener('click', () => el.remove());
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+
+  el.querySelector('#shop-add-save').addEventListener('click', async () => {
+    const name = input.value.trim();
+    if (!name) return;
+    const qty = parseFloat(qtyInp.value);
+    const p   = selectedProduct || refeic.data.products.find(x => x.name.toLowerCase() === name.toLowerCase());
+    const item = {
+      productId: p ? p.id : null,
+      name,
+      quantity:  isNaN(qty) ? null : qty,
+      unit:      unitSel.value,
+      category:  p ? (refeic.data.products.find(x => x.id === p.id) || {}).category || 'outro' : 'outro',
+      source:    'manual',
+      checked:   false,
+    };
+    const r = await fetch('/api/shopping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+    if (r.ok) refeic.data.shopping = await r.json();
+    el.remove();
+    onRefresh();
+  });
 }
 
 // ── EDIT INVENTORY MODAL (body-level) ─────────────────────────────────────────

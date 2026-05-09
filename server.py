@@ -16,6 +16,7 @@ CUSTOM_PRODUCTS_FILE = os.path.join(BASE_DIR, 'cache', 'custom_products.json')
 MAINT_FILE = os.path.join(BASE_DIR, 'cache', 'maintenance.json')
 INV_FILE   = os.path.join(BASE_DIR, 'cache', 'inventory.json')
 PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
+SHOP_FILE  = os.path.join(BASE_DIR, 'cache', 'shopping.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
 WEATHER_URL = (
@@ -219,6 +220,70 @@ def set_planner_day(date_str):
     plan[date_str] = data
     _save_plan(plan)
     return jsonify(data)
+
+
+# ── REFEIÇÕES: Shopping list ──────────────────────────────────────────────────
+
+def _load_shop():
+    try:
+        with open(SHOP_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def _save_shop(data):
+    with open(SHOP_FILE, 'w') as f:
+        json.dump(data, f)
+
+
+@app.route('/api/shopping', methods=['GET'])
+def get_shopping():
+    return jsonify(_load_shop())
+
+
+@app.route('/api/shopping', methods=['POST'])
+def add_shopping():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'body required'}), 400
+    shop = _load_shop()
+    if isinstance(data, list):
+        for item in data:
+            item['id'] = str(uuid.uuid4())[:8]
+            item.setdefault('checked', False)
+            shop.append(item)
+    else:
+        data['id'] = str(uuid.uuid4())[:8]
+        data.setdefault('checked', False)
+        shop.append(data)
+    _save_shop(shop)
+    return jsonify(shop), 201
+
+
+@app.route('/api/shopping/done', methods=['DELETE'])
+def clear_done_shopping():
+    shop = [it for it in _load_shop() if not it.get('checked')]
+    _save_shop(shop)
+    return jsonify(shop)
+
+
+@app.route('/api/shopping/<item_id>', methods=['PATCH'])
+def patch_shopping(item_id):
+    patch = request.get_json() or {}
+    shop  = _load_shop()
+    for it in shop:
+        if it.get('id') == item_id:
+            it.update(patch)
+            _save_shop(shop)
+            return jsonify(it)
+    return jsonify({'error': 'not found'}), 404
+
+
+@app.route('/api/shopping/<item_id>', methods=['DELETE'])
+def delete_shopping(item_id):
+    shop = [it for it in _load_shop() if it.get('id') != item_id]
+    _save_shop(shop)
+    return '', 204
 
 
 # ── STATIC ────────────────────────────────────────────────────────────────────
