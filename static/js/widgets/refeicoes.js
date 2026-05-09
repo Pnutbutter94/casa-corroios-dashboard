@@ -20,8 +20,9 @@ let _mealEl    = null;
 let _mealState = { day: null, meal: null, type: null, recipe: null, note: '' };
 let _addEl       = null;
 let _addState    = { name: '', productId: null, quantity: '', unit: 'un', location: 'frigorifico' };
-let _editInvEl   = null;
-let _editInvState = { id: null, name: '', quantity: 0, unit: 'un', location: 'frigorifico' };
+let _editInvEl             = null;
+let _editInvState          = { id: null, name: '', quantity: 0, unit: 'un', location: 'frigorifico', productId: null };
+let _currentEditInvRefresh = null;
 
 const UNITS = ['un', 'g', 'kg', 'ml', 'L', 'lata', 'pacote', 'caixa'];
 
@@ -60,11 +61,31 @@ function weekDays() {
   });
 }
 
-function matchScore(recipe) {
+// words longer than 4 chars extracted from a name, normalised
+function _nameWords(str) {
+  return (str || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')  // strip accents
+    .split(/\s+/).filter(w => w.length > 3);
+}
+
+function _invHasIngredient(ing) {
   const inv = refeic.data.inventory;
+  // 1. exact productId match
+  if (inv.some(it => it.productId === ing.productId)) return true;
+  // 2. name-based fallback: significant word overlap with catalogue name
+  const catProduct = refeic.data.products.find(p => p.id === ing.productId);
+  if (!catProduct) return false;
+  const catWords = _nameWords(catProduct.name);
+  return inv.some(it => {
+    const itemWords = _nameWords(it.name);
+    return catWords.some(w => itemWords.includes(w));
+  });
+}
+
+function matchScore(recipe) {
   const required = recipe.ingredients.filter(i => !i.optional);
   if (required.length === 0) return 100;
-  const have = required.filter(ing => inv.some(it => it.productId === ing.productId)).length;
+  const have = required.filter(ing => _invHasIngredient(ing)).length;
   return Math.round((have / required.length) * 100);
 }
 
@@ -610,8 +631,8 @@ function _openAddModal(onRefresh) {
 // ── EDIT INVENTORY MODAL (body-level) ─────────────────────────────────────────
 
 function _renderEditInvModal() {
-  const { name, quantity, unit, location } = _editInvState;
-  const step    = _qtyStep(unit);
+  const { name, quantity, unit, location, productId } = _editInvState;
+  const step     = _qtyStep(unit);
   const unitOpts = UNITS.map(u =>
     `<option value="${u}"${u === unit ? ' selected' : ''}>${u}</option>`
   ).join('');
@@ -619,6 +640,23 @@ function _renderEditInvModal() {
     <button class="add-loc-btn${location === loc ? ' selected' : ''}" data-edit-loc="${loc}">
       ${LOC_LABELS[loc]}
     </button>`).join('');
+
+  const linkedProduct = refeic.data.products.find(p => p.id === productId);
+  const isCustom = !productId || productId.startsWith('custom_');
+  const linkSection = isCustom ? `
+    <div class="ref-section-label">Vincular a produto base
+      <span class="link-hint">(para receitas)</span>
+    </div>
+    <div class="inv-search-wrap" style="margin-bottom:4px">
+      <input class="inv-search" id="link-search" type="text"
+             placeholder="Procurar produto do catálogo…"
+             value="${linkedProduct ? linkedProduct.name : ''}" autocomplete="off">
+      <div class="inv-suggestions" id="link-suggestions" style="display:none"></div>
+    </div>
+    ${linkedProduct ? `<div class="link-current">✅ Ligado a: <strong>${linkedProduct.name}</strong>
+      <button class="link-clear" id="link-clear">×</button></div>` : ''}` : `
+    <div class="ref-section-label">Produto base</div>
+    <div class="link-current">✅ ${linkedProduct ? linkedProduct.name : productId}</div>`;
 
   return `
     <div class="ref-modal-backdrop">
@@ -636,6 +674,8 @@ function _renderEditInvModal() {
 
         <div class="ref-section-label">Local</div>
         <div class="add-loc-row">${locBtns}</div>
+
+        ${linkSection}
 
         <div class="ref-modal-actions">
           <button class="ref-btn ref-btn-danger"   id="edit-inv-delete">Apagar</button>
@@ -672,6 +712,50 @@ function _bindEditInvModal(onRefresh) {
     if (qtyInput) qtyInput.value = newVal;
   });
 
+  // product link search (only present for custom items)
+  const linkInput = _editInvEl.querySelector('#link-search');
+  const linkSug   = _editInvEl.querySelector('#link-suggestions');
+  if (linkInput && linkSug) {
+    const showLinkSuggestions = () => {
+      const q = linkInput.value.toLowerCase().trim();
+      if (!q) { linkSug.style.display = 'none'; return; }
+      // only catalogue products (not custom_) for linking
+      const matches = refeic.data.products
+        .filter(p => !p.id.startsWith('custom_') && p.name.toLowerCase().includes(q))
+        .slice(0, 8);
+      if (!matches.length) { linkSug.style.display = 'none'; return; }
+      linkSug.innerHTML = matches.map(p =>
+        `<div class="inv-suggestion" data-link-pid="${p.id}" data-link-pname="${p.name}">${p.name}</div>`
+      ).join('');
+      linkSug.style.display = 'block';
+      linkSug.querySelectorAll('.inv-suggestion').forEach(row => {
+        row.addEventListener('mousedown', () => {
+          _editInvState.productId = row.dataset.linkPid;
+          linkSug.style.display = 'none';
+          // re-render modal so the "linked" badge shows
+          const wrap = document.createElement('div');
+          wrap.innerHTML = _renderEditInvModal();
+          _editInvEl.innerHTML = wrap.firstElementChild.innerHTML;
+          _bindEditInvModal(_currentEditInvRefresh);
+        });
+      });
+    };
+    linkInput.addEventListener('input', showLinkSuggestions);
+    linkInput.addEventListener('focus', showLinkSuggestions);
+    linkInput.addEventListener('blur', () =>
+      setTimeout(() => { linkSug.style.display = 'none'; }, 200)
+    );
+  }
+
+  const linkClear = _editInvEl.querySelector('#link-clear');
+  if (linkClear) linkClear.addEventListener('click', () => {
+    _editInvState.productId = null;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = _renderEditInvModal();
+    _editInvEl.innerHTML = wrap.firstElementChild.innerHTML;
+    _bindEditInvModal(_currentEditInvRefresh);
+  });
+
   _editInvEl.querySelectorAll('[data-edit-loc]').forEach(btn => {
     btn.addEventListener('click', () => {
       _editInvState.location = btn.dataset.editLoc;
@@ -696,6 +780,7 @@ function _bindEditInvModal(onRefresh) {
       unit,
       location:      _editInvState.location,
       quantityKnown: !isNaN(qty) && qty > 0,
+      productId:     _editInvState.productId,
     };
     const r = await fetch(`/api/inventory/${_editInvState.id}`, {
       method: 'PATCH',
@@ -718,12 +803,14 @@ function _bindEditInvModal(onRefresh) {
 
 function openEditInvModal(item, onRefresh) {
   if (_editInvEl) { _editInvEl.remove(); _editInvEl = null; }
+  _currentEditInvRefresh = onRefresh;
   _editInvState = {
-    id:       item.id,
-    name:     item.name,
-    quantity: item.quantity ?? 0,
-    unit:     item.unit || 'un',
-    location: item.location || 'frigorifico',
+    id:        item.id,
+    name:      item.name,
+    quantity:  item.quantity ?? 0,
+    unit:      item.unit || 'un',
+    location:  item.location || 'frigorifico',
+    productId: item.productId || null,
   };
   const wrap = document.createElement('div');
   wrap.innerHTML = _renderEditInvModal();
