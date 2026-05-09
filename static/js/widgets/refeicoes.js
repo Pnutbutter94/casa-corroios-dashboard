@@ -1,4 +1,5 @@
 // Refeições widget — planner, inventory, recipes
+import { esc } from '../utils/esc.js';
 
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const MEAL_TYPES = [
@@ -63,13 +64,13 @@ function weekDays() {
 }
 
 // words longer than 4 chars extracted from a name, normalised
-function _nameWords(str) {
+export function _nameWords(str) {
   return (str || '').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')  // strip accents
     .split(/\s+/).filter(w => w.length > 3);
 }
 
-function _invHasIngredient(ing) {
+export function _invHasIngredient(ing) {
   const inv = refeic.data.inventory;
   // 1. exact productId match
   if (inv.some(it => it.productId === ing.productId)) return true;
@@ -100,12 +101,12 @@ function mealLabel(ds, slot) {
   const meal = refeic.data.planner[ds]?.[slot];
   if (!meal || meal.type === 'empty') return `<span class="meal-slot-content empty">—</span>`;
   if (meal.type === 'external')  return `<span class="meal-slot-content">🍽️ Fora</span>`;
-  if (meal.type === 'readyMeal') return `<span class="meal-slot-content">📦 ${meal.note || 'Pré-feito'}</span>`;
+  if (meal.type === 'readyMeal') return `<span class="meal-slot-content">📦 ${esc(meal.note) || 'Pré-feito'}</span>`;
   if (meal.type === 'recipe' && meal.recipeId) {
     const r = refeic.data.recipes.find(x => x.id === meal.recipeId);
     return `<span class="meal-slot-content">${r ? r.name : meal.recipeId}</span>`;
   }
-  return meal.note ? `<span class="meal-slot-content">${meal.note}</span>` : `<span class="meal-slot-content empty">—</span>`;
+  return meal.note ? `<span class="meal-slot-content">${esc(meal.note)}</span>` : `<span class="meal-slot-content empty">—</span>`;
 }
 
 function renderPlano() {
@@ -153,7 +154,7 @@ function renderInventario() {
     : shown.map(it => `
       <div class="inv-item">
         <div class="inv-item-body" data-edit-inv="${it.id}">
-          <span class="inv-item-name">${it.name}</span>
+          <span class="inv-item-name">${esc(it.name)}</span>
           ${invLocation === 'all' ? `<span class="inv-item-loc">${LOC_LABELS[it.location] || it.location}</span>` : ''}
           <span class="inv-item-qty">${it.quantityKnown ? `${it.quantity} ${it.unit || ''}` : '— sem qtd'}</span>
         </div>
@@ -176,22 +177,21 @@ function renderInventario() {
 // ── RENDER: RECEITAS ──────────────────────────────────────────────────────────
 
 function renderReceitas() {
-  const sorted = [...refeic.data.recipes].sort((a, b) => matchScore(b) - matchScore(a));
-  const cards = sorted.map(r => {
-    const score = matchScore(r);
-    return `
-      <div class="recipe-card" data-recipe="${r.id}">
-        <div class="recipe-card-header">
-          <span class="recipe-card-name">${r.name}</span>
-          <span class="recipe-card-match ${matchClass(score)}">${score}%</span>
-        </div>
-        <div class="recipe-card-meta">
-          <span class="recipe-card-chip">⏱ ${r.prepTime + r.cookTime} min</span>
-          <span class="recipe-card-chip">👥 ${r.servings}</span>
-          ${r.tags.slice(0,2).map(t => `<span class="recipe-card-chip">${t}</span>`).join('')}
-        </div>
-      </div>`;
-  }).join('');
+  const scored = refeic.data.recipes
+    .map(r => ({ r, score: matchScore(r) }))
+    .sort((a, b) => b.score - a.score);
+  const cards = scored.map(({ r, score }) => `
+    <div class="recipe-card" data-recipe="${r.id}">
+      <div class="recipe-card-header">
+        <span class="recipe-card-name">${esc(r.name)}</span>
+        <span class="recipe-card-match ${matchClass(score)}">${score}%</span>
+      </div>
+      <div class="recipe-card-meta">
+        <span class="recipe-card-chip">⏱ ${r.prepTime + r.cookTime} min</span>
+        <span class="recipe-card-chip">👥 ${r.servings}</span>
+        ${r.tags.slice(0,2).map(t => `<span class="recipe-card-chip">${esc(t)}</span>`).join('')}
+      </div>
+    </div>`).join('');
   return `<div class="recipes-grid">${cards}</div>`;
 }
 
@@ -227,7 +227,7 @@ function openRecipeDetail(r) {
     return `
       <div class="recipe-ing-row">
         <span class="recipe-ing-qty">${ing.qty} ${ing.unit}</span>
-        <span>${productName(ing.productId)}${ing.optional ? ' <span style="opacity:.5">(opcional)</span>' : ''}</span>
+        <span>${esc(productName(ing.productId))}${ing.optional ? ' <span style="opacity:.5">(opcional)</span>' : ''}</span>
         <span class="recipe-ing-check">${have ? '✅' : '⬜'}</span>
       </div>`;
   }).join('');
@@ -235,13 +235,13 @@ function openRecipeDetail(r) {
   const steps = r.steps.map((s, i) => `
     <div class="recipe-step">
       <span class="recipe-step-num">${i+1}.</span>
-      <span>${s}</span>
+      <span>${esc(s)}</span>
     </div>`).join('');
 
   const html = `
     <div class="ref-modal-backdrop">
       <div class="ref-modal">
-        <div class="ref-modal-title">${r.name}</div>
+        <div class="ref-modal-title">${esc(r.name)}</div>
         <div class="ref-section-label">Ingredientes</div>
         <div class="recipe-detail-ing">${ings}</div>
         <div class="ref-section-label">Preparação</div>
@@ -275,24 +275,23 @@ function _renderMealModalHTML() {
       ${t.label}
     </button>`).join('');
 
-  const sorted = [...refeic.data.recipes].sort((a, b) => matchScore(b) - matchScore(a));
+  const scored = refeic.data.recipes
+    .map(r => ({ r, score: matchScore(r) }))
+    .sort((a, b) => b.score - a.score);
   const recipeRows = type === 'recipe' ? `
     <div class="ref-section-label">Receita</div>
     <div class="recipe-list">
-      ${sorted.map(r => {
-        const score = matchScore(r);
-        return `
-          <div class="recipe-pick-row${recipe === r.id ? ' selected' : ''}" data-pick-recipe="${r.id}">
-            <span class="recipe-pick-name">${r.name}</span>
-            <span class="recipe-pick-meta">${r.prepTime + r.cookTime}min</span>
-            <span class="recipe-pick-match ${matchClass(score)}">${score}%</span>
-          </div>`;
-      }).join('')}
+      ${scored.map(({ r, score }) => `
+        <div class="recipe-pick-row${recipe === r.id ? ' selected' : ''}" data-pick-recipe="${r.id}">
+          <span class="recipe-pick-name">${esc(r.name)}</span>
+          <span class="recipe-pick-meta">${r.prepTime + r.cookTime}min</span>
+          <span class="recipe-pick-match ${matchClass(score)}">${score}%</span>
+        </div>`).join('')}
     </div>` : '';
 
   const noteField = type && type !== 'empty' ? `
     <div class="ref-section-label">Nota (opcional)</div>
-    <textarea class="ref-modal-note" id="meal-note" rows="2" placeholder="ex. com arroz branco…">${note}</textarea>` : '';
+    <textarea class="ref-modal-note" id="meal-note" rows="2" placeholder="ex. com arroz branco…">${esc(note)}</textarea>` : '';
 
   const existing = refeic.data.planner[day]?.[meal];
   const clearBtn = existing && existing.type !== 'empty'
@@ -530,7 +529,7 @@ function _renderAddModal() {
         <div class="ref-modal-title">Adicionar ao inventário</div>
 
         <div class="ref-section-label">Nome</div>
-        <input class="ref-modal-note" id="add-name" type="text" value="${name.replace(/"/g, '&quot;')}" placeholder="Nome do produto">
+        <input class="ref-modal-note" id="add-name" type="text" value="${esc(name)}" placeholder="Nome do produto">
 
         <div class="ref-section-label">Quantidade</div>
         <div class="add-qty-row">
@@ -652,18 +651,18 @@ function _renderEditInvModal() {
     <div class="inv-search-wrap" style="margin-bottom:4px">
       <input class="inv-search" id="link-search" type="text"
              placeholder="Procurar produto do catálogo…"
-             value="${linkedProduct ? linkedProduct.name : ''}" autocomplete="off">
+             value="${linkedProduct ? esc(linkedProduct.name) : ''}" autocomplete="off">
       <div class="inv-suggestions" id="link-suggestions" style="display:none"></div>
     </div>
-    ${linkedProduct ? `<div class="link-current">✅ Ligado a: <strong>${linkedProduct.name}</strong>
+    ${linkedProduct ? `<div class="link-current">✅ Ligado a: <strong>${esc(linkedProduct.name)}</strong>
       <button class="link-clear" id="link-clear">×</button></div>` : ''}` : `
     <div class="ref-section-label">Produto base</div>
-    <div class="link-current">✅ ${linkedProduct ? linkedProduct.name : productId}</div>`;
+    <div class="link-current">✅ ${linkedProduct ? esc(linkedProduct.name) : productId}</div>`;
 
   return `
     <div class="ref-modal-backdrop">
       <div class="ref-modal">
-        <div class="ref-modal-title">${name}</div>
+        <div class="ref-modal-title">${esc(name)}</div>
 
         <div class="ref-section-label">Quantidade</div>
         <div class="edit-qty-row">

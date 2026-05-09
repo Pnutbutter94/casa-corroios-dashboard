@@ -1,6 +1,7 @@
 // Lista de compras — household shopping list (top-level tab)
 
-import { refeic } from './refeicoes.js';
+import { refeic, _nameWords, _invHasIngredient } from './refeicoes.js';
+import { esc } from '../utils/esc.js';
 
 export const lista = {
   data: { shopping: [] },
@@ -28,27 +29,24 @@ const CAT_ORDER = [
 ];
 const UNITS = ['un', 'dose', 'g', 'kg', 'ml', 'L', 'lata', 'pacote', 'caixa'];
 
-let _addEl       = null;
+let _addEl        = null;
 let _refeicLoaded = false;
 
 // ── DATA ─────────────────────────────────────────────────────────────────────
 
 export async function initLista() {
+  const productsPromise = refeic.data.products.length > 0
+    ? Promise.resolve(refeic.data.products)
+    : fetch('/api/products').then(r => r.ok ? r.json() : []);
   const [shopping, products] = await Promise.all([
     fetch('/api/shopping').then(r => r.ok ? r.json() : []),
-    fetch('/api/products').then(r => r.ok ? r.json() : []),
+    productsPromise,
   ]);
   lista.data.shopping = shopping;
-  if (refeic.data.products.length === 0) refeic.data.products = products;
+  if (!refeic.data.products.length) refeic.data.products = products;
 }
 
 // ── GENERATE FROM MEAL PLAN ──────────────────────────────────────────────────
-
-function _nameWords(str) {
-  return (str || '').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .split(/\s+/).filter(w => w.length > 3);
-}
 
 async function _ensureRefeicData() {
   if (_refeicLoaded || refeic.data.recipes.length > 0) return;
@@ -61,18 +59,6 @@ async function _ensureRefeicData() {
   if (!refeic.data.inventory.length) refeic.data.inventory = inventory;
   refeic.data.planner = planner;
   _refeicLoaded = true;
-}
-
-function _invHasIngredient(ing) {
-  const inv = refeic.data.inventory;
-  if (inv.some(it => it.productId === ing.productId)) return true;
-  const catProduct = refeic.data.products.find(p => p.id === ing.productId);
-  if (!catProduct) return false;
-  const catWords = _nameWords(catProduct.name);
-  return inv.some(it => {
-    const itemWords = _nameWords(it.name);
-    return catWords.some(w => itemWords.includes(w));
-  });
 }
 
 function _generateFromPlan() {
@@ -132,7 +118,7 @@ export function renderLista() {
     listHTML += grouped[cat].map(item => `
       <div class="lista-item">
         <button class="lista-check" data-check-id="${item.id}">⬜</button>
-        <span class="lista-item-name">${item.name}</span>
+        <span class="lista-item-name">${esc(item.name)}</span>
         ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${item.unit || ''}</span>` : ''}
         <button class="lista-del" data-del-shop="${item.id}">×</button>
       </div>`).join('');
@@ -144,7 +130,7 @@ export function renderLista() {
       ${checked.map(item => `
         <div class="lista-item lista-item-done">
           <button class="lista-check" data-check-id="${item.id}">✅</button>
-          <span class="lista-item-name">${item.name}</span>
+          <span class="lista-item-name">${esc(item.name)}</span>
           ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${item.unit || ''}</span>` : ''}
           <button class="lista-del" data-del-shop="${item.id}">×</button>
         </div>`).join('')}

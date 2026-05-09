@@ -5,6 +5,7 @@ import os
 import time
 import datetime
 import uuid
+import re
 
 app = Flask(__name__)
 
@@ -19,6 +20,11 @@ PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
 SHOP_FILE  = os.path.join(BASE_DIR, 'cache', 'shopping.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
+ALLOWED_INV_FIELDS  = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
+ALLOWED_SHOP_FIELDS = {'checked', 'name', 'quantity', 'unit', 'category'}
+MAX_CUSTOM_PRODUCTS = 500
+DATE_RE             = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
 WEATHER_URL = (
     "https://api.open-meteo.com/v1/forecast"
     "?latitude=38.6333&longitude=-9.0333"
@@ -29,6 +35,21 @@ WEATHER_URL = (
 )
 
 os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+
+
+@app.after_request
+def security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options']         = 'DENY'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self'; "
+        "connect-src 'self' https://api.open-meteo.com; "
+        "img-src 'self' data:;"
+    )
+    return response
 
 
 def _load_cache():
@@ -124,6 +145,8 @@ def add_custom_product():
         custom = []
     item['id'] = 'custom_' + str(uuid.uuid4())[:8]
     item.setdefault('category', 'outro')
+    if len(custom) >= MAX_CUSTOM_PRODUCTS:
+        return jsonify({'error': 'custom product limit reached'}), 400
     custom.append(item)
     with open(CUSTOM_PRODUCTS_FILE, 'w') as f:
         json.dump(custom, f)
@@ -174,7 +197,8 @@ def add_inventory():
 
 @app.route('/api/inventory/<item_id>', methods=['PATCH'])
 def patch_inventory(item_id):
-    patch = request.get_json() or {}
+    raw   = request.get_json() or {}
+    patch = {k: v for k, v in raw.items() if k in ALLOWED_INV_FIELDS}
     inv = _load_inv()
     for it in inv:
         if it.get('id') == item_id:
@@ -213,6 +237,8 @@ def get_planner():
 
 @app.route('/api/planner/<date_str>', methods=['POST'])
 def set_planner_day(date_str):
+    if not DATE_RE.match(date_str):
+        return jsonify({'error': 'invalid date'}), 400
     data = request.get_json()
     if not data:
         return jsonify({'error': 'body required'}), 400
@@ -269,7 +295,8 @@ def clear_done_shopping():
 
 @app.route('/api/shopping/<item_id>', methods=['PATCH'])
 def patch_shopping(item_id):
-    patch = request.get_json() or {}
+    raw   = request.get_json() or {}
+    patch = {k: v for k, v in raw.items() if k in ALLOWED_SHOP_FIELDS}
     shop  = _load_shop()
     for it in shop:
         if it.get('id') == item_id:
