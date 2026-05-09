@@ -12,6 +12,9 @@ import {
 import {
   refeic, initRefeicoes, renderRefeicoes, bindRefeicoes,
 } from './widgets/refeicoes.js';
+import {
+  initLista, renderLista, bindLista,
+} from './widgets/lista.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -20,6 +23,7 @@ let whiteCounts       = {};
 const plannerMode     = { white: false }; // object so ref survives re-binds
 let maintenanceData   = {};
 let refeicInitialised = false;
+let listaInitialised  = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -50,6 +54,14 @@ function refreshRefeicoes() {
   bindRefeicoes(card, refreshRefeicoes);
 }
 
+// ── LISTA ──────────────────────────────────────────────────────────────────
+function refreshLista() {
+  const card = document.getElementById('lista-card');
+  if (!card) return;
+  card.innerHTML = renderLista();
+  bindLista(card, refreshLista);
+}
+
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────
 function initTabs() {
   document.getElementById('header-location').textContent = `📍 ${LOCATION}`;
@@ -64,6 +76,10 @@ function initTabs() {
         refeicInitialised = true;
         await initRefeicoes();
         refreshRefeicoes();
+      } else if (activeTab === 'lista' && !listaInitialised) {
+        listaInitialised = true;
+        await initLista();
+        refreshLista();
       }
     });
   });
@@ -180,6 +196,13 @@ function render(data) {
       </div>
     </div>
 
+    <!-- LISTA TAB -->
+    <div class="tab-page ${activeTab === 'lista' ? 'active' : ''}" id="tab-lista">
+      <div class="card fade-in" id="lista-card">
+        <div class="lista-empty">A carregar lista…</div>
+      </div>
+    </div>
+
     <!-- IOT TAB -->
     <div class="tab-page ${activeTab === 'iot' ? 'active' : ''}" id="tab-iot">
       <div class="card fade-in iot-placeholder">
@@ -196,6 +219,9 @@ function render(data) {
 
   if (activeTab === 'refeicoes' && refeicInitialised) {
     refreshRefeicoes();
+  }
+  if (activeTab === 'lista' && listaInitialised) {
+    refreshLista();
   }
 }
 
