@@ -15,10 +15,29 @@
 }
 
 /* ── TAB BAR ─────────────────────────────────────────── */
+.tab-bar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.tab-bar-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 1px;
+  width: 56px;
+  background: linear-gradient(to right, transparent, var(--bg));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.tab-bar-wrap.can-scroll-right::after {
+  opacity: 1;
+}
+
 .tab-bar {
   display: flex;
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }

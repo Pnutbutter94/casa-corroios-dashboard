@@ -83,6 +83,16 @@ function initTabs() {
       }
     });
   });
+
+  const tabBar  = document.querySelector('.tab-bar');
+  const tabWrap = document.querySelector('.tab-bar-wrap');
+  function _updateTabOverflow() {
+    if (!tabBar || !tabWrap) return;
+    tabWrap.classList.toggle('can-scroll-right',
+      tabBar.scrollWidth - tabBar.clientWidth - tabBar.scrollLeft > 2);
+  }
+  tabBar?.addEventListener('scroll', _updateTabOverflow, { passive: true });
+  _updateTabOverflow();
 }
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
