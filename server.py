@@ -29,8 +29,9 @@ HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIwNDYzNzQ4OGY4YTM0ODQ
 IOT_ENTITIES = frozenset([
     'light.escritorio_ines', 'light.luz_de_entrada', 'light.wiz_rgbw_tunable_877be6',
     'switch.plug_sala', 'switch.termoacumulador',
-    'sensor.h5100_703b_temperature', 'sensor.h5100_703b_humidity', 'sensor.h5100_703b_battery',
-    'sensor.h5100_5618_temperature', 'sensor.h5100_5618_humidity', 'sensor.h5100_5618_battery',
+    'sensor.01_sala_cozinha_temperature', 'sensor.01_sala_cozinha_humidity',
+    'sensor.02_quarto_temperature', 'sensor.02_quarto_humidity',
+    'sensor.03_escritorio_temperature', 'sensor.03_escritorio_humidity',
     'vacuum.viomi_de_428952342_v19',
 ])
 

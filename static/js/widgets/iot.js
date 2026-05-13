@@ -12,8 +12,9 @@ const SWITCHES = [
     { id: 'switch.termoacumulador', label: 'Termoacumulador' },
 ];
 const SENSORS = [
-    { temp: 'sensor.h5100_703b_temperature', hum: 'sensor.h5100_703b_humidity', bat: 'sensor.h5100_703b_battery', room: 'Escritório' },
-    { temp: 'sensor.h5100_5618_temperature', hum: 'sensor.h5100_5618_humidity', bat: 'sensor.h5100_5618_battery', room: 'Quarto' },
+    { temp: 'sensor.03_escritorio_temperature', hum: 'sensor.03_escritorio_humidity', room: 'Escritório', f: true },
+    { temp: 'sensor.02_quarto_temperature',     hum: 'sensor.02_quarto_humidity',     room: 'Quarto',     f: true },
+    { temp: 'sensor.01_sala_cozinha_temperature', hum: 'sensor.01_sala_cozinha_humidity', room: 'Cozinha', f: true },
 ];
 const VACUUM_ID = 'vacuum.viomi_de_428952342_v19';
 const VACUUM_STATES = {
@@ -42,16 +43,17 @@ export function renderIot() {
         const hum  = _s(s.hum).state;
         const bat  = _s(s.bat).state;
         const ok   = temp !== 'unavailable';
+        const tVal = ok ? parseFloat(temp) : 0;
+        const tC   = ok ? (s.f ? ((tVal - 32) * 5 / 9) : tVal).toFixed(1) : '';
         return `
         <div class="iot-sensor-card${ok ? '' : ' unavail'}">
             <div class="iot-sensor-room">${esc(s.room)}</div>
             ${ok ? `
             <div class="iot-sensor-row">
-                <span class="iot-sensor-val">${parseFloat(temp).toFixed(1)}°</span>
+                <span class="iot-sensor-val">${tC}°</span>
                 <span class="iot-sensor-sep"></span>
                 <span class="iot-sensor-val">${parseFloat(hum).toFixed(0)}%</span>
             </div>
-            <div class="iot-sensor-bat">🔋 ${bat}%</div>
             ` : '<div class="iot-sensor-unavail">sem sinal</div>'}
         </div>`;
     }).join('');
