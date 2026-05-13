@@ -15,6 +15,9 @@ import {
 import {
   initLista, renderLista, bindLista,
 } from './widgets/lista.js';
+import {
+  initIot, fetchIotStates, renderIot, bindIot,
+} from './widgets/iot.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -24,6 +27,7 @@ const plannerMode     = { white: false }; // object so ref survives re-binds
 let maintenanceData   = {};
 let refeicInitialised = false;
 let listaInitialised  = false;
+let iotInitialised    = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -62,6 +66,14 @@ function refreshLista() {
   bindLista(card, refreshLista);
 }
 
+// ── IOT ────────────────────────────────────────────────────────────────────
+function refreshIot() {
+  const card = document.getElementById('iot-card');
+  if (!card) return;
+  card.innerHTML = renderIot();
+  bindIot(card, refreshIot);
+}
+
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────
 function initTabs() {
   document.getElementById('header-location').textContent = `📍 ${LOCATION}`;
@@ -80,6 +92,15 @@ function initTabs() {
         listaInitialised = true;
         await initLista();
         refreshLista();
+      } else if (activeTab === 'iot' && !iotInitialised) {
+        iotInitialised = true;
+        await initIot();
+        refreshIot();
+        setInterval(async () => {
+          if (activeTab !== 'iot') return;
+          await fetchIotStates();
+          refreshIot();
+        }, 30_000);
       }
     });
   });
@@ -215,10 +236,8 @@ function render(data) {
 
     <!-- IOT TAB -->
     <div class="tab-page ${activeTab === 'iot' ? 'active' : ''}" id="tab-iot">
-      <div class="card fade-in iot-placeholder">
-        <div class="icon">💡</div>
-        <div class="title">IoT em breve</div>
-        <div class="sub">Home Assistant será instalado em breve.<br>Sensores, luzes e tomadas aparecerão aqui.</div>
+      <div class="card fade-in" id="iot-card">
+        <div class="loading"><div class="spinner"></div> A carregar...</div>
       </div>
     </div>
 
@@ -232,6 +251,9 @@ function render(data) {
   }
   if (activeTab === 'lista' && listaInitialised) {
     refreshLista();
+  }
+  if (activeTab === 'iot' && iotInitialised) {
+    refreshIot();
   }
 }
 

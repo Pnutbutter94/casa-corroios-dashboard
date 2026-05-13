@@ -22,6 +22,23 @@ CACHE_TTL  = 15 * 60  # 15 minutes
 
 ALLOWED_INV_FIELDS  = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
 ALLOWED_SHOP_FIELDS = {'checked', 'name', 'quantity', 'unit', 'category'}
+
+HA_URL   = 'http://192.168.1.100:8123'
+HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIwNDYzNzQ4OGY4YTM0ODQ2OWYwMTc4NzlkYmQxODNiOSIsImlhdCI6MTc3ODUxMjE4NCwiZXhwIjoyMDkzODcyMTg0fQ.ahU41zLcGCezf5IEzqQJvQoa1q644YnXuBvAZiHLsZs'
+
+IOT_ENTITIES = frozenset([
+    'light.escritorio_ines', 'light.luz_de_entrada', 'light.wiz_rgbw_tunable_877be6',
+    'switch.plug_sala', 'switch.termoacumulador',
+    'sensor.h5100_703b_temperature', 'sensor.h5100_703b_humidity', 'sensor.h5100_703b_battery',
+    'sensor.h5100_5618_temperature', 'sensor.h5100_5618_humidity', 'sensor.h5100_5618_battery',
+    'vacuum.viomi_de_428952342_v19',
+])
+
+ALLOWED_IOT_SERVICES = {
+    'light':  {'toggle', 'turn_on', 'turn_off'},
+    'switch': {'toggle', 'turn_on', 'turn_off'},
+    'vacuum': {'start', 'return_to_base'},
+}
 MAX_CUSTOM_PRODUCTS = 500
 DATE_RE             = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
@@ -311,6 +328,44 @@ def delete_shopping(item_id):
     shop = [it for it in _load_shop() if it.get('id') != item_id]
     _save_shop(shop)
     return '', 204
+
+
+# ── IOT PROXY ─────────────────────────────────────────────────────────────────
+
+def _ha_request(path, data=None):
+    req = urllib.request.Request(
+        f'{HA_URL}{path}',
+        data=json.dumps(data).encode() if data is not None else None,
+        headers={'Authorization': f'Bearer {HA_TOKEN}', 'Content-Type': 'application/json'},
+        method='POST' if data is not None else 'GET',
+    )
+    with urllib.request.urlopen(req, timeout=5) as r:
+        return json.loads(r.read())
+
+
+@app.route('/api/iot/states')
+def iot_states():
+    try:
+        all_states = _ha_request('/api/states')
+        return jsonify([s for s in all_states if s['entity_id'] in IOT_ENTITIES])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/iot/call', methods=['POST'])
+def iot_call():
+    raw       = request.get_json(force=True, silent=True) or {}
+    entity_id = str(raw.get('entity_id', ''))
+    service   = str(raw.get('service', ''))
+    domain    = entity_id.split('.')[0] if '.' in entity_id else ''
+    if entity_id not in IOT_ENTITIES:
+        return jsonify({'error': 'unknown entity'}), 403
+    if domain not in ALLOWED_IOT_SERVICES or service not in ALLOWED_IOT_SERVICES[domain]:
+        return jsonify({'error': 'not allowed'}), 403
+    try:
+        return jsonify(_ha_request(f'/api/services/{domain}/{service}', {'entity_id': entity_id}))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
 
 
 # ── STATIC ────────────────────────────────────────────────────────────────────
