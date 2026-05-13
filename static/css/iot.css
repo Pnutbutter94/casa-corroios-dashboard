@@ -144,6 +144,12 @@
 .iot-vacuum-state.warn   { color: var(--warn); }
 .iot-vacuum-state.bad    { color: var(--bad); }
 
+.iot-vacuum-time {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
 .iot-vacuum-btn {
     background: var(--surface);
     border: 1px solid var(--border);

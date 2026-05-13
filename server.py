@@ -37,9 +37,9 @@ IOT_ENTITIES = frozenset([
 ])
 
 ALLOWED_IOT_SERVICES = {
-    'light':  {'toggle', 'turn_on', 'turn_off'},
+    'light':  {'turn_on', 'turn_off'},
     'switch': {'toggle', 'turn_on', 'turn_off'},
-    'vacuum': {'start', 'return_to_base'},
+    'vacuum': {'start', 'stop'},
 }
 MAX_CUSTOM_PRODUCTS = 500
 DATE_RE             = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -356,16 +356,22 @@ def iot_states():
 
 @app.route('/api/iot/call', methods=['POST'])
 def iot_call():
-    raw       = request.get_json(force=True, silent=True) or {}
-    entity_id = str(raw.get('entity_id', ''))
-    service   = str(raw.get('service', ''))
-    domain    = entity_id.split('.')[0] if '.' in entity_id else ''
+    raw            = request.get_json(force=True, silent=True) or {}
+    entity_id      = str(raw.get('entity_id', ''))
+    service        = str(raw.get('service', ''))
+    brightness_pct = raw.get('brightness_pct')
+    domain         = entity_id.split('.')[0] if '.' in entity_id else ''
     if entity_id not in IOT_ENTITIES:
         return jsonify({'error': 'unknown entity'}), 403
     if domain not in ALLOWED_IOT_SERVICES or service not in ALLOWED_IOT_SERVICES[domain]:
         return jsonify({'error': 'not allowed'}), 403
+    service_data = {'entity_id': entity_id}
+    if service == 'turn_on' and domain == 'light' and brightness_pct is not None:
+        pct = int(brightness_pct)
+        if 1 <= pct <= 100:
+            service_data['brightness_pct'] = pct
     try:
-        return jsonify(_ha_request(f'/api/services/{domain}/{service}', {'entity_id': entity_id}))
+        return jsonify(_ha_request(f'/api/services/{domain}/{service}', service_data))
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 

@@ -28,6 +28,24 @@ const VACUUM_STATES = {
 
 function _s(id) { return iot.states[id] || { state: 'unavailable', attributes: {} }; }
 
+function _autoBrightness() {
+    const h = new Date().getHours();
+    if (h < 18) return 100;
+    if (h < 20) return 80;
+    if (h < 22) return 50;
+    return 25;
+}
+
+function _timeAgo(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const d = Math.floor(diff / 86_400_000);
+    const h = Math.floor(diff / 3_600_000);
+    if (d > 0) return `há ${d}d`;
+    if (h > 0) return `há ${h}h`;
+    return 'há momentos';
+}
+
 function _humThresholds() {
     const t = iot.outdoorTemp;
     if (t == null) return { lo: 40, hi: 60 };
@@ -76,6 +94,21 @@ export function renderIot() {
         </div>`;
     }).join('');
 
+    const lightTilesHTML = LIGHTS.map(d => {
+        const s  = _s(d.id);
+        const on = s.state === 'on';
+        const bri = on && s.attributes.brightness
+            ? Math.round(s.attributes.brightness / 2.55) + '%'
+            : '';
+        return `
+        <button class="iot-tile${on ? ' on' : ''}" data-light-toggle="${d.id}">
+            <span class="iot-tile-icon">${on ? '💡' : '🌑'}</span>
+            <span class="iot-tile-label">${esc(d.label)}</span>
+            <span class="iot-tile-state">${on ? 'ligado' : 'desligado'}</span>
+            ${bri ? `<span class="iot-tile-power">${bri}</span>` : ''}
+        </button>`;
+    }).join('');
+
     const tilesHTML = (items, iconOn, iconOff) => items.map(d => {
         const on    = _s(d.id).state === 'on';
         const pw    = d.power ? parseFloat(_s(d.power).state) : NaN;
@@ -96,15 +129,16 @@ export function renderIot() {
     const vacBtn = canStart
         ? `<button class="iot-vacuum-btn accent" data-vacuum-action="start">▶ Limpar</button>`
         : canStop
-        ? `<button class="iot-vacuum-btn" data-vacuum-action="return_to_base">⏹ Parar</button>`
+        ? `<button class="iot-vacuum-btn" data-vacuum-action="stop">⏹ Parar</button>`
         : '';
+    const vacTime = _timeAgo(vs.last_changed);
 
     return `
     <div class="card-label">Clima</div>
     <div class="iot-clima-grid">${climaHTML}</div>
 
     <div class="card-label iot-gap">Luzes</div>
-    <div class="iot-device-grid">${tilesHTML(LIGHTS, '💡', '🌑')}</div>
+    <div class="iot-device-grid">${lightTilesHTML}</div>
 
     <div class="card-label iot-gap">Tomadas</div>
     <div class="iot-device-grid">${tilesHTML(SWITCHES, '🔌', '⚫')}</div>
@@ -116,6 +150,7 @@ export function renderIot() {
             <div>
                 <div class="iot-vacuum-name">Alfredo</div>
                 <div class="iot-vacuum-state ${vi.cls}">${vi.label}</div>
+                ${vacTime ? `<div class="iot-vacuum-time">${vacTime}</div>` : ''}
             </div>
         </div>
         ${vacBtn}
@@ -123,6 +158,24 @@ export function renderIot() {
 }
 
 export function bindIot(container, onRefresh) {
+    container.querySelectorAll('[data-light-toggle]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.lightToggle;
+            if (!iot.states[id]) return;
+            const on = iot.states[id].state === 'on';
+            iot.states[id].state = on ? 'off' : 'on';
+            onRefresh();
+            const service = on ? 'turn_off' : 'turn_on';
+            const body = { entity_id: id, service };
+            if (!on) body.brightness_pct = _autoBrightness();
+            await fetch('/api/iot/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+        });
+    });
+
     container.querySelectorAll('[data-toggle]').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.dataset.toggle;
