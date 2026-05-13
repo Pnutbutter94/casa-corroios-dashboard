@@ -52,6 +52,10 @@
     color: var(--muted);
 }
 
+.iot-hum-good { color: var(--good); }
+.iot-hum-warn { color: var(--warn); }
+.iot-hum-bad  { color: var(--bad); }
+
 .iot-device-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -97,6 +101,13 @@
 }
 
 .iot-tile.on .iot-tile-state { color: var(--accent); }
+
+.iot-tile-power {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent2);
+    margin-top: 1px;
+}
 
 .iot-vacuum {
     display: flex;

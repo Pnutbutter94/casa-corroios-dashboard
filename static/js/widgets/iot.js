@@ -8,8 +8,8 @@ const LIGHTS = [
     { id: 'light.wiz_rgbw_tunable_877be6', label: 'Luz Quarto' },
 ];
 const SWITCHES = [
-    { id: 'switch.plug_sala',       label: 'Plug Sala' },
-    { id: 'switch.termoacumulador', label: 'Termoacumulador' },
+    { id: 'switch.plug_sala',       label: 'Plug Sala',       power: 'sensor.plug_sala_current_power' },
+    { id: 'switch.termoacumulador', label: 'Termoacumulador', power: 'sensor.termoacumulador_current_power' },
 ];
 const SENSORS = [
     { temp: 'sensor.03_escritorio_temperature', hum: 'sensor.03_escritorio_humidity', room: 'Escritório', f: true },
@@ -27,6 +27,14 @@ const VACUUM_STATES = {
 };
 
 function _s(id) { return iot.states[id] || { state: 'unavailable', attributes: {} }; }
+
+function _humClass(val) {
+    const h = parseFloat(val);
+    if (isNaN(h)) return '';
+    if (h < 30 || h > 70) return 'bad';
+    if (h < 40 || h > 60) return 'warn';
+    return 'good';
+}
 
 export async function initIot() { await fetchIotStates(); }
 
@@ -52,19 +60,22 @@ export function renderIot() {
             <div class="iot-sensor-row">
                 <span class="iot-sensor-val">${tC}°</span>
                 <span class="iot-sensor-sep"></span>
-                <span class="iot-sensor-val">${parseFloat(hum).toFixed(0)}%</span>
+                <span class="iot-sensor-val iot-hum-${_humClass(hum)}">${parseFloat(hum).toFixed(0)}%</span>
             </div>
             ` : '<div class="iot-sensor-unavail">sem sinal</div>'}
         </div>`;
     }).join('');
 
     const tilesHTML = (items, iconOn, iconOff) => items.map(d => {
-        const on = _s(d.id).state === 'on';
+        const on    = _s(d.id).state === 'on';
+        const pw    = d.power ? parseFloat(_s(d.power).state) : NaN;
+        const pwStr = !isNaN(pw) && pw > 0.5 ? `${pw % 1 === 0 ? pw : pw.toFixed(1)} W` : (on ? '< 1 W' : '');
         return `
         <button class="iot-tile${on ? ' on' : ''}" data-toggle="${d.id}">
             <span class="iot-tile-icon">${on ? iconOn : iconOff}</span>
             <span class="iot-tile-label">${esc(d.label)}</span>
             <span class="iot-tile-state">${on ? 'ligado' : 'desligado'}</span>
+            ${pwStr ? `<span class="iot-tile-power">${pwStr}</span>` : ''}
         </button>`;
     }).join('');
 
