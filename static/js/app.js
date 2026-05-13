@@ -16,7 +16,7 @@ import {
   initLista, renderLista, bindLista,
 } from './widgets/lista.js';
 import {
-  initIot, fetchIotStates, renderIot, bindIot,
+  iot, initIot, fetchIotStates, renderIot, bindIot,
 } from './widgets/iot.js';
 
 let weatherData       = null;
