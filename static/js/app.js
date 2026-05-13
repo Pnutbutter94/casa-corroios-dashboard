@@ -68,6 +68,7 @@ function refreshLista() {
 
 // ── IOT ────────────────────────────────────────────────────────────────────
 function refreshIot() {
+  iot.outdoorTemp = weatherData?.current_weather?.temperature ?? null;
   const card = document.getElementById('iot-card');
   if (!card) return;
   card.innerHTML = renderIot();

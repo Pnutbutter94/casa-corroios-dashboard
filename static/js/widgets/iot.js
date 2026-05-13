@@ -1,6 +1,6 @@
 import { esc } from '../utils/esc.js';
 
-export const iot = { states: {} };
+export const iot = { states: {}, outdoorTemp: null };
 
 const LIGHTS = [
     { id: 'light.escritorio_ines',         label: 'Escritório Inês' },
@@ -28,11 +28,21 @@ const VACUUM_STATES = {
 
 function _s(id) { return iot.states[id] || { state: 'unavailable', attributes: {} }; }
 
+function _humThresholds() {
+    const t = iot.outdoorTemp;
+    if (t == null) return { lo: 40, hi: 60 };
+    if (t < 0)  return { lo: 25, hi: 45 };
+    if (t < 10) return { lo: 30, hi: 50 };
+    if (t < 20) return { lo: 35, hi: 55 };
+    return { lo: 40, hi: 60 };
+}
+
 function _humClass(val) {
     const h = parseFloat(val);
     if (isNaN(h)) return '';
-    if (h < 30 || h > 70) return 'bad';
-    if (h < 40 || h > 60) return 'warn';
+    const { lo, hi } = _humThresholds();
+    if (h < lo - 10 || h > hi + 10) return 'bad';
+    if (h < lo || h > hi) return 'warn';
     return 'good';
 }
 
