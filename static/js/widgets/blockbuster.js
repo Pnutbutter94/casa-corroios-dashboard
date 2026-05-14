@@ -300,6 +300,9 @@ async function _doSearch(q) {
             const typeLabel   = r.mediaType === 'movie' ? 'Filme' : 'Série';
             const statusLabel = STATUS[r.status] || '';
             const isTv        = r.mediaType === 'tv';
+            // TV shows always show the picker (any season/episode can be added at any time)
+            // Movies show the button unless already available in Jellyfin (status 5)
+            const canRequest  = isTv || r.status !== 5;
             const btnLabel    = isTv ? 'Pedir ▾' : 'Pedir';
             return `
             <div class="bb-result-item">
@@ -310,11 +313,11 @@ async function _doSearch(q) {
                     <div class="bb-result-title">${esc(r.title)}${r.year ? ` <span class="bb-result-year">${r.year}</span>` : ''}</div>
                     <div class="bb-result-meta">${typeLabel}${statusLabel ? ` · <span class="bb-result-status">${statusLabel}</span>` : ''}</div>
                 </div>
-                ${!r.status
+                ${canRequest
                     ? `<button class="bb-req-btn" data-req-id="${esc(String(r.id))}" data-req-type="${esc(r.mediaType)}">${btnLabel}</button>`
                     : ''}
             </div>
-            ${!r.status && isTv ? `<div class="bb-tv-picker" id="bb-tvp-${esc(String(r.id))}" style="display:none"></div>` : ''}`;
+            ${canRequest && isTv ? `<div class="bb-tv-picker" id="bb-tvp-${esc(String(r.id))}" style="display:none"></div>` : ''}`;
         }).join('');
 
         res.querySelectorAll('[data-req-id]').forEach(btn => {
