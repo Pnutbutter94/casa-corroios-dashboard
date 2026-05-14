@@ -163,14 +163,15 @@ function render(data) {
           </div>
         </div>
         <div class="forecast-strip">
-          ${forecastDays.map(d => `
-            <div class="forecast-day">
+          ${forecastDays.map((d, i) => `
+            <div class="forecast-day" data-day-idx="${i}">
               <div class="forecast-day-name">${d.name}</div>
               <div class="forecast-icon">${d.icon}</div>
               <div class="forecast-temps"><span class="forecast-max">${d.max}°</span><span class="forecast-min"> / ${d.min}°</span></div>
               <div class="forecast-rain">💧 ${d.rain}%</div>
             </div>`).join('')}
         </div>
+        <div class="weather-hourly-panel" id="weather-hourly-panel"></div>
       </div>
 
       <div class="quote-card fade-in">
@@ -256,6 +257,68 @@ function render(data) {
   if (activeTab === 'iot' && iotInitialised) {
     refreshIot();
   }
+
+  bindWeatherHourly(data);
+}
+
+// ── WEATHER HOURLY DETAIL ──────────────────────────────────────────────────
+function _rainSummary(probs, hours) {
+  const fmt = h => `${String(h).padStart(2, '0')}h`;
+  const windows = [];
+  let start = null;
+  probs.forEach((p, i) => {
+    if (p >= 30 && start === null) start = hours[i];
+    else if (p < 30 && start !== null) { windows.push(`${fmt(start)}–${fmt(hours[i])}`); start = null; }
+  });
+  if (start !== null) windows.push(`${fmt(start)}–${fmt(hours[hours.length - 1] + 1)}`);
+  return windows.length ? '💧 ' + windows.join(' · ') : 'Sem chuva prevista';
+}
+
+function bindWeatherHourly(data) {
+  const panel = document.getElementById('weather-hourly-panel');
+  if (!panel) return;
+  let activeDayIdx = null;
+
+  document.querySelectorAll('.forecast-day').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.dayIdx);
+      if (activeDayIdx === idx) {
+        panel.innerHTML = '';
+        activeDayIdx = null;
+        document.querySelectorAll('.forecast-day').forEach(d => d.classList.remove('active'));
+        return;
+      }
+      activeDayIdx = idx;
+      document.querySelectorAll('.forecast-day').forEach(d => d.classList.toggle('active', d === el));
+
+      const s     = idx * 24;
+      const times = data.hourly.time.slice(s, s + 24);
+      const probs = data.hourly.precipitation_probability.slice(s, s + 24);
+      const temps = data.hourly.temperature_2m.slice(s, s + 24);
+      const hours = times.map(t => new Date(t).getHours());
+      const label = idx === 0 ? 'Hoje' : idx === 1 ? 'Amanhã' : DAYS_PT[new Date(data.daily.time[idx]).getDay()];
+
+      const barsHTML = times.map((_, i) => {
+        const prob = probs[i];
+        const op   = prob < 10 ? 0.15 : prob < 30 ? 0.45 : 1;
+        return `
+        <div class="hourly-col${prob >= 30 ? ' rain' : ''}">
+          <div class="hourly-col-bar-wrap">
+            <div class="hourly-col-bar" style="height:${Math.max(2, prob)}%;opacity:${op}"></div>
+          </div>
+          <div class="hourly-col-time">${String(hours[i]).padStart(2, '0')}h</div>
+          <div class="hourly-col-temp">${Math.round(temps[i])}°</div>
+        </div>`;
+      }).join('');
+
+      panel.innerHTML = `
+        <div class="weather-hourly-header">
+          <span class="weather-hourly-day">${label} — hora a hora</span>
+          <span class="weather-hourly-info">${_rainSummary(probs, hours)}</span>
+        </div>
+        <div class="weather-hourly-bars">${barsHTML}</div>`;
+    });
+  });
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
