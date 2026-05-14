@@ -504,21 +504,45 @@ def bb_request_episodes():
     try:
         show    = _bb_req(f'{BB_JS_URL}/api/v1/tv/{tmdb_id}', headers={'X-Api-Key': BB_JS_KEY})
         tvdb_id = (show.get('externalIds') or {}).get('tvdbId')
-        if tvdb_id:
-            all_series = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
-            series     = next((s for s in all_series if s.get('tvdbId') == tvdb_id), None)
-            if series:
-                sid     = series['id']
-                all_eps = _bb_req(f'{BB_SON_URL}/api/v3/episode?seriesId={sid}&seasonNumber={s_num}&apikey={BB_SON_KEY}')
-                ep_ids  = [ep['id'] for ep in all_eps if ep.get('episodeNumber') in ep_nums]
-                if ep_ids:
-                    _bb_req(f'{BB_SON_URL}/api/v3/episode/monitor?apikey={BB_SON_KEY}',
-                            method='PUT', data={'episodeIds': ep_ids, 'monitored': True})
-                    _bb_req(f'{BB_SON_URL}/api/v3/command?apikey={BB_SON_KEY}',
-                            method='POST', data={'name': 'EpisodeSearch', 'episodeIds': ep_ids})
-                    return jsonify({'ok': True})
-        # Series not in Sonarr — episode-level requests require the season to be added first
-        return jsonify({'error': 'not_in_sonarr'}), 409
+        if not tvdb_id:
+            return jsonify({'error': 'no tvdb id'}), 404
+
+        all_series = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
+        series     = next((s for s in all_series if s.get('tvdbId') == tvdb_id), None)
+
+        if not series:
+            # Add the series to Sonarr with all episodes unmonitored, no auto-search
+            lookup = _bb_req(f'{BB_SON_URL}/api/v3/series/lookup?term=tvdb:{tvdb_id}&apikey={BB_SON_KEY}')
+            if not lookup:
+                return jsonify({'error': 'not found'}), 404
+            ref = all_series[0] if all_series else {}
+            new_s = lookup[0]
+            for season in new_s.get('seasons', []):
+                season['monitored'] = False
+            new_s.update({
+                'monitored':         False,
+                'qualityProfileId':  ref.get('qualityProfileId', 1),
+                'rootFolderPath':    ref.get('rootFolderPath', '/media/tv'),
+                'languageProfileId': ref.get('languageProfileId', 1),
+                'addOptions': {
+                    'ignoreEpisodesWithFiles':      False,
+                    'searchForMissingEpisodes':     False,
+                    'searchForCutoffUnmetEpisodes': False,
+                },
+            })
+            series = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}',
+                             method='POST', data=new_s)
+
+        sid     = series['id']
+        all_eps = _bb_req(f'{BB_SON_URL}/api/v3/episode?seriesId={sid}&seasonNumber={s_num}&apikey={BB_SON_KEY}')
+        ep_ids  = [ep['id'] for ep in all_eps if ep.get('episodeNumber') in ep_nums]
+        if not ep_ids:
+            return jsonify({'error': 'episodes not found in Sonarr'}), 404
+        _bb_req(f'{BB_SON_URL}/api/v3/episode/monitor?apikey={BB_SON_KEY}',
+                method='PUT', data={'episodeIds': ep_ids, 'monitored': True})
+        _bb_req(f'{BB_SON_URL}/api/v3/command?apikey={BB_SON_KEY}',
+                method='POST', data={'name': 'EpisodeSearch', 'episodeIds': ep_ids})
+        return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
