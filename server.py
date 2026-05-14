@@ -20,8 +20,9 @@ PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
 SHOP_FILE  = os.path.join(BASE_DIR, 'cache', 'shopping.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
-ALLOWED_INV_FIELDS  = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
-ALLOWED_SHOP_FIELDS = {'checked', 'name', 'quantity', 'unit', 'category'}
+ALLOWED_INV_FIELDS     = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
+ALLOWED_SHOP_FIELDS    = {'checked', 'name', 'quantity', 'unit', 'category', 'productId', 'source'}
+ALLOWED_PRODUCT_FIELDS = {'name', 'category', 'unit', 'defaultQty'}
 
 HA_URL   = 'http://192.168.1.100:8123'
 HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIwNDYzNzQ4OGY4YTM0ODQ2OWYwMTc4NzlkYmQxODNiOSIsImlhdCI6MTc3ODUxMjE4NCwiZXhwIjoyMDkzODcyMTg0fQ.ahU41zLcGCezf5IEzqQJvQoa1q644YnXuBvAZiHLsZs'
@@ -154,18 +155,19 @@ def get_products():
 
 @app.route('/api/products', methods=['POST'])
 def add_custom_product():
-    item = request.get_json()
-    if not item or not item.get('name'):
+    raw = request.get_json()
+    if not raw or not raw.get('name'):
         return jsonify({'error': 'name required'}), 400
     try:
         with open(CUSTOM_PRODUCTS_FILE) as f:
             custom = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         custom = []
-    item['id'] = 'custom_' + str(uuid.uuid4())[:8]
-    item.setdefault('category', 'outro')
     if len(custom) >= MAX_CUSTOM_PRODUCTS:
         return jsonify({'error': 'custom product limit reached'}), 400
+    item = {k: v for k, v in raw.items() if k in ALLOWED_PRODUCT_FIELDS}
+    item['id'] = 'custom_' + str(uuid.uuid4())[:8]
+    item.setdefault('category', 'outro')
     custom.append(item)
     with open(CUSTOM_PRODUCTS_FILE, 'w') as f:
         json.dump(custom, f)
@@ -204,10 +206,11 @@ def get_inventory():
 
 @app.route('/api/inventory', methods=['POST'])
 def add_inventory():
-    item = request.get_json()
-    if not item or not item.get('name'):
+    raw = request.get_json()
+    if not raw or not raw.get('name'):
         return jsonify({'error': 'name required'}), 400
     inv = _load_inv()
+    item = {k: v for k, v in raw.items() if k in ALLOWED_INV_FIELDS}
     item['id'] = str(uuid.uuid4())[:8]
     inv.append(item)
     _save_inv(inv)
@@ -293,14 +296,16 @@ def add_shopping():
         return jsonify({'error': 'body required'}), 400
     shop = _load_shop()
     if isinstance(data, list):
-        for item in data:
+        for raw_item in data:
+            item = {k: v for k, v in raw_item.items() if k in ALLOWED_SHOP_FIELDS}
             item['id'] = str(uuid.uuid4())[:8]
             item.setdefault('checked', False)
             shop.append(item)
     else:
-        data['id'] = str(uuid.uuid4())[:8]
-        data.setdefault('checked', False)
-        shop.append(data)
+        item = {k: v for k, v in data.items() if k in ALLOWED_SHOP_FIELDS}
+        item['id'] = str(uuid.uuid4())[:8]
+        item.setdefault('checked', False)
+        shop.append(item)
     _save_shop(shop)
     return jsonify(shop), 201
 
@@ -367,9 +372,12 @@ def iot_call():
         return jsonify({'error': 'not allowed'}), 403
     service_data = {'entity_id': entity_id}
     if service == 'turn_on' and domain == 'light' and brightness_pct is not None:
-        pct = int(brightness_pct)
-        if 1 <= pct <= 100:
-            service_data['brightness_pct'] = pct
+        try:
+            pct = int(brightness_pct)
+            if 1 <= pct <= 100:
+                service_data['brightness_pct'] = pct
+        except (TypeError, ValueError):
+            pass
     try:
         return jsonify(_ha_request(f'/api/services/{domain}/{service}', service_data))
     except Exception as e:

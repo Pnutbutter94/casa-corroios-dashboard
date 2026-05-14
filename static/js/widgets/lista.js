@@ -114,12 +114,12 @@ export function renderLista() {
   let listHTML = '';
   CAT_ORDER.forEach(cat => {
     if (!grouped[cat]) return;
-    listHTML += `<div class="lista-category">${CAT_ICONS[cat] || '📦'} ${CAT_LABELS_PT[cat] || cat}</div>`;
+    listHTML += `<div class="lista-category">${CAT_ICONS[cat] || '📦'} ${esc(CAT_LABELS_PT[cat] || cat)}</div>`;
     listHTML += grouped[cat].map(item => `
       <div class="lista-item">
         <button class="lista-check" data-check-id="${item.id}">⬜</button>
         <span class="lista-item-name">${esc(item.name)}</span>
-        ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${item.unit || ''}</span>` : ''}
+        ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${esc(item.unit || '')}</span>` : ''}
         <button class="lista-del" data-del-shop="${item.id}">×</button>
       </div>`).join('');
   });
@@ -131,7 +131,7 @@ export function renderLista() {
         <div class="lista-item lista-item-done">
           <button class="lista-check" data-check-id="${item.id}">✅</button>
           <span class="lista-item-name">${esc(item.name)}</span>
-          ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${item.unit || ''}</span>` : ''}
+          ${item.quantity ? `<span class="lista-item-qty">${item.quantity} ${esc(item.unit || '')}</span>` : ''}
           <button class="lista-del" data-del-shop="${item.id}">×</button>
         </div>`).join('')}
       <button class="lista-danger-btn" id="lista-clear-done">
@@ -272,9 +272,9 @@ function _openShopAddModal(onRefresh) {
     const matches = products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
     if (!matches.length) { sug.style.display = 'none'; return; }
     sug.innerHTML = matches.map(p =>
-      `<div class="inv-suggestion" data-pid="${p.id}" data-pname="${p.name}"
-            data-pcat="${p.category || 'outro'}" data-punit="${p.unit || 'un'}"
-            data-pqty="${p.defaultQty || ''}">${p.name}</div>`
+      `<div class="inv-suggestion" data-pid="${esc(p.id)}" data-pname="${esc(p.name)}"
+            data-pcat="${esc(p.category || 'outro')}" data-punit="${esc(p.unit || 'un')}"
+            data-pqty="${esc(String(p.defaultQty ?? ''))}">${esc(p.name)}</div>`
     ).join('');
     sug.style.display = 'block';
     sug.querySelectorAll('.inv-suggestion').forEach(row => {

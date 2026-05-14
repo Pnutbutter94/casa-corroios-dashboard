@@ -156,7 +156,7 @@ function renderInventario() {
         <div class="inv-item-body" data-edit-inv="${it.id}">
           <span class="inv-item-name">${esc(it.name)}</span>
           ${invLocation === 'all' ? `<span class="inv-item-loc">${LOC_LABELS[it.location] || it.location}</span>` : ''}
-          <span class="inv-item-qty">${it.quantityKnown ? `${it.quantity} ${it.unit || ''}` : '— sem qtd'}</span>
+          <span class="inv-item-qty">${it.quantityKnown ? `${it.quantity} ${esc(it.unit || '')}` : '— sem qtd'}</span>
         </div>
         <button class="inv-item-del" data-del-inv="${it.id}">×</button>
       </div>`).join('');
@@ -478,7 +478,7 @@ function _updateSuggestions(container) {
   const matches = refeic.data.products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
   if (matches.length === 0) { sug.style.display = 'none'; return; }
   sug.innerHTML = matches.map(p =>
-    `<div class="inv-suggestion" data-pid="${p.id}" data-pname="${p.name}">${p.name}</div>`
+    `<div class="inv-suggestion" data-pid="${esc(p.id)}" data-pname="${esc(p.name)}">${esc(p.name)}</div>`
   ).join('');
   sug.style.display = 'block';
   sug.querySelectorAll('.inv-suggestion').forEach(row => {
@@ -726,7 +726,7 @@ function _bindEditInvModal(onRefresh) {
         .slice(0, 8);
       if (!matches.length) { linkSug.style.display = 'none'; return; }
       linkSug.innerHTML = matches.map(p =>
-        `<div class="inv-suggestion" data-link-pid="${p.id}" data-link-pname="${p.name}">${p.name}</div>`
+        `<div class="inv-suggestion" data-link-pid="${esc(p.id)}" data-link-pname="${esc(p.name)}">${esc(p.name)}</div>`
       ).join('');
       linkSug.style.display = 'block';
       linkSug.querySelectorAll('.inv-suggestion').forEach(row => {

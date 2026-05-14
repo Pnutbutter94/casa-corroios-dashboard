@@ -77,7 +77,6 @@ export function renderIot() {
     const climaHTML = SENSORS.map(s => {
         const temp = _s(s.temp).state;
         const hum  = _s(s.hum).state;
-        const bat  = _s(s.bat).state;
         const ok   = temp !== 'unavailable';
         const tVal = ok ? parseFloat(temp) : 0;
         const tC   = ok ? (s.f ? ((tVal - 32) * 5 / 9) : tVal).toFixed(1) : '';
@@ -123,7 +122,7 @@ export function renderIot() {
     }).join('');
 
     const vs  = _s(VACUUM_ID);
-    const vi  = VACUUM_STATES[vs.state] || { label: vs.state, icon: '❓', cls: '' };
+    const vi  = VACUUM_STATES[vs.state] || { label: esc(vs.state), icon: '❓', cls: '' };
     const canStart  = vs.state === 'docked' || vs.state === 'idle';
     const canStop   = vs.state === 'cleaning' || vs.state === 'paused';
     const canReturn = vs.state === 'cleaning' || vs.state === 'paused' || vs.state === 'idle';

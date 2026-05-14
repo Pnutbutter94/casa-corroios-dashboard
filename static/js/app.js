@@ -21,6 +21,7 @@ import {
 
 let weatherData       = null;
 let activeTab         = 'casa';
+let _activeHourlyDay  = null;
 let coloredCounts     = {};
 let whiteCounts       = {};
 const plannerMode     = { white: false }; // object so ref survives re-binds
@@ -274,49 +275,56 @@ function _rainSummary(probs, hours) {
   return windows.length ? '💧 ' + windows.join(' · ') : 'Sem chuva prevista';
 }
 
+function _renderHourlyPanel(panel, data, idx) {
+  const s     = idx * 24;
+  const times = data.hourly.time.slice(s, s + 24);
+  const probs = data.hourly.precipitation_probability.slice(s, s + 24);
+  const temps = data.hourly.temperature_2m.slice(s, s + 24);
+  const hours = times.map(t => new Date(t).getHours());
+  const label = idx === 0 ? 'Hoje' : idx === 1 ? 'Amanhã' : DAYS_PT[new Date(data.daily.time[idx]).getDay()];
+  const barsHTML = times.map((_, i) => {
+    const prob = probs[i];
+    const op   = prob < 10 ? 0.15 : prob < 30 ? 0.45 : 1;
+    return `
+    <div class="hourly-col${prob >= 30 ? ' rain' : ''}">
+      <div class="hourly-col-bar-wrap">
+        <div class="hourly-col-bar" style="height:${Math.max(2, prob)}%;opacity:${op}"></div>
+      </div>
+      <div class="hourly-col-time">${String(hours[i]).padStart(2, '0')}h</div>
+      <div class="hourly-col-temp">${Math.round(temps[i])}°</div>
+    </div>`;
+  }).join('');
+  panel.innerHTML = `
+    <div class="weather-hourly-header">
+      <span class="weather-hourly-day">${label} — hora a hora</span>
+      <span class="weather-hourly-info">${_rainSummary(probs, hours)}</span>
+    </div>
+    <div class="weather-hourly-bars">${barsHTML}</div>`;
+}
+
 function bindWeatherHourly(data) {
   const panel = document.getElementById('weather-hourly-panel');
   if (!panel) return;
-  let activeDayIdx = null;
+
+  if (_activeHourlyDay !== null) {
+    _renderHourlyPanel(panel, data, _activeHourlyDay);
+    document.querySelectorAll('.forecast-day').forEach(d =>
+      d.classList.toggle('active', parseInt(d.dataset.dayIdx) === _activeHourlyDay)
+    );
+  }
 
   document.querySelectorAll('.forecast-day').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.dayIdx);
-      if (activeDayIdx === idx) {
+      if (_activeHourlyDay === idx) {
         panel.innerHTML = '';
-        activeDayIdx = null;
+        _activeHourlyDay = null;
         document.querySelectorAll('.forecast-day').forEach(d => d.classList.remove('active'));
         return;
       }
-      activeDayIdx = idx;
+      _activeHourlyDay = idx;
       document.querySelectorAll('.forecast-day').forEach(d => d.classList.toggle('active', d === el));
-
-      const s     = idx * 24;
-      const times = data.hourly.time.slice(s, s + 24);
-      const probs = data.hourly.precipitation_probability.slice(s, s + 24);
-      const temps = data.hourly.temperature_2m.slice(s, s + 24);
-      const hours = times.map(t => new Date(t).getHours());
-      const label = idx === 0 ? 'Hoje' : idx === 1 ? 'Amanhã' : DAYS_PT[new Date(data.daily.time[idx]).getDay()];
-
-      const barsHTML = times.map((_, i) => {
-        const prob = probs[i];
-        const op   = prob < 10 ? 0.15 : prob < 30 ? 0.45 : 1;
-        return `
-        <div class="hourly-col${prob >= 30 ? ' rain' : ''}">
-          <div class="hourly-col-bar-wrap">
-            <div class="hourly-col-bar" style="height:${Math.max(2, prob)}%;opacity:${op}"></div>
-          </div>
-          <div class="hourly-col-time">${String(hours[i]).padStart(2, '0')}h</div>
-          <div class="hourly-col-temp">${Math.round(temps[i])}°</div>
-        </div>`;
-      }).join('');
-
-      panel.innerHTML = `
-        <div class="weather-hourly-header">
-          <span class="weather-hourly-day">${label} — hora a hora</span>
-          <span class="weather-hourly-info">${_rainSummary(probs, hours)}</span>
-        </div>
-        <div class="weather-hourly-bars">${barsHTML}</div>`;
+      _renderHourlyPanel(panel, data, idx);
     });
   });
 }
