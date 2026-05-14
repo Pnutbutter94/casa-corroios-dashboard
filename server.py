@@ -485,12 +485,17 @@ def bb_queue():
     items = []
     def _first_msg(r):
         msgs = r.get('statusMessages') or []
-        return msgs[0].get('messages', [''])[0][:120] if msgs else ''
+        txt  = msgs[0].get('messages', [''])[0][:120] if msgs else ''
+        return txt or r.get('errorMessage', '')[:120]
+
+    def _pct(size, sizeleft):
+        if not size:
+            return 0
+        return max(0, min(100, round((1 - sizeleft / size) * 100)))
 
     try:
         for r in _bb_req(f'{BB_RAD_URL}/api/v3/queue?apikey={BB_RAD_KEY}').get('records', []):
-            total = r.get('size', 0) or 1
-            left  = r.get('sizeleft', 0)
+            size = r.get('size', 0)
             items.append({
                 'queueId':      r.get('id'),
                 'source':       'radarr',
@@ -498,29 +503,47 @@ def bb_queue():
                 'type':         'movie',
                 'status':       r.get('status', ''),
                 'trackedState': r.get('trackedDownloadState', ''),
-                'pct':          max(0, min(100, round((1 - left / total) * 100))),
-                'sizeMb':       round(total / (1024 ** 2)),
+                'pct':          _pct(size, r.get('sizeleft', 0)),
+                'sizeMb':       round(size / (1024 ** 2)) if size else 0,
                 'message':      _first_msg(r),
             })
     except Exception:
         pass
     try:
-        for r in _bb_req(f'{BB_SON_URL}/api/v3/queue?apikey={BB_SON_KEY}').get('records', []):
-            total  = r.get('size', 0) or 1
-            left   = r.get('sizeleft', 0)
-            series = r.get('series') or {}
-            ep     = r.get('episode') or {}
-            items.append({
+        seen_dl = {}  # downloadId → index in items, to deduplicate season packs
+        for r in _bb_req(f'{BB_SON_URL}/api/v3/queue?includeSeries=true&includeEpisode=true&apikey={BB_SON_KEY}').get('records', []):
+            size    = r.get('size', 0)
+            series  = r.get('series') or {}
+            ep      = r.get('episode') or {}
+            s_num   = r.get('seasonNumber') or ep.get('seasonNumber', 0)
+            e_num   = ep.get('episodeNumber', 0)
+            s_title = series.get('title', '') or r.get('title', '')
+            dl_id   = r.get('downloadId', '')
+            if dl_id and dl_id in seen_dl:
+                # another episode from same season pack — just increment count
+                existing = items[seen_dl[dl_id]]
+                existing['epCount'] = existing.get('epCount', 1) + 1
+                continue
+            title = r.get('title', '')
+            if s_title and s_num:
+                title = f"{s_title} S{s_num:02d}"
+            elif s_title:
+                title = s_title
+            entry = {
                 'queueId':      r.get('id'),
                 'source':       'sonarr',
-                'title':        f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
+                'title':        title,
                 'type':         'tv',
                 'status':       r.get('status', ''),
                 'trackedState': r.get('trackedDownloadState', ''),
-                'pct':          max(0, min(100, round((1 - left / total) * 100))),
-                'sizeMb':       round(total / (1024 ** 2)),
+                'pct':          _pct(size, r.get('sizeleft', 0)),
+                'sizeMb':       round(size / (1024 ** 2)) if size else 0,
                 'message':      _first_msg(r),
-            })
+                'epCount':      1,
+            }
+            if dl_id:
+                seen_dl[dl_id] = len(items)
+            items.append(entry)
     except Exception:
         pass
     return jsonify(items)

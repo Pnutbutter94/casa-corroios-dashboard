@@ -93,7 +93,7 @@ function _queueHTML() {
         <div class="bb-queue-item${isActionable ? ' bb-queue-problem' : ''}">
             <span class="bb-queue-icon">${icon}</span>
             <div class="bb-queue-info">
-                <div class="bb-queue-title">${esc(item.title)}</div>
+                <div class="bb-queue-title">${esc(item.title)}${item.epCount > 1 ? ` <span class="bb-queue-epcnt">${item.epCount} ep</span>` : ''}</div>
                 <div class="bb-queue-meta${statusCls ? ' bb-s-' + statusCls : ''}">${displayLabel}${item.sizeMb > 0 ? ' · ' + _fmtMb(item.sizeMb) : ''}</div>
                 ${item.message ? `<div class="bb-queue-msg">${esc(item.message)}</div>` : ''}
             </div>

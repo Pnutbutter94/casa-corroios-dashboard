@@ -238,6 +238,7 @@
     text-overflow: ellipsis;
     color: #e8e8ff;
 }
+.bb-queue-epcnt { font-size: 10px; color: #606090; font-weight: 400; margin-left: 4px; }
 .bb-queue-meta           { font-size: 11px; color: #606090; margin-top: 2px; }
 .bb-queue-meta.bb-s-warn { color: var(--warn); }
 .bb-queue-meta.bb-s-bad  { color: var(--bad); }
