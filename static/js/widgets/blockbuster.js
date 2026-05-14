@@ -1,33 +1,64 @@
 import { esc } from '../utils/esc.js';
 
-export const bb = { queue: [], disk: null, watched: null };
+export const bb = { queue: [], disk: null, watched: null, library: null };
 
 let _searchTimer = null;
 
 export async function initBlockbuster() {
-    await Promise.all([_fetchQueue(), _fetchDisk(), _fetchWatched()]);
+    await Promise.all([_fetchQueue(), _fetchDisk(), _fetchWatched(), _fetchLibrary()]);
 }
 
 async function _fetchQueue() {
-    try {
-        bb.queue = await fetch('/api/blockbuster/queue').then(r => r.ok ? r.json() : []);
-    } catch (_) {}
+    try { bb.queue = await fetch('/api/blockbuster/queue').then(r => r.ok ? r.json() : []); } catch (_) {}
 }
-
 async function _fetchDisk() {
-    try {
-        bb.disk = await fetch('/api/blockbuster/disk').then(r => r.ok ? r.json() : null);
-    } catch (_) {}
+    try { bb.disk = await fetch('/api/blockbuster/disk').then(r => r.ok ? r.json() : null); } catch (_) {}
 }
-
 async function _fetchWatched() {
-    try {
-        bb.watched = await fetch('/api/blockbuster/watched').then(r => r.ok ? r.json() : null);
-    } catch (_) {}
+    try { bb.watched = await fetch('/api/blockbuster/watched').then(r => r.ok ? r.json() : null); } catch (_) {}
+}
+async function _fetchLibrary() {
+    try { bb.library = await fetch('/api/blockbuster/library').then(r => r.ok ? r.json() : null); } catch (_) {}
 }
 
 function _fmtMb(mb) {
     return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+}
+
+const QUEUE_LABELS = {
+    downloading:   'A descarregar',
+    queued:        'Em fila',
+    warning:       'Aviso',
+    failed:        'Falhou',
+    paused:        'Em pausa',
+    completed:     'Concluído',
+    delay:         'Atraso',
+    importpending: 'A importar',
+    importblocked: 'Bloqueado',
+};
+const QUEUE_STATUS_CLS = { warning: 'warn', failed: 'bad', paused: 'muted', completed: 'good' };
+
+function _catalogueHTML() {
+    if (!bb.library) return '<div class="bb-empty">A carregar catálogo...</div>';
+    const { movies, series } = bb.library;
+
+    const _row = (items, label) => {
+        if (!items.length) return '';
+        const posters = items.map(item => `
+            <div class="bb-poster-wrap">
+                <img class="bb-poster-img" src="/api/blockbuster/jf-poster/${esc(item.id)}" loading="lazy" alt=""
+                     onerror="this.closest('.bb-poster-wrap').classList.add('bb-poster-err')">
+                <div class="bb-poster-overlay">
+                    <div class="bb-poster-title">${esc(item.title)}</div>
+                    ${item.year ? `<div class="bb-poster-year">${item.year}</div>` : ''}
+                </div>
+            </div>`).join('');
+        return `
+        <div class="bb-row-label">${label} <span class="bb-row-count">${items.length}</span></div>
+        <div class="bb-poster-row">${posters}</div>`;
+    };
+
+    return _row(movies, 'Filmes') + _row(series, 'Séries');
 }
 
 function _diskHTML() {
@@ -46,16 +77,20 @@ function _diskHTML() {
 function _queueHTML() {
     if (!bb.queue.length) return '<div class="bb-empty">Nenhum download em curso</div>';
     return bb.queue.map(item => {
-        const icon = item.type === 'movie' ? '🎬' : '📺';
+        const icon       = item.type === 'movie' ? '🎬' : '📺';
+        const statusKey  = (item.status || '').toLowerCase();
+        const statusLabel = QUEUE_LABELS[statusKey] || esc(item.status);
+        const statusCls  = QUEUE_STATUS_CLS[statusKey] || '';
+        const barCls     = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
         return `
         <div class="bb-queue-item">
             <span class="bb-queue-icon">${icon}</span>
             <div class="bb-queue-info">
                 <div class="bb-queue-title">${esc(item.title)}</div>
-                <div class="bb-queue-meta">${esc(item.status)} · ${_fmtMb(item.sizeMb)}</div>
+                <div class="bb-queue-meta${statusCls ? ' bb-s-' + statusCls : ''}">${statusLabel} · ${_fmtMb(item.sizeMb)}</div>
             </div>
             <div class="bb-queue-pct-wrap">
-                <div class="bb-queue-pct-bar" style="width:${item.pct}%"></div>
+                <div class="bb-queue-pct-bar${barCls ? ' ' + barCls : ''}" style="width:${item.pct}%"></div>
                 <span class="bb-queue-pct-label">${item.pct}%</span>
             </div>
         </div>`;
@@ -93,7 +128,15 @@ function _watchedHTML() {
 
 export function renderBlockbuster() {
     return `
-    <div class="card-label">Pesquisar</div>
+    <div class="bb-banner">
+        <span class="bb-banner-icon">🎬</span>
+        <span class="bb-banner-text">BLOCKBUSTER</span>
+    </div>
+
+    <div class="card-label">Em Exibição</div>
+    ${_catalogueHTML()}
+
+    <div class="card-label bb-gap">Pesquisar</div>
     <div class="bb-search-wrap">
         <input class="bb-search-input" type="text" placeholder="Filme ou série..." id="bb-search-input" autocomplete="off">
     </div>
@@ -111,6 +154,14 @@ export function renderBlockbuster() {
 }
 
 export function bindBlockbuster(container, onRefresh) {
+    container.querySelectorAll('.bb-poster-wrap').forEach(wrap => {
+        wrap.addEventListener('click', () => {
+            const wasRevealed = wrap.classList.contains('revealed');
+            container.querySelectorAll('.bb-poster-wrap.revealed').forEach(w => w.classList.remove('revealed'));
+            if (!wasRevealed) wrap.classList.add('revealed');
+        });
+    });
+
     const input = container.querySelector('#bb-search-input');
     if (input) {
         input.addEventListener('input', () => {
@@ -127,9 +178,7 @@ export function bindBlockbuster(container, onRefresh) {
             if (!btn.dataset.confirmPending) {
                 btn.dataset.confirmPending = '1';
                 btn.textContent = 'Confirmar?';
-                setTimeout(() => {
-                    if (btn.dataset.confirmPending) { delete btn.dataset.confirmPending; btn.textContent = 'Apagar'; }
-                }, 3000);
+                setTimeout(() => { if (btn.dataset.confirmPending) { delete btn.dataset.confirmPending; btn.textContent = 'Apagar'; } }, 3000);
                 return;
             }
             btn.disabled = true;
@@ -144,9 +193,7 @@ export function bindBlockbuster(container, onRefresh) {
             if (!btn.dataset.confirmPending) {
                 btn.dataset.confirmPending = '1';
                 btn.textContent = 'Confirmar?';
-                setTimeout(() => {
-                    if (btn.dataset.confirmPending) { delete btn.dataset.confirmPending; btn.textContent = 'Apagar'; }
-                }, 3000);
+                setTimeout(() => { if (btn.dataset.confirmPending) { delete btn.dataset.confirmPending; btn.textContent = 'Apagar'; } }, 3000);
                 return;
             }
             btn.disabled = true;
@@ -176,8 +223,8 @@ async function _doSearch(q) {
         }
         const STATUS = { 2: 'Pedido', 3: 'A processar', 4: 'Parcialmente disponível', 5: 'Disponível' };
         res.innerHTML = data.map(r => {
-            const posterSrc  = r.poster ? `/api/blockbuster/poster?path=${encodeURIComponent(r.poster)}` : '';
-            const typeLabel  = r.mediaType === 'movie' ? 'Filme' : 'Série';
+            const posterSrc   = r.poster ? `/api/blockbuster/poster?path=${encodeURIComponent(r.poster)}` : '';
+            const typeLabel   = r.mediaType === 'movie' ? 'Filme' : 'Série';
             const statusLabel = STATUS[r.status] || '';
             return `
             <div class="bb-result-item">

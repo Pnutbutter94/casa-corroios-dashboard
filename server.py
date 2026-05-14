@@ -605,6 +605,42 @@ def bb_delete_season():
         return jsonify({'error': str(e)}), 502
 
 
+@app.route('/api/blockbuster/library')
+def bb_library():
+    jf_h = {'X-Emby-Token': BB_JF_TOKEN}
+    def _fetch(item_type):
+        data = _bb_req(
+            f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
+            f'?IncludeItemTypes={item_type}&Recursive=true'
+            f'&SortBy=SortName&SortOrder=Ascending&Limit=50',
+            headers=jf_h)
+        return [{'id': i['Id'], 'title': i.get('Name', ''), 'year': i.get('ProductionYear', '')}
+                for i in data.get('Items', [])]
+    try:
+        return jsonify({'movies': _fetch('Movie'), 'series': _fetch('Series')})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/jf-poster/<item_id>')
+def bb_jf_poster(item_id):
+    if not re.match(r'^[a-f0-9]{32}$', item_id):
+        return '', 400
+    try:
+        req = urllib.request.Request(
+            f'{BB_JF_URL}/Items/{item_id}/Images/Primary?width=185&quality=85',
+            headers={'X-Emby-Token': BB_JF_TOKEN})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            img = r.read()
+            ct  = r.headers.get('Content-Type', 'image/jpeg')
+        resp = make_response(img)
+        resp.headers['Content-Type']  = ct
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception:
+        return '', 404
+
+
 @app.route('/api/blockbuster/poster')
 def bb_poster():
     path = request.args.get('path', '')
