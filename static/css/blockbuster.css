@@ -176,8 +176,31 @@
 }
 .bb-req-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* ── Section header with action ────────────────────────── */
+.bb-section-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0;
+}
+.bb-section-hdr .card-label { margin-bottom: 0; }
+.bb-refresh-btn {
+    background: transparent;
+    border: 1px solid #2a2a6a;
+    border-radius: 6px;
+    color: #606090;
+    font-size: 14px;
+    padding: 2px 8px;
+    cursor: pointer;
+    line-height: 1.6;
+    font-family: inherit;
+}
+.bb-refresh-btn:disabled { opacity: 0.4; }
+
+.bb-req-done { background: #2a2a10 !important; color: #888840 !important; }
+
 /* ── Queue ──────────────────────────────────────────────── */
-.bb-queue { display: flex; flex-direction: column; gap: 8px; }
+.bb-queue { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .bb-queue-item {
     display: flex;
     align-items: center;

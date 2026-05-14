@@ -148,8 +148,11 @@ export function renderBlockbuster() {
     </div>
     <div class="bb-results" id="bb-results"></div>
 
-    <div class="card-label bb-gap">A descarregar</div>
-    <div class="bb-queue">${_queueHTML()}</div>
+    <div class="bb-section-hdr bb-gap">
+        <span class="card-label">A descarregar</span>
+        <button class="bb-refresh-btn" id="bb-queue-refresh">↻</button>
+    </div>
+    <div class="bb-queue" id="bb-queue-list">${_queueHTML()}</div>
 
     <div class="card-label bb-gap">Disco</div>
     <div class="bb-disk">${_diskHTML()}</div>
@@ -157,6 +160,28 @@ export function renderBlockbuster() {
     <div class="card-label bb-gap">Para limpar</div>
     <div class="bb-clean">${_watchedHTML()}</div>
     `;
+}
+
+function _bindQueueBtns(el, onRefresh) {
+    if (!el) return;
+    el.querySelectorAll('[data-queue-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = '...';
+            const res = await fetch(
+                `/api/blockbuster/queue/${btn.dataset.queueId}?source=${btn.dataset.queueSource}`,
+                { method: 'DELETE' }
+            );
+            if (res.ok) {
+                await _fetchQueue();
+                el.innerHTML = _queueHTML();
+                _bindQueueBtns(el, onRefresh);
+            } else {
+                btn.textContent = 'Erro';
+                btn.disabled = false;
+            }
+        });
+    });
 }
 
 export function bindBlockbuster(container, onRefresh) {
@@ -168,23 +193,18 @@ export function bindBlockbuster(container, onRefresh) {
         });
     });
 
-    container.querySelectorAll('[data-queue-id]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            btn.disabled = true;
-            btn.textContent = '...';
-            const res = await fetch(
-                `/api/blockbuster/queue/${btn.dataset.queueId}?source=${btn.dataset.queueSource}`,
-                { method: 'DELETE' }
-            );
-            if (res.ok) {
-                await _fetchQueue();
-                onRefresh();
-            } else {
-                btn.textContent = 'Erro';
-                btn.disabled = false;
-            }
+    const queueList = container.querySelector('#bb-queue-list');
+    _bindQueueBtns(queueList, onRefresh);
+
+    const refreshBtn = container.querySelector('#bb-queue-refresh');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            refreshBtn.disabled = true;
+            await _fetchQueue();
+            if (queueList) { queueList.innerHTML = _queueHTML(); _bindQueueBtns(queueList, onRefresh); }
+            refreshBtn.disabled = false;
         });
-    });
+    }
 
     const input = container.querySelector('#bb-search-input');
     if (input) {
@@ -270,13 +290,25 @@ async function _doSearch(q) {
                 btn.disabled = true;
                 btn.textContent = '...';
                 const body = { mediaId: parseInt(btn.dataset.reqId), mediaType: btn.dataset.reqType };
-                if (body.mediaType === 'tv') body.seasons = 'all';
-                const ok = await fetch('/api/blockbuster/request', {
+                const resp = await fetch('/api/blockbuster/request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
-                }).then(r => r.ok).catch(() => false);
-                btn.textContent = ok ? 'Pedido!' : 'Erro';
+                }).catch(() => null);
+                if (resp && resp.ok) {
+                    btn.textContent = 'Pedido!';
+                    btn.classList.add('bb-req-done');
+                    // refresh queue after a short delay — Sonarr/Radarr may take a moment
+                    setTimeout(async () => {
+                        await _fetchQueue();
+                        const ql = document.getElementById('bb-queue-list');
+                        if (ql) ql.innerHTML = _queueHTML();
+                        _bindQueueBtns(ql, onRefresh);
+                    }, 4000);
+                } else {
+                    btn.textContent = 'Erro';
+                    btn.disabled = false;
+                }
             });
         });
     } catch (_) {

@@ -446,11 +446,18 @@ def bb_request():
         return jsonify({'error': 'invalid id'}), 400
     body = {'mediaType': media_type, 'mediaId': media_id}
     if media_type == 'tv':
-        body['seasons'] = 'all'
+        try:
+            show    = _bb_req(f'{BB_JS_URL}/api/v1/tv/{media_id}',
+                              headers={'X-Api-Key': BB_JS_KEY})
+            seasons = [s['seasonNumber'] for s in show.get('seasons', [])
+                       if isinstance(s.get('seasonNumber'), int) and s['seasonNumber'] > 0]
+        except Exception:
+            seasons = []
+        body['seasons'] = seasons or [1]
     try:
         _bb_req(f'{BB_JS_URL}/api/v1/request', method='POST', data=body,
                 headers={'X-Api-Key': BB_JS_KEY})
-        return jsonify({'ok': True})
+        return jsonify({'ok': True, 'seasons': body.get('seasons')})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
