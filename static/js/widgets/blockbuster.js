@@ -77,22 +77,28 @@ function _diskHTML() {
 function _queueHTML() {
     if (!bb.queue.length) return '<div class="bb-empty">Nenhum download em curso</div>';
     return bb.queue.map(item => {
-        const icon       = item.type === 'movie' ? '🎬' : '📺';
-        const statusKey  = (item.status || '').toLowerCase();
-        const statusLabel = QUEUE_LABELS[statusKey] || esc(item.status);
-        const statusCls  = QUEUE_STATUS_CLS[statusKey] || '';
-        const barCls     = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
+        const icon         = item.type === 'movie' ? '🎬' : '📺';
+        const statusKey    = (item.status || '').toLowerCase();
+        const statusLabel  = QUEUE_LABELS[statusKey] || esc(item.status);
+        const statusCls    = QUEUE_STATUS_CLS[statusKey] || '';
+        const barCls       = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
+        const isActionable = statusKey === 'warning' || statusKey === 'failed';
         return `
-        <div class="bb-queue-item">
+        <div class="bb-queue-item${isActionable ? ' bb-queue-problem' : ''}">
             <span class="bb-queue-icon">${icon}</span>
             <div class="bb-queue-info">
                 <div class="bb-queue-title">${esc(item.title)}</div>
                 <div class="bb-queue-meta${statusCls ? ' bb-s-' + statusCls : ''}">${statusLabel} · ${_fmtMb(item.sizeMb)}</div>
+                ${item.message ? `<div class="bb-queue-msg">${esc(item.message)}</div>` : ''}
             </div>
-            <div class="bb-queue-pct-wrap">
-                <div class="bb-queue-pct-bar${barCls ? ' ' + barCls : ''}" style="width:${item.pct}%"></div>
-                <span class="bb-queue-pct-label">${item.pct}%</span>
-            </div>
+            ${isActionable
+                ? `<button class="bb-retry-btn"
+                       data-queue-id="${esc(String(item.queueId))}"
+                       data-queue-source="${esc(item.source)}">Tentar outro</button>`
+                : `<div class="bb-queue-pct-wrap">
+                       <div class="bb-queue-pct-bar${barCls ? ' ' + barCls : ''}" style="width:${item.pct}%"></div>
+                       <span class="bb-queue-pct-label">${item.pct}%</span>
+                   </div>`}
         </div>`;
     }).join('');
 }
@@ -159,6 +165,24 @@ export function bindBlockbuster(container, onRefresh) {
             const wasRevealed = wrap.classList.contains('revealed');
             container.querySelectorAll('.bb-poster-wrap.revealed').forEach(w => w.classList.remove('revealed'));
             if (!wasRevealed) wrap.classList.add('revealed');
+        });
+    });
+
+    container.querySelectorAll('[data-queue-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = '...';
+            const res = await fetch(
+                `/api/blockbuster/queue/${btn.dataset.queueId}?source=${btn.dataset.queueSource}`,
+                { method: 'DELETE' }
+            );
+            if (res.ok) {
+                await _fetchQueue();
+                onRefresh();
+            } else {
+                btn.textContent = 'Erro';
+                btn.disabled = false;
+            }
         });
     });
 

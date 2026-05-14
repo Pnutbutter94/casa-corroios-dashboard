@@ -476,16 +476,23 @@ def bb_disk():
 @app.route('/api/blockbuster/queue')
 def bb_queue():
     items = []
+    def _first_msg(r):
+        msgs = r.get('statusMessages') or []
+        return msgs[0].get('messages', [''])[0][:120] if msgs else ''
+
     try:
         for r in _bb_req(f'{BB_RAD_URL}/api/v3/queue?apikey={BB_RAD_KEY}').get('records', []):
             total = r.get('size', 0) or 1
             left  = r.get('sizeleft', 0)
             items.append({
-                'title':  r.get('title', ''),
-                'type':   'movie',
-                'status': r.get('status', ''),
-                'pct':    min(100, round((1 - left / total) * 100)),
-                'sizeMb': round(total / (1024 ** 2)),
+                'queueId': r.get('id'),
+                'source':  'radarr',
+                'title':   r.get('title', ''),
+                'type':    'movie',
+                'status':  r.get('status', ''),
+                'pct':     min(100, round((1 - left / total) * 100)),
+                'sizeMb':  round(total / (1024 ** 2)),
+                'message': _first_msg(r),
             })
     except Exception:
         pass
@@ -496,15 +503,34 @@ def bb_queue():
             series = r.get('series') or {}
             ep     = r.get('episode') or {}
             items.append({
-                'title':  f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
-                'type':   'tv',
-                'status': r.get('status', ''),
-                'pct':    min(100, round((1 - left / total) * 100)),
-                'sizeMb': round(total / (1024 ** 2)),
+                'queueId': r.get('id'),
+                'source':  'sonarr',
+                'title':   f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
+                'type':    'tv',
+                'status':  r.get('status', ''),
+                'pct':     min(100, round((1 - left / total) * 100)),
+                'sizeMb':  round(total / (1024 ** 2)),
+                'message': _first_msg(r),
             })
     except Exception:
         pass
     return jsonify(items)
+
+
+@app.route('/api/blockbuster/queue/<int:queue_id>', methods=['DELETE'])
+def bb_queue_item_delete(queue_id):
+    source = request.args.get('source', '')
+    if source not in ('radarr', 'sonarr'):
+        return jsonify({'error': 'invalid source'}), 400
+    base = BB_RAD_URL if source == 'radarr' else BB_SON_URL
+    key  = BB_RAD_KEY if source == 'radarr' else BB_SON_KEY
+    try:
+        _bb_req(
+            f'{base}/api/v3/queue/{queue_id}?removeFromClient=true&blocklist=true&apikey={key}',
+            method='DELETE')
+        return '', 204
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
 
 
 @app.route('/api/blockbuster/watched')
