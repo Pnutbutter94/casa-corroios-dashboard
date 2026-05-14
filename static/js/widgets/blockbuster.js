@@ -77,18 +77,24 @@ function _diskHTML() {
 function _queueHTML() {
     if (!bb.queue.length) return '<div class="bb-empty">Nenhum download em curso</div>';
     return bb.queue.map(item => {
-        const icon         = item.type === 'movie' ? '🎬' : '📺';
-        const statusKey    = (item.status || '').toLowerCase();
-        const statusLabel  = QUEUE_LABELS[statusKey] || esc(item.status);
-        const statusCls    = QUEUE_STATUS_CLS[statusKey] || '';
-        const barCls       = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
-        const isActionable = statusKey === 'warning' || statusKey === 'failed';
+        const icon          = item.type === 'movie' ? '🎬' : '📺';
+        const statusKey     = (item.status || '').toLowerCase();
+        const trackedKey    = (item.trackedState || '').toLowerCase();
+        const isDownloading = trackedKey === 'downloading';
+        const isActionable  = statusKey === 'warning' || statusKey === 'failed';
+        const displayLabel  = isActionable
+            ? (QUEUE_LABELS[statusKey] || esc(item.status))
+            : isDownloading
+                ? 'A descarregar'
+                : (QUEUE_LABELS[statusKey] || esc(item.status));
+        const statusCls     = isActionable ? (QUEUE_STATUS_CLS[statusKey] || '') : '';
+        const barCls        = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
         return `
         <div class="bb-queue-item${isActionable ? ' bb-queue-problem' : ''}">
             <span class="bb-queue-icon">${icon}</span>
             <div class="bb-queue-info">
                 <div class="bb-queue-title">${esc(item.title)}</div>
-                <div class="bb-queue-meta${statusCls ? ' bb-s-' + statusCls : ''}">${statusLabel} · ${_fmtMb(item.sizeMb)}</div>
+                <div class="bb-queue-meta${statusCls ? ' bb-s-' + statusCls : ''}">${displayLabel}${item.sizeMb > 0 ? ' · ' + _fmtMb(item.sizeMb) : ''}</div>
                 ${item.message ? `<div class="bb-queue-msg">${esc(item.message)}</div>` : ''}
             </div>
             ${isActionable

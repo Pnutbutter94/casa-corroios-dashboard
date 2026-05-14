@@ -492,14 +492,15 @@ def bb_queue():
             total = r.get('size', 0) or 1
             left  = r.get('sizeleft', 0)
             items.append({
-                'queueId': r.get('id'),
-                'source':  'radarr',
-                'title':   r.get('title', ''),
-                'type':    'movie',
-                'status':  r.get('status', ''),
-                'pct':     max(0, min(100, round((1 - left / total) * 100))),
-                'sizeMb':  round(total / (1024 ** 2)),
-                'message': _first_msg(r),
+                'queueId':      r.get('id'),
+                'source':       'radarr',
+                'title':        r.get('title', ''),
+                'type':         'movie',
+                'status':       r.get('status', ''),
+                'trackedState': r.get('trackedDownloadState', ''),
+                'pct':          max(0, min(100, round((1 - left / total) * 100))),
+                'sizeMb':       round(total / (1024 ** 2)),
+                'message':      _first_msg(r),
             })
     except Exception:
         pass
@@ -510,14 +511,15 @@ def bb_queue():
             series = r.get('series') or {}
             ep     = r.get('episode') or {}
             items.append({
-                'queueId': r.get('id'),
-                'source':  'sonarr',
-                'title':   f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
-                'type':    'tv',
-                'status':  r.get('status', ''),
-                'pct':     max(0, min(100, round((1 - left / total) * 100))),
-                'sizeMb':  round(total / (1024 ** 2)),
-                'message': _first_msg(r),
+                'queueId':      r.get('id'),
+                'source':       'sonarr',
+                'title':        f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
+                'type':         'tv',
+                'status':       r.get('status', ''),
+                'trackedState': r.get('trackedDownloadState', ''),
+                'pct':          max(0, min(100, round((1 - left / total) * 100))),
+                'sizeMb':       round(total / (1024 ** 2)),
+                'message':      _first_msg(r),
             })
     except Exception:
         pass
