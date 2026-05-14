@@ -110,7 +110,26 @@
 .bb-poster-year { font-size: 9px; color: #FFE600; margin-top: 2px; }
 
 /* ── Search ─────────────────────────────────────────────── */
-.bb-search-wrap { margin-bottom: 8px; }
+.bb-search-wrap  { margin-bottom: 8px; }
+.bb-search-row   { display: flex; align-items: center; gap: 8px; }
+.bb-search-row .bb-search-input { flex: 1; }
+.bb-search-clear {
+    background: #13133a;
+    border: 1px solid #2a2a6a;
+    border-radius: 8px;
+    color: #606090;
+    font-size: 20px;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: inherit;
+    line-height: 1;
+}
+
 .bb-search-input {
     width: 100%;
     background: #13133a;

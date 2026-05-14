@@ -97,7 +97,7 @@ function _queueHTML() {
                        data-queue-source="${esc(item.source)}">Tentar outro</button>`
                 : `<div class="bb-queue-pct-wrap">
                        <div class="bb-queue-pct-bar${barCls ? ' ' + barCls : ''}" style="width:${item.pct}%"></div>
-                       <span class="bb-queue-pct-label">${item.pct}%</span>
+                       <span class="bb-queue-pct-label">${item.pct === 0 ? 'A iniciar' : item.pct + '%'}</span>
                    </div>`}
         </div>`;
     }).join('');
@@ -144,7 +144,10 @@ export function renderBlockbuster() {
 
     <div class="card-label bb-gap">Pesquisar</div>
     <div class="bb-search-wrap">
-        <input class="bb-search-input" type="text" placeholder="Filme ou série..." id="bb-search-input" autocomplete="off">
+        <div class="bb-search-row">
+            <input class="bb-search-input" type="text" placeholder="Filme ou série..." id="bb-search-input" autocomplete="off">
+            <button class="bb-search-clear" id="bb-search-clear" style="display:none">×</button>
+        </div>
     </div>
     <div class="bb-results" id="bb-results"></div>
 
@@ -206,15 +209,31 @@ export function bindBlockbuster(container, onRefresh) {
         });
     }
 
-    const input = container.querySelector('#bb-search-input');
+    const input    = container.querySelector('#bb-search-input');
+    const clearBtn = container.querySelector('#bb-search-clear');
+
+    function _clearSearch() {
+        clearTimeout(_searchTimer);
+        if (input) input.value = '';
+        if (clearBtn) clearBtn.style.display = 'none';
+        const res = document.getElementById('bb-results');
+        if (res) res.innerHTML = '';
+    }
+
     if (input) {
         input.addEventListener('input', () => {
             clearTimeout(_searchTimer);
             const q = input.value.trim();
+            if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
             const res = document.getElementById('bb-results');
             if (!q) { if (res) res.innerHTML = ''; return; }
             _searchTimer = setTimeout(() => _doSearch(q), 400);
         });
+        input.addEventListener('blur', () => setTimeout(_clearSearch, 300));
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('mousedown', e => e.preventDefault()); // keep input focus until after click
+        clearBtn.addEventListener('click', () => { _clearSearch(); input?.focus(); });
     }
 
     container.querySelectorAll('[data-delete-movie]').forEach(btn => {

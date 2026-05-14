@@ -497,7 +497,7 @@ def bb_queue():
                 'title':   r.get('title', ''),
                 'type':    'movie',
                 'status':  r.get('status', ''),
-                'pct':     min(100, round((1 - left / total) * 100)),
+                'pct':     max(0, min(100, round((1 - left / total) * 100))),
                 'sizeMb':  round(total / (1024 ** 2)),
                 'message': _first_msg(r),
             })
@@ -515,7 +515,7 @@ def bb_queue():
                 'title':   f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
                 'type':    'tv',
                 'status':  r.get('status', ''),
-                'pct':     min(100, round((1 - left / total) * 100)),
+                'pct':     max(0, min(100, round((1 - left / total) * 100))),
                 'sizeMb':  round(total / (1024 ** 2)),
                 'message': _first_msg(r),
             })
