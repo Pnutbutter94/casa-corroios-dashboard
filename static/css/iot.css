@@ -150,6 +150,13 @@
     margin-top: 2px;
 }
 
+.iot-vacuum-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 .iot-vacuum-btn {
     background: var(--surface);
     border: 1px solid var(--border);

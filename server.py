@@ -39,7 +39,7 @@ IOT_ENTITIES = frozenset([
 ALLOWED_IOT_SERVICES = {
     'light':  {'turn_on', 'turn_off'},
     'switch': {'toggle', 'turn_on', 'turn_off'},
-    'vacuum': {'start', 'stop'},
+    'vacuum': {'start', 'stop', 'return_to_base'},
 }
 MAX_CUSTOM_PRODUCTS = 500
 DATE_RE             = re.compile(r'^\d{4}-\d{2}-\d{2}$')

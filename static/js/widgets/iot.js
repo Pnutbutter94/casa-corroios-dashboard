@@ -124,13 +124,14 @@ export function renderIot() {
 
     const vs  = _s(VACUUM_ID);
     const vi  = VACUUM_STATES[vs.state] || { label: vs.state, icon: '❓', cls: '' };
-    const canStart = vs.state === 'docked' || vs.state === 'idle';
-    const canStop  = vs.state === 'cleaning' || vs.state === 'paused';
-    const vacBtn = canStart
-        ? `<button class="iot-vacuum-btn accent" data-vacuum-action="start">▶ Limpar</button>`
-        : canStop
-        ? `<button class="iot-vacuum-btn" data-vacuum-action="stop">⏹ Parar</button>`
-        : '';
+    const canStart  = vs.state === 'docked' || vs.state === 'idle';
+    const canStop   = vs.state === 'cleaning' || vs.state === 'paused';
+    const canReturn = vs.state === 'cleaning' || vs.state === 'paused' || vs.state === 'idle';
+    const vacBtn = `
+        ${canStart  ? `<button class="iot-vacuum-btn accent" data-vacuum-action="start">▶ Limpar</button>` : ''}
+        ${canStop   ? `<button class="iot-vacuum-btn" data-vacuum-action="stop">⏹ Parar</button>` : ''}
+        ${canReturn ? `<button class="iot-vacuum-btn" data-vacuum-action="return_to_base">🏠 Regressar</button>` : ''}
+    `.trim();
     const vacTime = _timeAgo(vs.last_changed);
 
     return `
@@ -153,7 +154,7 @@ export function renderIot() {
                 ${vacTime ? `<div class="iot-vacuum-time">${vacTime}</div>` : ''}
             </div>
         </div>
-        ${vacBtn}
+        <div class="iot-vacuum-actions">${vacBtn}</div>
     </div>`;
 }
 
