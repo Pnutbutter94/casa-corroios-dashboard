@@ -237,6 +237,10 @@ export function bindBlockbuster(container, onRefresh) {
         });
         input.addEventListener('blur', () => setTimeout(_clearSearch, 300));
     }
+    const resultsDiv = container.querySelector('#bb-results');
+    if (resultsDiv) {
+        resultsDiv.addEventListener('mousedown', e => e.preventDefault()); // keep input focus when tapping results
+    }
     if (clearBtn) {
         clearBtn.addEventListener('mousedown', e => e.preventDefault()); // keep input focus until after click
         clearBtn.addEventListener('click', () => { _clearSearch(); input?.focus(); });
