@@ -366,6 +366,17 @@ async function _sendEpisodeRequest(mediaId, seasonNumber, episodeNumbers, picker
             const ql = document.getElementById('bb-queue-list');
             if (ql) { ql.innerHTML = _queueHTML(); _bindQueueBtns(ql); }
         }, 4000);
+    } else if (resp && resp.status === 409) {
+        // Series not yet in Sonarr — need to add the season first
+        if (doneBtn) { doneBtn.textContent = 'E'; doneBtn.disabled = false; }
+        const msg = picker.querySelector('.bb-picker-msg');
+        if (msg) msg.textContent = 'Pede a temporada primeiro';
+        else {
+            const m = document.createElement('div');
+            m.className = 'bb-empty bb-picker-msg';
+            m.textContent = 'Pede a temporada primeiro';
+            picker.appendChild(m);
+        }
     } else {
         if (doneBtn) { doneBtn.textContent = 'Erro'; doneBtn.disabled = false; }
     }

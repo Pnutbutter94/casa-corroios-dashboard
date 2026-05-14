@@ -517,11 +517,8 @@ def bb_request_episodes():
                     _bb_req(f'{BB_SON_URL}/api/v3/command?apikey={BB_SON_KEY}',
                             method='POST', data={'name': 'EpisodeSearch', 'episodeIds': ep_ids})
                     return jsonify({'ok': True})
-        # Series not in Sonarr yet — fall back to requesting the whole season via Jellyseerr
-        _bb_req(f'{BB_JS_URL}/api/v1/request', method='POST',
-                data={'mediaType': 'tv', 'mediaId': tmdb_id, 'seasons': [s_num]},
-                headers={'X-Api-Key': BB_JS_KEY})
-        return jsonify({'ok': True, 'fallback': 'season'})
+        # Series not in Sonarr — episode-level requests require the season to be added first
+        return jsonify({'error': 'not_in_sonarr'}), 409
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
