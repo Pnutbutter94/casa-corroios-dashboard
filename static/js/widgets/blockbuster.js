@@ -325,12 +325,27 @@ async function _doSearch(q) {
                 if (btn.dataset.reqType === 'tv') {
                     await _showTvPicker(btn.dataset.reqId, btn);
                 } else {
-                    await _sendRequest(parseInt(btn.dataset.reqId), 'movie', btn);
+                    _withConfirm(btn, 'Pedir', () => _sendRequest(parseInt(btn.dataset.reqId), 'movie', btn));
                 }
             });
         });
     } catch (_) {
         res.innerHTML = '<div class="bb-empty">Erro na pesquisa</div>';
+    }
+}
+
+function _withConfirm(btn, originalText, action) {
+    if (btn.dataset.confirmPending) {
+        clearTimeout(btn._confirmTimer);
+        delete btn.dataset.confirmPending;
+        action();
+    } else {
+        btn.dataset.confirmPending = '1';
+        btn.textContent = 'Confirmar?';
+        btn._confirmTimer = setTimeout(() => {
+            delete btn.dataset.confirmPending;
+            btn.textContent = originalText;
+        }, 3000);
     }
 }
 
@@ -395,9 +410,12 @@ async function _showTvPicker(id, mainBtn) {
         </div>
         <div class="bb-episode-row" id="bb-epr-${id}" style="display:none"></div>`;
 
-        picker.querySelector('.bb-season-all').addEventListener('click', async e => {
-            await _sendRequest(parseInt(id), 'tv', e.currentTarget);
-            picker.style.display = 'none';
+        picker.querySelector('.bb-season-all').addEventListener('click', e => {
+            const b = e.currentTarget;
+            _withConfirm(b, 'Toda a série', async () => {
+                await _sendRequest(parseInt(id), 'tv', b);
+                picker.style.display = 'none';
+            });
         });
 
         picker.querySelectorAll('[data-sn]').forEach(sb => {
@@ -427,14 +445,20 @@ async function _showEpisodePicker(mediaId, seasonNum, picker) {
         <button class="bb-ep-btn bb-ep-season" data-season-req="${seasonNum}">Toda T${seasonNum}</button>
         ${episodes.map(e => `<button class="bb-ep-btn" data-ep="${e.number}" title="${esc(e.title)}">E${e.number}</button>`).join('')}`;
 
-        epRow.querySelector('[data-season-req]').addEventListener('click', async e => {
-            await _sendRequest(mediaId, 'tv', e.currentTarget, [seasonNum]);
-            picker.style.display = 'none';
+        epRow.querySelector('[data-season-req]').addEventListener('click', e => {
+            const b = e.currentTarget;
+            _withConfirm(b, `Toda T${seasonNum}`, async () => {
+                await _sendRequest(mediaId, 'tv', b, [seasonNum]);
+                picker.style.display = 'none';
+            });
         });
 
         epRow.querySelectorAll('[data-ep]').forEach(eb => {
-            eb.addEventListener('click', () =>
-                _sendEpisodeRequest(mediaId, seasonNum, [parseInt(eb.dataset.ep)], picker, eb));
+            eb.addEventListener('click', () => {
+                const label = `E${eb.dataset.ep}`;
+                _withConfirm(eb, label, () =>
+                    _sendEpisodeRequest(mediaId, seasonNum, [parseInt(eb.dataset.ep)], picker, eb));
+            });
         });
     } catch (_) {
         epRow.innerHTML = '<div class="bb-empty">Erro</div>';
