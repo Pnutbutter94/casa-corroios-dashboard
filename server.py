@@ -494,12 +494,14 @@ def bb_queue():
         return max(0, min(100, round((1 - sizeleft / size) * 100)))
 
     try:
-        for r in _bb_req(f'{BB_RAD_URL}/api/v3/queue?apikey={BB_RAD_KEY}').get('records', []):
-            size = r.get('size', 0)
+        for r in _bb_req(f'{BB_RAD_URL}/api/v3/queue?includeMovie=true&apikey={BB_RAD_KEY}').get('records', []):
+            size  = r.get('size', 0)
+            movie = r.get('movie') or {}
+            title = movie.get('title') or r.get('title', '')
             items.append({
                 'queueId':      r.get('id'),
                 'source':       'radarr',
-                'title':        r.get('title', ''),
+                'title':        title,
                 'type':         'movie',
                 'status':       r.get('status', ''),
                 'trackedState': r.get('trackedDownloadState', ''),
