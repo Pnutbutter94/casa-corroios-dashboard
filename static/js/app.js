@@ -18,6 +18,9 @@ import {
 import {
   iot, initIot, fetchIotStates, renderIot, bindIot,
 } from './widgets/iot.js';
+import {
+  bb, initBlockbuster, renderBlockbuster, bindBlockbuster,
+} from './widgets/blockbuster.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -29,6 +32,7 @@ let maintenanceData   = {};
 let refeicInitialised = false;
 let listaInitialised  = false;
 let iotInitialised    = false;
+let bbInitialised     = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -67,6 +71,14 @@ function refreshLista() {
   bindLista(card, refreshLista);
 }
 
+// ── BLOCKBUSTER ────────────────────────────────────────────────────────────
+function refreshBlockbuster() {
+  const card = document.getElementById('blockbuster-card');
+  if (!card) return;
+  card.innerHTML = renderBlockbuster();
+  bindBlockbuster(card, refreshBlockbuster);
+}
+
 // ── IOT ────────────────────────────────────────────────────────────────────
 function refreshIot() {
   iot.outdoorTemp = weatherData?.current_weather?.temperature ?? null;
@@ -103,6 +115,10 @@ function initTabs() {
           await fetchIotStates();
           refreshIot();
         }, 30_000);
+      } else if (activeTab === 'blockbuster' && !bbInitialised) {
+        bbInitialised = true;
+        await initBlockbuster();
+        refreshBlockbuster();
       }
     });
   });
@@ -244,6 +260,13 @@ function render(data) {
       </div>
     </div>
 
+    <!-- BLOCKBUSTER TAB -->
+    <div class="tab-page ${activeTab === 'blockbuster' ? 'active' : ''}" id="tab-blockbuster">
+      <div class="card fade-in" id="blockbuster-card">
+        <div class="loading"><div class="spinner"></div> A carregar...</div>
+      </div>
+    </div>
+
   `;
 
   updateClock();
@@ -257,6 +280,9 @@ function render(data) {
   }
   if (activeTab === 'iot' && iotInitialised) {
     refreshIot();
+  }
+  if (activeTab === 'blockbuster' && bbInitialised) {
+    refreshBlockbuster();
   }
 
   bindWeatherHourly(data);

@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, send_from_directory, request
+from flask import Flask, jsonify, make_response, send_from_directory, request
 import urllib.request
+import urllib.parse
 import json
 import os
 import time
@@ -44,6 +45,17 @@ ALLOWED_IOT_SERVICES = {
 }
 MAX_CUSTOM_PRODUCTS = 500
 DATE_RE             = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+BB_JF_URL   = 'http://localhost:8096'
+BB_JF_TOKEN = '9a03d5f6159947e8866440bbb14bdf05'
+BB_JF_USER  = 'c44c715263ba424fabccb6b96ba34985'
+BB_JS_URL   = 'http://localhost:5055'
+BB_JS_KEY   = 'MTc3ODQ5Mzg1OTAwNDBlMGFkNTVmLWFkOWYtNGNjZi05ODYwLWY1Njk5MjQxNGJmOQ=='
+BB_RAD_URL  = 'http://localhost:7878'
+BB_RAD_KEY  = 'bef659950c1d4ccaa4d40f2301079e0b'
+BB_SON_URL  = 'http://localhost:8989'
+BB_SON_KEY  = 'd47e138c18b542be9dec3e9fec9b0408'
+BB_QUOTA_GB = 150
 
 WEATHER_URL = (
     "https://api.open-meteo.com/v1/forecast"
@@ -382,6 +394,231 @@ def iot_call():
         return jsonify(_ha_request(f'/api/services/{domain}/{service}', service_data))
     except Exception as e:
         return jsonify({'error': str(e)}), 502
+
+
+# ── BLOCKBUSTER ───────────────────────────────────────────────────────────────
+
+def _bb_req(url, method='GET', data=None, headers=None):
+    body = json.dumps(data).encode() if data is not None else None
+    h = {} if body is None else {'Content-Type': 'application/json'}
+    if headers:
+        h.update(headers)
+    req = urllib.request.Request(url, data=body, headers=h, method=method)
+    with urllib.request.urlopen(req, timeout=10) as r:
+        raw = r.read()
+        return json.loads(raw) if raw else {}
+
+
+@app.route('/api/blockbuster/search')
+def bb_search():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    try:
+        data = _bb_req(
+            f'{BB_JS_URL}/api/v1/search?query={urllib.parse.quote(q)}&language=pt-PT',
+            headers={'X-Api-Key': BB_JS_KEY},
+        )
+        out = []
+        for r in data.get('results', [])[:12]:
+            out.append({
+                'id':        r.get('id'),
+                'mediaType': r.get('mediaType'),
+                'title':     r.get('title') or r.get('name', ''),
+                'year':      (r.get('releaseDate') or r.get('firstAirDate', ''))[:4],
+                'poster':    r.get('posterPath', ''),
+                'status':    (r.get('mediaInfo') or {}).get('status', 0),
+            })
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/request', methods=['POST'])
+def bb_request():
+    raw        = request.get_json(force=True, silent=True) or {}
+    media_type = str(raw.get('mediaType', ''))
+    if media_type not in ('movie', 'tv'):
+        return jsonify({'error': 'invalid type'}), 400
+    try:
+        media_id = int(raw['mediaId'])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({'error': 'invalid id'}), 400
+    body = {'mediaType': media_type, 'mediaId': media_id}
+    if media_type == 'tv':
+        body['seasons'] = 'all'
+    try:
+        _bb_req(f'{BB_JS_URL}/api/v1/request', method='POST', data=body,
+                headers={'X-Api-Key': BB_JS_KEY})
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/disk')
+def bb_disk():
+    try:
+        movies   = _bb_req(f'{BB_RAD_URL}/api/v3/movie?apikey={BB_RAD_KEY}')
+        mv_bytes = sum(m.get('sizeOnDisk', 0) for m in movies if m.get('hasFile'))
+        series   = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
+        tv_bytes = sum(s.get('statistics', {}).get('sizeOnDisk', 0) for s in series)
+        total_gb = (mv_bytes + tv_bytes) / (1024 ** 3)
+        return jsonify({
+            'usedGb':   round(total_gb, 1),
+            'quotaGb':  BB_QUOTA_GB,
+            'moviesGb': round(mv_bytes / (1024 ** 3), 1),
+            'tvGb':     round(tv_bytes / (1024 ** 3), 1),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/queue')
+def bb_queue():
+    items = []
+    try:
+        for r in _bb_req(f'{BB_RAD_URL}/api/v3/queue?apikey={BB_RAD_KEY}').get('records', []):
+            total = r.get('size', 0) or 1
+            left  = r.get('sizeleft', 0)
+            items.append({
+                'title':  r.get('title', ''),
+                'type':   'movie',
+                'status': r.get('status', ''),
+                'pct':    min(100, round((1 - left / total) * 100)),
+                'sizeMb': round(total / (1024 ** 2)),
+            })
+    except Exception:
+        pass
+    try:
+        for r in _bb_req(f'{BB_SON_URL}/api/v3/queue?apikey={BB_SON_KEY}').get('records', []):
+            total  = r.get('size', 0) or 1
+            left   = r.get('sizeleft', 0)
+            series = r.get('series') or {}
+            ep     = r.get('episode') or {}
+            items.append({
+                'title':  f"{series.get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
+                'type':   'tv',
+                'status': r.get('status', ''),
+                'pct':    min(100, round((1 - left / total) * 100)),
+                'sizeMb': round(total / (1024 ** 2)),
+            })
+    except Exception:
+        pass
+    return jsonify(items)
+
+
+@app.route('/api/blockbuster/watched')
+def bb_watched():
+    jf_h        = {'X-Emby-Token': BB_JF_TOKEN}
+    movies_out  = []
+    seasons_out = []
+    try:
+        jf_mv  = _bb_req(
+            f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
+            f'?IncludeItemTypes=Movie&IsPlayed=true&Recursive=true&Fields=ProviderIds',
+            headers=jf_h)
+        rad_mv      = _bb_req(f'{BB_RAD_URL}/api/v3/movie?apikey={BB_RAD_KEY}')
+        rad_by_tmdb = {str(m['tmdbId']): m for m in rad_mv if m.get('hasFile')}
+        for jm in jf_mv.get('Items', []):
+            tmdb = str((jm.get('ProviderIds') or {}).get('Tmdb', ''))
+            if tmdb and tmdb in rad_by_tmdb:
+                rm = rad_by_tmdb[tmdb]
+                movies_out.append({
+                    'radarrId': rm['id'],
+                    'title':    rm['title'],
+                    'year':     rm.get('year', ''),
+                    'sizeMb':   round(rm.get('sizeOnDisk', 0) / (1024 ** 2)),
+                })
+    except Exception:
+        pass
+    try:
+        jf_ser_raw  = _bb_req(
+            f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
+            f'?IncludeItemTypes=Series&Recursive=true&Fields=ProviderIds',
+            headers=jf_h)
+        tvdb_by_jf  = {
+            s['Id']: str((s.get('ProviderIds') or {}).get('Tvdb', ''))
+            for s in jf_ser_raw.get('Items', [])
+        }
+        jf_sea      = _bb_req(
+            f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
+            f'?IncludeItemTypes=Season&Recursive=true&IsPlayed=true'
+            f'&Fields=UserData,SeriesName,SeriesId,IndexNumber',
+            headers=jf_h)
+        son_ser     = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
+        son_by_tvdb = {str(s['tvdbId']): s for s in son_ser}
+        seen = set()
+        for js in jf_sea.get('Items', []):
+            num  = js.get('IndexNumber', 0)
+            if num == 0:
+                continue
+            tvdb = tvdb_by_jf.get(js.get('SeriesId', ''), '')
+            key  = f'{tvdb}_{num}'
+            if not tvdb or key in seen or tvdb not in son_by_tvdb:
+                continue
+            ss       = son_by_tvdb[tvdb]
+            s_season = next((x for x in ss.get('seasons', []) if x.get('seasonNumber') == num), None)
+            if not s_season:
+                continue
+            size_mb = round(s_season.get('statistics', {}).get('sizeOnDisk', 0) / (1024 ** 2))
+            if size_mb == 0:
+                continue
+            seen.add(key)
+            seasons_out.append({
+                'sonarrId':  ss['id'],
+                'seasonNum': num,
+                'title':     js.get('SeriesName', ss['title']),
+                'sizeMb':    size_mb,
+            })
+    except Exception:
+        pass
+    return jsonify({'movies': movies_out, 'seasons': seasons_out})
+
+
+@app.route('/api/blockbuster/delete/movie/<int:radarr_id>', methods=['DELETE'])
+def bb_delete_movie(radarr_id):
+    try:
+        _bb_req(
+            f'{BB_RAD_URL}/api/v3/movie/{radarr_id}?deleteFiles=true&apikey={BB_RAD_KEY}',
+            method='DELETE')
+        return '', 204
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/delete/season', methods=['POST'])
+def bb_delete_season():
+    raw        = request.get_json(force=True, silent=True) or {}
+    sonarr_id  = raw.get('sonarrId')
+    season_num = raw.get('seasonNum')
+    if not isinstance(sonarr_id, int) or not isinstance(season_num, int):
+        return jsonify({'error': 'invalid'}), 400
+    try:
+        files = _bb_req(f'{BB_SON_URL}/api/v3/episodefile?seriesId={sonarr_id}&apikey={BB_SON_KEY}')
+        ids   = [f['id'] for f in files if isinstance(f, dict) and f.get('seasonNumber') == season_num]
+        if ids:
+            _bb_req(
+                f'{BB_SON_URL}/api/v3/episodefile/bulk?apikey={BB_SON_KEY}',
+                method='DELETE', data={'episodeFileIds': ids})
+        return jsonify({'deleted': len(ids)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/poster')
+def bb_poster():
+    path = request.args.get('path', '')
+    if not re.match(r'^/[\w\-]+\.jpg$', path):
+        return '', 400
+    try:
+        with urllib.request.urlopen(f'https://image.tmdb.org/t/p/w185{path}', timeout=5) as r:
+            img = r.read()
+        resp = make_response(img)
+        resp.headers['Content-Type']  = 'image/jpeg'
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception:
+        return '', 404
 
 
 # ── STATIC ────────────────────────────────────────────────────────────────────

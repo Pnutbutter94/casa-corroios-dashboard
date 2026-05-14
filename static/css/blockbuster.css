@@ -1,0 +1,154 @@
+.bb-search-wrap { margin-bottom: 8px; }
+
+.bb-search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    outline: none;
+    font-family: inherit;
+}
+.bb-search-input:focus { border-color: var(--accent); }
+
+/* ── Search results ─────────────────────────────────────── */
+.bb-results { display: flex; flex-direction: column; gap: 8px; }
+
+.bb-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px;
+}
+.bb-result-poster {
+    width: 46px;
+    height: 69px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.bb-no-poster {
+    width: 46px;
+    height: 69px;
+    background: var(--border);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.bb-result-info { flex: 1; min-width: 0; }
+.bb-result-title {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bb-result-year  { color: var(--muted); font-weight: 400; }
+.bb-result-meta  { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.bb-result-status { color: var(--accent); }
+
+.bb-req-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+.bb-req-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Queue ──────────────────────────────────────────────── */
+.bb-queue { display: flex; flex-direction: column; gap: 8px; }
+
+.bb-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.bb-queue-icon { font-size: 18px; flex-shrink: 0; }
+.bb-queue-info { flex: 1; min-width: 0; }
+.bb-queue-title {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bb-queue-meta { font-size: 11px; color: var(--muted); margin-top: 2px; text-transform: capitalize; }
+
+.bb-queue-pct-wrap { width: 64px; flex-shrink: 0; }
+.bb-queue-pct-bar  { height: 4px; background: var(--accent); border-radius: 2px; }
+.bb-queue-pct-label { font-size: 10px; color: var(--muted); display: block; text-align: right; margin-top: 2px; }
+
+/* ── Disk ───────────────────────────────────────────────── */
+.bb-disk { padding: 4px 0; }
+.bb-disk-bar-wrap {
+    height: 12px;
+    background: var(--surface2);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+.bb-disk-bar { height: 100%; border-radius: 6px; transition: width 0.5s; }
+.bb-disk-bar.good { background: var(--good); }
+.bb-disk-bar.warn { background: var(--warn); }
+.bb-disk-bar.bad  { background: var(--bad); }
+.bb-disk-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* ── Clean up ───────────────────────────────────────────── */
+.bb-clean { display: flex; flex-direction: column; gap: 8px; }
+
+.bb-clean-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    gap: 12px;
+}
+.bb-clean-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.bb-clean-icon { font-size: 18px; flex-shrink: 0; }
+.bb-clean-title {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bb-clean-year { color: var(--muted); font-weight: 400; }
+.bb-clean-size { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.bb-delete-btn {
+    background: transparent;
+    color: var(--bad);
+    border: 1px solid var(--bad);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.bb-delete-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Shared ─────────────────────────────────────────────── */
+.bb-empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+.bb-gap   { margin-top: 20px; }
