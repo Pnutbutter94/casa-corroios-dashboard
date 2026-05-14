@@ -326,6 +326,61 @@
 }
 .bb-delete-btn:disabled { opacity: 0.4; cursor: default; }
 
+/* ── TV season/episode picker ───────────────────────────── */
+.bb-tv-picker {
+    padding: 6px 8px 10px;
+    border-top: 1px solid #1a1a4a;
+    margin-top: -8px;
+    background: #0d0d28;
+    border-radius: 0 0 8px 8px;
+}
+.bb-season-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0 2px;
+}
+.bb-season-btn {
+    background: #13133a;
+    border: 1px solid #2a2a6a;
+    border-radius: 6px;
+    color: #e8e8ff;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.bb-season-all { border-color: #3a3a8a; color: #b8b8e8; }
+.bb-season-btn:disabled { opacity: 0.5; cursor: default; }
+.bb-sn-ep { color: #505080; font-size: 10px; }
+
+.bb-episode-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 8px 0 2px;
+    border-top: 1px solid #1a1a4a;
+    margin-top: 8px;
+}
+.bb-ep-btn {
+    background: #0d0d30;
+    border: 1px solid #2a2a6a;
+    border-radius: 5px;
+    color: #8888cc;
+    font-size: 11px;
+    font-family: inherit;
+    padding: 4px 8px;
+    cursor: pointer;
+    min-width: 32px;
+    text-align: center;
+}
+.bb-ep-season { color: #e8e8ff; border-color: #3a3a8a; }
+.bb-ep-btn:disabled { opacity: 0.5; cursor: default; }
+.bb-picker-loading { padding: 6px 0 2px; }
+
 /* ── Shared ─────────────────────────────────────────────── */
 .bb-empty { color: #606090; font-size: 13px; padding: 6px 0; }
 .bb-gap   { margin-top: 20px; }

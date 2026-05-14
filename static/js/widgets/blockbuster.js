@@ -295,6 +295,8 @@ async function _doSearch(q) {
             const posterSrc   = r.poster ? `/api/blockbuster/poster?path=${encodeURIComponent(r.poster)}` : '';
             const typeLabel   = r.mediaType === 'movie' ? 'Filme' : 'Série';
             const statusLabel = STATUS[r.status] || '';
+            const isTv        = r.mediaType === 'tv';
+            const btnLabel    = isTv ? 'Pedir ▾' : 'Pedir';
             return `
             <div class="bb-result-item">
                 ${posterSrc
@@ -305,38 +307,129 @@ async function _doSearch(q) {
                     <div class="bb-result-meta">${typeLabel}${statusLabel ? ` · <span class="bb-result-status">${statusLabel}</span>` : ''}</div>
                 </div>
                 ${!r.status
-                    ? `<button class="bb-req-btn" data-req-id="${esc(String(r.id))}" data-req-type="${esc(r.mediaType)}">Pedir</button>`
+                    ? `<button class="bb-req-btn" data-req-id="${esc(String(r.id))}" data-req-type="${esc(r.mediaType)}">${btnLabel}</button>`
                     : ''}
-            </div>`;
+            </div>
+            ${!r.status && isTv ? `<div class="bb-tv-picker" id="bb-tvp-${esc(String(r.id))}" style="display:none"></div>` : ''}`;
         }).join('');
 
         res.querySelectorAll('[data-req-id]').forEach(btn => {
             btn.addEventListener('click', async () => {
-                btn.disabled = true;
-                btn.textContent = '...';
-                const body = { mediaId: parseInt(btn.dataset.reqId), mediaType: btn.dataset.reqType };
-                const resp = await fetch('/api/blockbuster/request', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                }).catch(() => null);
-                if (resp && resp.ok) {
-                    btn.textContent = 'Pedido!';
-                    btn.classList.add('bb-req-done');
-                    // refresh queue after a short delay — Sonarr/Radarr may take a moment
-                    setTimeout(async () => {
-                        await _fetchQueue();
-                        const ql = document.getElementById('bb-queue-list');
-                        if (ql) ql.innerHTML = _queueHTML();
-                        _bindQueueBtns(ql, onRefresh);
-                    }, 4000);
+                if (btn.dataset.reqType === 'tv') {
+                    await _showTvPicker(btn.dataset.reqId, btn);
                 } else {
-                    btn.textContent = 'Erro';
-                    btn.disabled = false;
+                    await _sendRequest(parseInt(btn.dataset.reqId), 'movie', btn);
                 }
             });
         });
     } catch (_) {
         res.innerHTML = '<div class="bb-empty">Erro na pesquisa</div>';
+    }
+}
+
+async function _sendRequest(mediaId, mediaType, btn, seasons = null) {
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    const body = { mediaId, mediaType };
+    if (seasons) body.seasons = seasons;
+    const resp = await fetch('/api/blockbuster/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    }).catch(() => null);
+    if (resp && resp.ok) {
+        if (btn) { btn.textContent = 'Pedido!'; btn.classList.add('bb-req-done'); }
+        setTimeout(async () => {
+            await _fetchQueue();
+            const ql = document.getElementById('bb-queue-list');
+            if (ql) { ql.innerHTML = _queueHTML(); _bindQueueBtns(ql); }
+        }, 4000);
+    } else {
+        if (btn) { btn.textContent = 'Erro'; btn.disabled = false; }
+    }
+}
+
+async function _sendEpisodeRequest(mediaId, seasonNumber, episodeNumbers, picker, doneBtn) {
+    if (doneBtn) { doneBtn.disabled = true; doneBtn.textContent = '...'; }
+    const resp = await fetch('/api/blockbuster/request-episodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediaId, seasonNumber, episodeNumbers }),
+    }).catch(() => null);
+    if (resp && resp.ok) {
+        if (doneBtn) { doneBtn.textContent = 'Pedido!'; doneBtn.classList.add('bb-req-done'); }
+        setTimeout(async () => {
+            await _fetchQueue();
+            const ql = document.getElementById('bb-queue-list');
+            if (ql) { ql.innerHTML = _queueHTML(); _bindQueueBtns(ql); }
+        }, 4000);
+    } else {
+        if (doneBtn) { doneBtn.textContent = 'Erro'; doneBtn.disabled = false; }
+    }
+}
+
+async function _showTvPicker(id, mainBtn) {
+    const picker = document.getElementById(`bb-tvp-${id}`);
+    if (!picker) return;
+    if (picker.style.display !== 'none') { picker.style.display = 'none'; return; }
+
+    mainBtn.disabled = true;
+    picker.style.display = 'block';
+    picker.innerHTML = '<div class="bb-empty bb-picker-loading">A carregar...</div>';
+
+    try {
+        const { seasons = [] } = await fetch(`/api/blockbuster/tv/${id}`).then(r => r.json());
+        picker.innerHTML = `
+        <div class="bb-season-row">
+            <button class="bb-season-btn bb-season-all">Toda a série</button>
+            ${seasons.map(s => `
+                <button class="bb-season-btn" data-sn="${s.number}">
+                    T${s.number}${s.episodeCount ? `<span class="bb-sn-ep">${s.episodeCount}ep</span>` : ''}
+                </button>`).join('')}
+        </div>
+        <div class="bb-episode-row" id="bb-epr-${id}" style="display:none"></div>`;
+
+        picker.querySelector('.bb-season-all').addEventListener('click', async e => {
+            await _sendRequest(parseInt(id), 'tv', e.currentTarget);
+            picker.style.display = 'none';
+        });
+
+        picker.querySelectorAll('[data-sn]').forEach(sb => {
+            sb.addEventListener('click', () =>
+                _showEpisodePicker(parseInt(id), parseInt(sb.dataset.sn), picker));
+        });
+    } catch (_) {
+        picker.innerHTML = '<div class="bb-empty">Erro ao carregar temporadas</div>';
+    }
+    mainBtn.disabled = false;
+}
+
+async function _showEpisodePicker(mediaId, seasonNum, picker) {
+    const epRow = picker.querySelector('.bb-episode-row');
+    if (!epRow) return;
+    if (epRow.style.display !== 'none' && epRow.dataset.sn == seasonNum) {
+        epRow.style.display = 'none';
+        return;
+    }
+    epRow.dataset.sn = seasonNum;
+    epRow.style.display = 'flex';
+    epRow.innerHTML = '<div class="bb-empty bb-picker-loading">A carregar...</div>';
+
+    try {
+        const { episodes = [] } = await fetch(`/api/blockbuster/tv/${mediaId}/season/${seasonNum}`).then(r => r.json());
+        epRow.innerHTML = `
+        <button class="bb-ep-btn bb-ep-season" data-season-req="${seasonNum}">Toda T${seasonNum}</button>
+        ${episodes.map(e => `<button class="bb-ep-btn" data-ep="${e.number}" title="${esc(e.title)}">E${e.number}</button>`).join('')}`;
+
+        epRow.querySelector('[data-season-req]').addEventListener('click', async e => {
+            await _sendRequest(mediaId, 'tv', e.currentTarget, [seasonNum]);
+            picker.style.display = 'none';
+        });
+
+        epRow.querySelectorAll('[data-ep]').forEach(eb => {
+            eb.addEventListener('click', () =>
+                _sendEpisodeRequest(mediaId, seasonNum, [parseInt(eb.dataset.ep)], picker, eb));
+        });
+    } catch (_) {
+        epRow.innerHTML = '<div class="bb-empty">Erro</div>';
     }
 }

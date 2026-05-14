@@ -434,6 +434,33 @@ def bb_search():
         return jsonify({'error': str(e)}), 502
 
 
+@app.route('/api/blockbuster/tv/<int:tmdb_id>')
+def bb_tv_info(tmdb_id):
+    try:
+        show = _bb_req(f'{BB_JS_URL}/api/v1/tv/{tmdb_id}', headers={'X-Api-Key': BB_JS_KEY})
+        seasons = [
+            {'number': s['seasonNumber'], 'episodeCount': s.get('episodeCount', 0)}
+            for s in show.get('seasons', []) if s.get('seasonNumber', 0) > 0
+        ]
+        return jsonify({'seasons': seasons})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/tv/<int:tmdb_id>/season/<int:season_num>')
+def bb_tv_season(tmdb_id, season_num):
+    try:
+        data = _bb_req(f'{BB_JS_URL}/api/v1/tv/{tmdb_id}/season/{season_num}',
+                       headers={'X-Api-Key': BB_JS_KEY})
+        episodes = [
+            {'number': ep['episodeNumber'], 'title': ep.get('name', '')}
+            for ep in data.get('episodes', [])
+        ]
+        return jsonify({'episodes': episodes})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 @app.route('/api/blockbuster/request', methods=['POST'])
 def bb_request():
     raw        = request.get_json(force=True, silent=True) or {}
@@ -446,18 +473,55 @@ def bb_request():
         return jsonify({'error': 'invalid id'}), 400
     body = {'mediaType': media_type, 'mediaId': media_id}
     if media_type == 'tv':
-        try:
-            show    = _bb_req(f'{BB_JS_URL}/api/v1/tv/{media_id}',
-                              headers={'X-Api-Key': BB_JS_KEY})
-            seasons = [s['seasonNumber'] for s in show.get('seasons', [])
-                       if isinstance(s.get('seasonNumber'), int) and s['seasonNumber'] > 0]
-        except Exception:
-            seasons = []
-        body['seasons'] = seasons or [1]
+        explicit = raw.get('seasons')
+        if isinstance(explicit, list) and all(isinstance(s, int) for s in explicit):
+            body['seasons'] = explicit
+        else:
+            try:
+                show    = _bb_req(f'{BB_JS_URL}/api/v1/tv/{media_id}',
+                                  headers={'X-Api-Key': BB_JS_KEY})
+                seasons = [s['seasonNumber'] for s in show.get('seasons', [])
+                           if isinstance(s.get('seasonNumber'), int) and s['seasonNumber'] > 0]
+            except Exception:
+                seasons = []
+            body['seasons'] = seasons or [1]
     try:
         _bb_req(f'{BB_JS_URL}/api/v1/request', method='POST', data=body,
                 headers={'X-Api-Key': BB_JS_KEY})
         return jsonify({'ok': True, 'seasons': body.get('seasons')})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/request-episodes', methods=['POST'])
+def bb_request_episodes():
+    raw     = request.get_json(force=True, silent=True) or {}
+    tmdb_id = raw.get('mediaId')
+    s_num   = raw.get('seasonNumber')
+    ep_nums = raw.get('episodeNumbers', [])
+    if not isinstance(tmdb_id, int) or not isinstance(s_num, int) or not ep_nums:
+        return jsonify({'error': 'invalid'}), 400
+    try:
+        show    = _bb_req(f'{BB_JS_URL}/api/v1/tv/{tmdb_id}', headers={'X-Api-Key': BB_JS_KEY})
+        tvdb_id = (show.get('externalIds') or {}).get('tvdbId')
+        if tvdb_id:
+            all_series = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
+            series     = next((s for s in all_series if s.get('tvdbId') == tvdb_id), None)
+            if series:
+                sid     = series['id']
+                all_eps = _bb_req(f'{BB_SON_URL}/api/v3/episode?seriesId={sid}&seasonNumber={s_num}&apikey={BB_SON_KEY}')
+                ep_ids  = [ep['id'] for ep in all_eps if ep.get('episodeNumber') in ep_nums]
+                if ep_ids:
+                    _bb_req(f'{BB_SON_URL}/api/v3/episode/monitor?apikey={BB_SON_KEY}',
+                            method='PUT', data={'episodeIds': ep_ids, 'monitored': True})
+                    _bb_req(f'{BB_SON_URL}/api/v3/command?apikey={BB_SON_KEY}',
+                            method='POST', data={'name': 'EpisodeSearch', 'episodeIds': ep_ids})
+                    return jsonify({'ok': True})
+        # Series not in Sonarr yet — fall back to requesting the whole season via Jellyseerr
+        _bb_req(f'{BB_JS_URL}/api/v1/request', method='POST',
+                data={'mediaType': 'tv', 'mediaId': tmdb_id, 'seasons': [s_num]},
+                headers={'X-Api-Key': BB_JS_KEY})
+        return jsonify({'ok': True, 'fallback': 'season'})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
