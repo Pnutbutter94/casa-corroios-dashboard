@@ -146,8 +146,8 @@ function _starsHTML(val, person) {
 function _leaderboardHTML(showAll) {
     if (!bb.ratings || !bb.ratings.length) return '<div class="bb-empty">Sem avaliações ainda</div>';
     const sorted = [...bb.ratings].sort((a, b) => {
-        const avgA = ((a.ratingAndre || 0) + (a.ratingInes || 0)) / 2;
-        const avgB = ((b.ratingAndre || 0) + (b.ratingInes || 0)) / 2;
+        const avgA = ((a.ratingAntonio || 0) + (a.ratingInes || 0)) / 2;
+        const avgB = ((b.ratingAntonio || 0) + (b.ratingInes || 0)) / 2;
         return avgB - avgA;
     });
     const visible = showAll ? sorted : sorted.slice(0, 5);
@@ -159,10 +159,10 @@ function _leaderboardHTML(showAll) {
             <div class="bb-lb-info">
                 <div class="bb-lb-title">${esc(r.title)}${r.year ? ` <span class="bb-lb-year">${r.year}</span>` : ''}</div>
                 <div class="bb-lb-ratings">
-                    <span class="bb-lb-person">André <span class="bb-lb-stars">${stars(r.ratingAndre)}</span></span>
+                    <span class="bb-lb-person">António <span class="bb-lb-stars">${stars(r.ratingAntonio)}</span></span>
                     <span class="bb-lb-person">Inês <span class="bb-lb-stars">${stars(r.ratingInes)}</span></span>
                 </div>
-                ${r.commentAndre ? `<div class="bb-lb-comment">André: "${esc(r.commentAndre)}"</div>` : ''}
+                ${r.commentAntonio ? `<div class="bb-lb-comment">António: "${esc(r.commentAntonio)}"</div>` : ''}
                 ${r.commentInes  ? `<div class="bb-lb-comment">Inês: "${esc(r.commentInes)}"</div>` : ''}
             </div>
         </div>`).join('');
@@ -657,11 +657,11 @@ function _openRatingSheet(jfId, title, year, type, onSaved) {
         <div class="bb-rating-sheet">
             <div class="bb-rating-title">${esc(title)}${year ? ` (${esc(String(year))})` : ''}</div>
             <div class="bb-rating-person">
-                <span class="bb-rating-name">André</span>
-                <div class="bb-stars" id="bb-stars-andre">${_starsHTML(existing.ratingAndre, 'andre')}</div>
+                <span class="bb-rating-name">António</span>
+                <div class="bb-stars" id="bb-stars-antonio">${_starsHTML(existing.ratingAntonio, 'antonio')}</div>
             </div>
-            <input class="bb-rating-comment" id="bb-comment-andre" type="text"
-                   placeholder="Comentário (opcional)" value="${esc(existing.commentAndre || '')}" maxlength="200">
+            <input class="bb-rating-comment" id="bb-comment-antonio" type="text"
+                   placeholder="Comentário (opcional)" value="${esc(existing.commentAntonio || '')}" maxlength="200">
             <div class="bb-rating-person">
                 <span class="bb-rating-name">Inês</span>
                 <div class="bb-stars" id="bb-stars-ines">${_starsHTML(existing.ratingInes, 'ines')}</div>
@@ -674,7 +674,7 @@ function _openRatingSheet(jfId, title, year, type, onSaved) {
             </div>
         </div>`;
 
-    let ratingAndre = existing.ratingAndre || 0;
+    let ratingAntonio = existing.ratingAntonio || 0;
     let ratingInes  = existing.ratingInes  || 0;
 
     const _bindStars = (containerId, setCurrent) => {
@@ -689,7 +689,7 @@ function _openRatingSheet(jfId, title, year, type, onSaved) {
         });
     };
 
-    _bindStars('bb-stars-andre', v => { ratingAndre = v; });
+    _bindStars('bb-stars-antonio', v => { ratingAntonio = v; });
     _bindStars('bb-stars-ines',  v => { ratingInes  = v; });
 
     document.getElementById('bb-rating-save').addEventListener('click', async () => {
@@ -700,9 +700,9 @@ function _openRatingSheet(jfId, title, year, type, onSaved) {
             title,
             year,
             type,
-            ratingAndre,
+            ratingAntonio,
             ratingInes,
-            commentAndre: document.getElementById('bb-comment-andre')?.value.trim() || '',
+            commentAntonio: document.getElementById('bb-comment-antonio')?.value.trim() || '',
             commentInes:  document.getElementById('bb-comment-ines')?.value.trim()  || '',
         };
         const resp = await fetch('/api/blockbuster/rate', {

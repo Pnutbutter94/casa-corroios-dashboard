@@ -882,7 +882,7 @@ def bb_ratings_get():
     return jsonify(_load_ratings())
 
 
-ALLOWED_RATING_FIELDS = {'jfId', 'title', 'year', 'type', 'ratingAndre', 'commentAndre', 'ratingInes', 'commentInes'}
+ALLOWED_RATING_FIELDS = {'jfId', 'title', 'year', 'type', 'ratingAntonio', 'commentAntonio', 'ratingInes', 'commentInes'}
 
 @app.route('/api/blockbuster/rate', methods=['POST'])
 def bb_rate():
