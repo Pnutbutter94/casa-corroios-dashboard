@@ -19,6 +19,7 @@ MAINT_FILE = os.path.join(BASE_DIR, 'cache', 'maintenance.json')
 INV_FILE   = os.path.join(BASE_DIR, 'cache', 'inventory.json')
 PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
 SHOP_FILE  = os.path.join(BASE_DIR, 'cache', 'shopping.json')
+RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
 ALLOWED_INV_FIELDS     = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
@@ -397,6 +398,18 @@ def iot_call():
 
 
 # ── BLOCKBUSTER ───────────────────────────────────────────────────────────────
+
+def _load_ratings():
+    try:
+        with open(RATINGS_FILE) as f:
+            return json.load(f).get('ratings', [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def _save_ratings(ratings):
+    with open(RATINGS_FILE, 'w') as f:
+        json.dump({'ratings': ratings}, f, ensure_ascii=False, indent=2)
+
 
 def _bb_req(url, method='GET', data=None, headers=None):
     body = json.dumps(data).encode() if data is not None else None
@@ -800,6 +813,111 @@ def bb_poster():
         return resp
     except Exception:
         return '', 404
+
+
+@app.route('/api/blockbuster/detail')
+def bb_detail():
+    item_id   = request.args.get('id', '').strip()
+    item_type = request.args.get('type', '')
+    if not re.match(r'^[a-f0-9]{32}$', item_id) or item_type not in ('movie', 'series'):
+        return jsonify({'error': 'invalid'}), 400
+    jf_h = {'X-Emby-Token': BB_JF_TOKEN}
+    try:
+        jf_item   = _bb_req(
+            f'{BB_JF_URL}/Users/{BB_JF_USER}/Items/{item_id}?Fields=ProviderIds,Overview',
+            headers=jf_h)
+        providers = jf_item.get('ProviderIds') or {}
+        overview  = (jf_item.get('Overview') or '')[:400]
+        tmdb_id   = str(providers.get('Tmdb', ''))
+        tvdb_id   = str(providers.get('Tvdb', ''))
+        if item_type == 'movie':
+            rad_mv = _bb_req(f'{BB_RAD_URL}/api/v3/movie?apikey={BB_RAD_KEY}')
+            movie  = next((m for m in rad_mv if str(m.get('tmdbId', '')) == tmdb_id), None)
+            if not movie:
+                return jsonify({'error': 'not found'}), 404
+            return jsonify({
+                'type':     'movie',
+                'radarrId': movie['id'],
+                'overview': overview,
+                'hasFile':  movie.get('hasFile', False),
+                'sizeMb':   round(movie.get('sizeOnDisk', 0) / (1024 ** 2)),
+            })
+        son_ser  = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
+        series   = next((s for s in son_ser if str(s.get('tvdbId', '')) == tvdb_id), None)
+        if not series:
+            return jsonify({'error': 'not found'}), 404
+        son_id   = series['id']
+        episodes = _bb_req(f'{BB_SON_URL}/api/v3/episode?seriesId={son_id}&apikey={BB_SON_KEY}')
+        seasons_map = {}
+        for ep in episodes:
+            sn = ep.get('seasonNumber', 0)
+            if sn == 0:
+                continue
+            seasons_map.setdefault(sn, []).append({
+                'number':        ep.get('episodeNumber', 0),
+                'title':         ep.get('title', ''),
+                'airDate':       ep.get('airDateUtc', ''),
+                'hasFile':       ep.get('hasFile', False),
+                'monitored':     ep.get('monitored', False),
+                'episodeFileId': ep.get('episodeFileId') or None,
+            })
+        seasons_out = [
+            {'number': sn, 'episodes': sorted(seasons_map[sn], key=lambda e: e['number'])}
+            for sn in sorted(seasons_map)
+        ]
+        return jsonify({
+            'type':     'series',
+            'sonarrId': son_id,
+            'tmdbId':   int(tmdb_id) if tmdb_id.isdigit() else None,
+            'overview': overview,
+            'seasons':  seasons_out,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/ratings')
+def bb_ratings_get():
+    return jsonify(_load_ratings())
+
+
+ALLOWED_RATING_FIELDS = {'jfId', 'title', 'year', 'type', 'ratingAndre', 'commentAndre', 'ratingInes', 'commentInes'}
+
+@app.route('/api/blockbuster/rate', methods=['POST'])
+def bb_rate():
+    raw = request.get_json(force=True, silent=True) or {}
+    if not raw.get('jfId') or not raw.get('title') or raw.get('type') not in ('movie', 'series'):
+        return jsonify({'error': 'invalid'}), 400
+    ratings  = _load_ratings()
+    existing = next((r for r in ratings if r.get('jfId') == raw['jfId']), None)
+    now      = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+    entry    = {k: raw[k] for k in ALLOWED_RATING_FIELDS if k in raw}
+    if existing:
+        existing.update(entry)
+        existing['watchedAt'] = now
+        result = existing
+    else:
+        entry['id']        = str(uuid.uuid4())
+        entry['watchedAt'] = now
+        ratings.append(entry)
+        result = entry
+    _save_ratings(ratings)
+    return jsonify(result)
+
+
+@app.route('/api/blockbuster/delete/episode', methods=['POST'])
+def bb_delete_episode():
+    raw     = request.get_json(force=True, silent=True) or {}
+    file_id = raw.get('episodeFileId')
+    if not isinstance(file_id, int) or file_id <= 0:
+        return jsonify({'error': 'invalid'}), 400
+    try:
+        _bb_req(
+            f'{BB_SON_URL}/api/v3/episodefile/{file_id}?apikey={BB_SON_KEY}',
+            method='DELETE')
+        return '', 204
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
 
 
 # ── STATIC ────────────────────────────────────────────────────────────────────

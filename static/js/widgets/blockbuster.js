@@ -1,25 +1,18 @@
 import { esc } from '../utils/esc.js';
 
-export const bb = { queue: [], disk: null, watched: null, library: null };
+export const bb = { queue: [], disk: null, watched: null, library: null, ratings: [] };
 
 let _searchTimer = null;
 
 export async function initBlockbuster() {
-    await Promise.all([_fetchQueue(), _fetchDisk(), _fetchWatched(), _fetchLibrary()]);
+    await Promise.all([_fetchQueue(), _fetchDisk(), _fetchWatched(), _fetchLibrary(), _fetchRatings()]);
 }
 
-async function _fetchQueue() {
-    try { bb.queue = await fetch('/api/blockbuster/queue').then(r => r.ok ? r.json() : []); } catch (_) {}
-}
-async function _fetchDisk() {
-    try { bb.disk = await fetch('/api/blockbuster/disk').then(r => r.ok ? r.json() : null); } catch (_) {}
-}
-async function _fetchWatched() {
-    try { bb.watched = await fetch('/api/blockbuster/watched').then(r => r.ok ? r.json() : null); } catch (_) {}
-}
-async function _fetchLibrary() {
-    try { bb.library = await fetch('/api/blockbuster/library').then(r => r.ok ? r.json() : null); } catch (_) {}
-}
+async function _fetchQueue()   { try { bb.queue   = await fetch('/api/blockbuster/queue').then(r => r.ok ? r.json() : []); } catch (_) {} }
+async function _fetchDisk()    { try { bb.disk    = await fetch('/api/blockbuster/disk').then(r => r.ok ? r.json() : null); } catch (_) {} }
+async function _fetchWatched() { try { bb.watched = await fetch('/api/blockbuster/watched').then(r => r.ok ? r.json() : null); } catch (_) {} }
+async function _fetchLibrary() { try { bb.library = await fetch('/api/blockbuster/library').then(r => r.ok ? r.json() : null); } catch (_) {} }
+async function _fetchRatings() { try { bb.ratings = await fetch('/api/blockbuster/ratings').then(r => r.ok ? r.json() : []); } catch (_) {} }
 
 function _fmtMb(mb) {
     return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
@@ -42,10 +35,14 @@ function _catalogueHTML() {
     if (!bb.library) return '<div class="bb-empty">A carregar catálogo...</div>';
     const { movies, series } = bb.library;
 
-    const _row = (items, label) => {
+    const _row = (items, label, type) => {
         if (!items.length) return '';
         const posters = items.map(item => `
-            <div class="bb-poster-wrap">
+            <div class="bb-poster-wrap"
+                 data-jfid="${esc(item.id)}"
+                 data-type="${type}"
+                 data-title="${esc(item.title)}"
+                 data-year="${item.year || ''}">
                 <img class="bb-poster-img" src="/api/blockbuster/jf-poster/${esc(item.id)}" loading="lazy" alt=""
                      onerror="this.closest('.bb-poster-wrap').classList.add('bb-poster-err')">
                 <div class="bb-poster-overlay">
@@ -58,7 +55,7 @@ function _catalogueHTML() {
         <div class="bb-poster-row">${posters}</div>`;
     };
 
-    return _row(movies, 'Filmes') + _row(series, 'Séries');
+    return _row(movies, 'Filmes', 'movie') + _row(series, 'Séries', 'series');
 }
 
 function _diskHTML() {
@@ -87,8 +84,8 @@ function _queueHTML() {
             : isDownloading
                 ? 'A descarregar'
                 : (QUEUE_LABELS[statusKey] || esc(item.status));
-        const statusCls     = isActionable ? (QUEUE_STATUS_CLS[statusKey] || '') : '';
-        const barCls        = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
+        const statusCls = isActionable ? (QUEUE_STATUS_CLS[statusKey] || '') : '';
+        const barCls    = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
         return `
         <div class="bb-queue-item${isActionable ? ' bb-queue-problem' : ''}">
             <span class="bb-queue-icon">${icon}</span>
@@ -138,6 +135,43 @@ function _watchedHTML() {
     return mvHTML + tvHTML;
 }
 
+function _starsHTML(val, person) {
+    let h = '';
+    for (let i = 1; i <= 5; i++) {
+        h += `<button class="bb-star${i <= (val || 0) ? ' bb-star-on' : ''}" data-person="${person}" data-val="${i}">★</button>`;
+    }
+    return h;
+}
+
+function _leaderboardHTML(showAll) {
+    if (!bb.ratings || !bb.ratings.length) return '<div class="bb-empty">Sem avaliações ainda</div>';
+    const sorted = [...bb.ratings].sort((a, b) => {
+        const avgA = ((a.ratingAndre || 0) + (a.ratingInes || 0)) / 2;
+        const avgB = ((b.ratingAndre || 0) + (b.ratingInes || 0)) / 2;
+        return avgB - avgA;
+    });
+    const visible = showAll ? sorted : sorted.slice(0, 5);
+    const stars   = n => '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
+    const rows = visible.map(r => `
+        <div class="bb-lb-item">
+            <img class="bb-lb-poster" src="/api/blockbuster/jf-poster/${esc(r.jfId)}" loading="lazy" alt=""
+                 onerror="this.style.display='none'">
+            <div class="bb-lb-info">
+                <div class="bb-lb-title">${esc(r.title)}${r.year ? ` <span class="bb-lb-year">${r.year}</span>` : ''}</div>
+                <div class="bb-lb-ratings">
+                    <span class="bb-lb-person">André <span class="bb-lb-stars">${stars(r.ratingAndre)}</span></span>
+                    <span class="bb-lb-person">Inês <span class="bb-lb-stars">${stars(r.ratingInes)}</span></span>
+                </div>
+                ${r.commentAndre ? `<div class="bb-lb-comment">André: "${esc(r.commentAndre)}"</div>` : ''}
+                ${r.commentInes  ? `<div class="bb-lb-comment">Inês: "${esc(r.commentInes)}"</div>` : ''}
+            </div>
+        </div>`).join('');
+    const more = sorted.length > 5 && !showAll
+        ? `<button class="bb-lb-more" id="bb-lb-more">Ver todos (${sorted.length}) ▾</button>`
+        : '';
+    return rows + more;
+}
+
 export function renderBlockbuster() {
     return `
     <div class="bb-banner">
@@ -168,8 +202,13 @@ export function renderBlockbuster() {
 
     <div class="card-label bb-gap">Para limpar</div>
     <div class="bb-clean">${_watchedHTML()}</div>
+
+    <div class="card-label bb-gap">Favoritos</div>
+    <div class="bb-leaderboard" id="bb-leaderboard">${_leaderboardHTML(false)}</div>
     `;
 }
+
+// ── Queue helpers ────────────────────────────────────────────────────────────
 
 function _bindQueueBtns(el, onRefresh) {
     if (!el) return;
@@ -193,14 +232,23 @@ function _bindQueueBtns(el, onRefresh) {
     });
 }
 
+// ── Main bind ────────────────────────────────────────────────────────────────
+
 export function bindBlockbuster(container, onRefresh) {
+    // Poster click → detail modal
     container.querySelectorAll('.bb-poster-wrap').forEach(wrap => {
         wrap.addEventListener('click', () => {
-            const wasRevealed = wrap.classList.contains('revealed');
-            container.querySelectorAll('.bb-poster-wrap.revealed').forEach(w => w.classList.remove('revealed'));
-            if (!wasRevealed) wrap.classList.add('revealed');
+            _openDetailModal(wrap.dataset.jfid, wrap.dataset.type, wrap.dataset.title, wrap.dataset.year || '');
         });
     });
+
+    // Leaderboard expand
+    const lb = container.querySelector('#bb-leaderboard');
+    if (lb) {
+        lb.addEventListener('click', e => {
+            if (e.target.id === 'bb-lb-more') lb.innerHTML = _leaderboardHTML(true);
+        });
+    }
 
     const queueList = container.querySelector('#bb-queue-list');
     _bindQueueBtns(queueList, onRefresh);
@@ -239,10 +287,10 @@ export function bindBlockbuster(container, onRefresh) {
     }
     const resultsDiv = container.querySelector('#bb-results');
     if (resultsDiv) {
-        resultsDiv.addEventListener('mousedown', e => e.preventDefault()); // keep input focus when tapping results
+        resultsDiv.addEventListener('mousedown', e => e.preventDefault());
     }
     if (clearBtn) {
-        clearBtn.addEventListener('mousedown', e => e.preventDefault()); // keep input focus until after click
+        clearBtn.addEventListener('mousedown', e => e.preventDefault());
         clearBtn.addEventListener('click', () => { _clearSearch(); input?.focus(); });
     }
 
@@ -284,6 +332,402 @@ export function bindBlockbuster(container, onRefresh) {
     });
 }
 
+// ── Detail modal ─────────────────────────────────────────────────────────────
+
+function _openDetailModal(jfId, type, title, year) {
+    _closeDetailModal();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'bb-modal-overlay';
+    overlay.id = 'bb-modal-overlay';
+    overlay.innerHTML = `
+        <div class="bb-modal-panel" id="bb-modal-panel">
+            <div class="bb-modal-header">
+                <div class="bb-modal-htitle">${esc(title)}${year ? ` <span class="bb-modal-year">${esc(String(year))}</span>` : ''}</div>
+                <button class="bb-modal-close" id="bb-modal-close">×</button>
+            </div>
+            <div class="bb-modal-body" id="bb-modal-body">
+                <div class="bb-empty">A carregar...</div>
+            </div>
+            <div class="bb-modal-action-bar" id="bb-modal-action-bar" style="display:none"></div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => overlay.querySelector('#bb-modal-panel').classList.add('bb-modal-open'));
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) _closeDetailModal(); });
+    overlay.querySelector('#bb-modal-close').addEventListener('click', _closeDetailModal);
+
+    fetch(`/api/blockbuster/detail?id=${encodeURIComponent(jfId)}&type=${encodeURIComponent(type)}`)
+        .then(r => r.json())
+        .then(detail => {
+            const body = document.getElementById('bb-modal-body');
+            if (!body) return;
+            if (detail.error) {
+                body.innerHTML = `<div class="bb-empty">Erro: ${esc(detail.error)}</div>`;
+                return;
+            }
+            if (type === 'movie') _renderMovieDetail(detail, jfId, title, year);
+            else                  _renderSeriesDetail(detail, jfId, title, year);
+        })
+        .catch(() => {
+            const body = document.getElementById('bb-modal-body');
+            if (body) body.innerHTML = '<div class="bb-empty">Erro ao carregar detalhes</div>';
+        });
+}
+
+function _closeDetailModal() {
+    const overlay = document.getElementById('bb-modal-overlay');
+    if (!overlay) return;
+    overlay.querySelector('#bb-modal-panel')?.classList.remove('bb-modal-open');
+    setTimeout(() => overlay.remove(), 250);
+}
+
+// ── Movie detail ─────────────────────────────────────────────────────────────
+
+function _renderMovieDetail(detail, jfId, title, year) {
+    const body = document.getElementById('bb-modal-body');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="bb-det-poster-wrap">
+            <img class="bb-det-poster" src="/api/blockbuster/jf-poster/${esc(jfId)}" loading="lazy" alt=""
+                 onerror="this.style.display='none'">
+            <div class="bb-det-info">
+                <div class="bb-det-badge bb-badge-avail">Disponível para ver</div>
+                ${detail.sizeMb ? `<div class="bb-det-size">${_fmtMb(detail.sizeMb)}</div>` : ''}
+            </div>
+        </div>
+        ${detail.overview ? `<div class="bb-det-overview">${esc(detail.overview)}</div>` : ''}
+        <div class="bb-det-actions">
+            <button class="bb-det-watched-btn" id="bb-det-watched">Já vi</button>
+            <button class="bb-det-delete-btn" id="bb-det-delete">Apagar ficheiro</button>
+        </div>`;
+
+    document.getElementById('bb-det-watched').addEventListener('click', () => {
+        _openRatingSheet(jfId, title, year, 'movie', () => {
+            const b = document.getElementById('bb-modal-body');
+            if (!b) return;
+            b.innerHTML = `
+                <div class="bb-det-after-rate">
+                    <div class="bb-det-after-msg">Avaliação guardada!</div>
+                    <div class="bb-det-after-sub">Apagar o ficheiro? (${_fmtMb(detail.sizeMb)})</div>
+                    <div class="bb-det-after-btns">
+                        <button class="bb-det-delete-confirm" id="bb-after-del">Apagar</button>
+                        <button class="bb-det-delete-skip" id="bb-after-keep">Manter</button>
+                    </div>
+                </div>`;
+            document.getElementById('bb-after-del').addEventListener('click', async () => {
+                await fetch(`/api/blockbuster/delete/movie/${detail.radarrId}`, { method: 'DELETE' });
+                await Promise.all([_fetchWatched(), _fetchDisk()]);
+                _closeDetailModal();
+            });
+            document.getElementById('bb-after-keep').addEventListener('click', _closeDetailModal);
+        });
+    });
+
+    const delBtn = document.getElementById('bb-det-delete');
+    delBtn.addEventListener('click', async () => {
+        if (!delBtn.dataset.confirmPending) {
+            delBtn.dataset.confirmPending = '1';
+            delBtn.textContent = 'Confirmar?';
+            setTimeout(() => { if (delBtn.dataset.confirmPending) { delete delBtn.dataset.confirmPending; delBtn.textContent = 'Apagar ficheiro'; } }, 3000);
+            return;
+        }
+        delBtn.disabled = true;
+        await fetch(`/api/blockbuster/delete/movie/${detail.radarrId}`, { method: 'DELETE' });
+        await Promise.all([_fetchWatched(), _fetchDisk()]);
+        _closeDetailModal();
+    });
+}
+
+// ── Series detail ────────────────────────────────────────────────────────────
+
+function _episodeStatus(ep) {
+    if (ep.hasFile) return 'downloaded';
+    const now = new Date().toISOString();
+    if (!ep.airDate || ep.airDate > now) return 'future';
+    if (!ep.monitored) return 'unmonitored';
+    return 'missing';
+}
+
+function _renderSeriesDetail(detail, jfId, title, year) {
+    const body      = document.getElementById('bb-modal-body');
+    const actionBar = document.getElementById('bb-modal-action-bar');
+    if (!body) return;
+
+    const now = new Date().toISOString();
+    const seasonStatus = s => {
+        const released = s.episodes.filter(e => e.airDate && e.airDate <= now);
+        if (!released.length) return 'future';
+        if (released.every(e => e.hasFile)) return 'downloaded';
+        if (released.some(e => !e.hasFile && e.monitored)) return 'missing';
+        return 'unmonitored';
+    };
+
+    const seasonsHTML = detail.seasons.map(s => {
+        const st       = seasonStatus(s);
+        const stClass  = st === 'downloaded' ? 'bb-sst-good' : st === 'missing' ? 'bb-sst-warn' : 'bb-sst-muted';
+        const dlCount  = s.episodes.filter(e => e.hasFile).length;
+        const hasFiles = dlCount > 0;
+
+        const chipsHTML = s.episodes.map(ep => {
+            const status = _episodeStatus(ep);
+            const cls    = status === 'downloaded' ? 'bb-ec-good'
+                         : status === 'missing'    ? 'bb-ec-warn'
+                         : status === 'future'     ? 'bb-ec-future'
+                         : 'bb-ec-unmon';
+            return `<button class="bb-ep-chip ${cls}"
+                        data-ep-num="${ep.number}"
+                        data-ep-status="${status}"
+                        data-ep-title="${esc(ep.title)}"
+                        data-ep-air="${esc(ep.airDate || '')}"
+                        data-ep-file-id="${ep.episodeFileId || ''}">E${ep.number}</button>`;
+        }).join('');
+
+        const delSeasonBtn = hasFiles
+            ? `<button class="bb-season-del-btn"
+                   data-sonarr-id="${detail.sonarrId}"
+                   data-season-num="${s.number}">Apagar</button>`
+            : '';
+
+        return `
+        <div class="bb-det-season">
+            <div class="bb-det-season-hdr">
+                <span class="bb-det-season-label ${stClass}">T${s.number}</span>
+                <span class="bb-det-season-count">${dlCount}/${s.episodes.length} ep</span>
+                ${delSeasonBtn}
+            </div>
+            <div class="bb-det-ep-row" data-season="${s.number}">${chipsHTML}</div>
+        </div>`;
+    }).join('');
+
+    body.innerHTML = `
+        <div class="bb-det-poster-wrap">
+            <img class="bb-det-poster" src="/api/blockbuster/jf-poster/${esc(jfId)}" loading="lazy" alt=""
+                 onerror="this.style.display='none'">
+            <div class="bb-det-info"></div>
+        </div>
+        ${detail.overview ? `<div class="bb-det-overview">${esc(detail.overview)}</div>` : ''}
+        <div class="bb-det-actions">
+            <button class="bb-det-watched-btn" id="bb-det-watched">Já vi</button>
+        </div>
+        <div class="bb-det-seasons">${seasonsHTML}</div>`;
+
+    // "Já vi" → rating sheet
+    document.getElementById('bb-det-watched').addEventListener('click', () => {
+        if (actionBar) actionBar.style.display = 'none';
+        _openRatingSheet(jfId, title, year, 'series', () => {
+            _openDetailModal(jfId, 'series', title, year);
+        });
+    });
+
+    // Season delete buttons (two-tap)
+    body.querySelectorAll('[data-sonarr-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!btn.dataset.confirmPending) {
+                btn.dataset.confirmPending = '1';
+                btn.textContent = 'Confirmar?';
+                setTimeout(() => { if (btn.dataset.confirmPending) { delete btn.dataset.confirmPending; btn.textContent = 'Apagar'; } }, 3000);
+                return;
+            }
+            btn.disabled = true;
+            await fetch('/api/blockbuster/delete/season', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sonarrId:  parseInt(btn.dataset.sonarrId),
+                    seasonNum: parseInt(btn.dataset.seasonNum),
+                }),
+            });
+            await Promise.all([_fetchWatched(), _fetchDisk()]);
+            _openDetailModal(jfId, 'series', title, year);
+        });
+    });
+
+    // Episode chip clicks → action bar
+    body.querySelectorAll('.bb-ep-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            if (!actionBar) return;
+            if (chip.classList.contains('bb-ec-selected')) {
+                chip.classList.remove('bb-ec-selected');
+                actionBar.style.display = 'none';
+                return;
+            }
+            body.querySelectorAll('.bb-ep-chip.bb-ec-selected').forEach(c => c.classList.remove('bb-ec-selected'));
+            chip.classList.add('bb-ec-selected');
+
+            const status   = chip.dataset.epStatus;
+            const epNum    = chip.dataset.epNum;
+            const epTitle  = chip.dataset.epTitle;
+            const fileId   = chip.dataset.epFileId;
+            const airDate  = chip.dataset.epAir;
+            const seasonEl = chip.closest('[data-season]');
+            const seasonNum = seasonEl ? parseInt(seasonEl.dataset.season) : 0;
+
+            let actionHTML = `<div class="bb-ep-act-info">E${esc(epNum)}${epTitle ? ` — ${esc(epTitle)}` : ''}</div>`;
+
+            if (status === 'downloaded') {
+                actionHTML += `<button class="bb-ep-act-btn bb-ep-act-delete"
+                    data-file-id="${esc(fileId)}">Apagar E${esc(epNum)}</button>`;
+            } else if (status === 'missing' && detail.tmdbId) {
+                actionHTML += `<button class="bb-ep-act-btn bb-ep-act-request"
+                    data-season="${seasonNum}" data-ep="${esc(epNum)}">Pedir E${esc(epNum)}</button>`;
+            } else if (status === 'future') {
+                const dateStr = airDate ? new Date(airDate).toLocaleDateString('pt-PT') : 'Sem data';
+                actionHTML += `<span class="bb-ep-act-info bb-ep-act-future">Estreia: ${esc(dateStr)}</span>`;
+            } else {
+                actionHTML += `<span class="bb-ep-act-info bb-ep-act-future">Não monitorizado</span>`;
+            }
+
+            actionBar.innerHTML = actionHTML;
+            actionBar.style.display = 'flex';
+
+            const delEpBtn = actionBar.querySelector('.bb-ep-act-delete');
+            if (delEpBtn) {
+                delEpBtn.addEventListener('click', async () => {
+                    if (!delEpBtn.dataset.confirmPending) {
+                        delEpBtn.dataset.confirmPending = '1';
+                        delEpBtn.textContent = 'Confirmar?';
+                        setTimeout(() => {
+                            if (delEpBtn.dataset.confirmPending) {
+                                delete delEpBtn.dataset.confirmPending;
+                                delEpBtn.textContent = `Apagar E${epNum}`;
+                            }
+                        }, 3000);
+                        return;
+                    }
+                    delEpBtn.disabled = true;
+                    await fetch('/api/blockbuster/delete/episode', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ episodeFileId: parseInt(fileId) }),
+                    });
+                    chip.classList.remove('bb-ec-good', 'bb-ec-selected');
+                    chip.classList.add('bb-ec-unmon');
+                    chip.dataset.epStatus  = 'unmonitored';
+                    chip.dataset.epFileId  = '';
+                    actionBar.style.display = 'none';
+                    await Promise.all([_fetchDisk(), _fetchWatched()]);
+                });
+            }
+
+            const reqEpBtn = actionBar.querySelector('.bb-ep-act-request');
+            if (reqEpBtn) {
+                reqEpBtn.addEventListener('click', () => {
+                    _withConfirm(reqEpBtn, `Pedir E${epNum}`, async () => {
+                        reqEpBtn.disabled = true;
+                        reqEpBtn.textContent = '...';
+                        const resp = await fetch('/api/blockbuster/request-episodes', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                mediaId:        detail.tmdbId,
+                                seasonNumber:   seasonNum,
+                                episodeNumbers: [parseInt(epNum)],
+                            }),
+                        }).catch(() => null);
+                        if (resp && resp.ok) {
+                            reqEpBtn.textContent = 'Pedido!';
+                            reqEpBtn.classList.add('bb-req-done');
+                            chip.classList.remove('bb-ec-warn');
+                            chip.classList.add('bb-ec-future');
+                            chip.dataset.epStatus = 'future';
+                        } else {
+                            reqEpBtn.textContent = 'Erro';
+                            reqEpBtn.disabled = false;
+                        }
+                    });
+                });
+            }
+        });
+    });
+}
+
+// ── Rating sheet ─────────────────────────────────────────────────────────────
+
+function _openRatingSheet(jfId, title, year, type, onSaved) {
+    const body      = document.getElementById('bb-modal-body');
+    const actionBar = document.getElementById('bb-modal-action-bar');
+    if (!body) return;
+    if (actionBar) actionBar.style.display = 'none';
+
+    const existing = (bb.ratings || []).find(r => r.jfId === jfId) || {};
+
+    body.innerHTML = `
+        <div class="bb-rating-sheet">
+            <div class="bb-rating-title">${esc(title)}${year ? ` (${esc(String(year))})` : ''}</div>
+            <div class="bb-rating-person">
+                <span class="bb-rating-name">André</span>
+                <div class="bb-stars" id="bb-stars-andre">${_starsHTML(existing.ratingAndre, 'andre')}</div>
+            </div>
+            <input class="bb-rating-comment" id="bb-comment-andre" type="text"
+                   placeholder="Comentário (opcional)" value="${esc(existing.commentAndre || '')}" maxlength="200">
+            <div class="bb-rating-person">
+                <span class="bb-rating-name">Inês</span>
+                <div class="bb-stars" id="bb-stars-ines">${_starsHTML(existing.ratingInes, 'ines')}</div>
+            </div>
+            <input class="bb-rating-comment" id="bb-comment-ines" type="text"
+                   placeholder="Comentário (opcional)" value="${esc(existing.commentInes || '')}" maxlength="200">
+            <div class="bb-rating-actions">
+                <button class="bb-rating-save" id="bb-rating-save">Guardar</button>
+                <button class="bb-rating-cancel" id="bb-rating-cancel">Cancelar</button>
+            </div>
+        </div>`;
+
+    let ratingAndre = existing.ratingAndre || 0;
+    let ratingInes  = existing.ratingInes  || 0;
+
+    const _bindStars = (containerId, setCurrent) => {
+        document.getElementById(containerId)?.querySelectorAll('.bb-star').forEach(star => {
+            star.addEventListener('click', () => {
+                const val = parseInt(star.dataset.val);
+                setCurrent(val);
+                document.getElementById(containerId)?.querySelectorAll('.bb-star').forEach(s => {
+                    s.classList.toggle('bb-star-on', parseInt(s.dataset.val) <= val);
+                });
+            });
+        });
+    };
+
+    _bindStars('bb-stars-andre', v => { ratingAndre = v; });
+    _bindStars('bb-stars-ines',  v => { ratingInes  = v; });
+
+    document.getElementById('bb-rating-save').addEventListener('click', async () => {
+        const saveBtn = document.getElementById('bb-rating-save');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '...'; }
+        const payload = {
+            jfId,
+            title,
+            year,
+            type,
+            ratingAndre,
+            ratingInes,
+            commentAndre: document.getElementById('bb-comment-andre')?.value.trim() || '',
+            commentInes:  document.getElementById('bb-comment-ines')?.value.trim()  || '',
+        };
+        const resp = await fetch('/api/blockbuster/rate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        }).catch(() => null);
+        if (resp && resp.ok) {
+            const saved = await resp.json();
+            const idx = (bb.ratings || []).findIndex(r => r.jfId === jfId);
+            if (idx >= 0) bb.ratings[idx] = saved;
+            else bb.ratings.push(saved);
+            onSaved();
+        } else {
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Guardar'; }
+        }
+    });
+
+    document.getElementById('bb-rating-cancel').addEventListener('click', () => {
+        _openDetailModal(jfId, type, title, year);
+    });
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
 async function _doSearch(q) {
     const res = document.getElementById('bb-results');
     if (!res) return;
@@ -300,8 +744,6 @@ async function _doSearch(q) {
             const typeLabel   = r.mediaType === 'movie' ? 'Filme' : 'Série';
             const statusLabel = STATUS[r.status] || '';
             const isTv        = r.mediaType === 'tv';
-            // TV shows always show the picker (any season/episode can be added at any time)
-            // Movies show the button unless already available in Jellyfin (status 5)
             const canRequest  = isTv || r.status !== 5;
             const btnLabel    = isTv ? 'Pedir ▾' : 'Pedir';
             return `
