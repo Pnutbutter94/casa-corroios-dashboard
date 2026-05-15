@@ -726,6 +726,31 @@ function _openRatingSheet(jfId, title, year, type, onSaved) {
     });
 }
 
+// ── PT dub prompt ────────────────────────────────────────────────────────────
+
+function _ptPrompt(btn, callback) {
+    if (btn.dataset.ptShowing) return;
+    btn.dataset.ptShowing = '1';
+    btn.style.display = 'none';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bb-pt-prompt';
+    wrap.innerHTML = `<span class="bb-pt-q">Dobragem PT?</span>
+        <button class="bb-pt-y">Sim 🇵🇹</button>
+        <button class="bb-pt-n">Não</button>`;
+    btn.after(wrap);
+
+    const done = pt => {
+        wrap.remove();
+        delete btn.dataset.ptShowing;
+        btn.style.display = '';
+        callback(pt);
+    };
+    wrap.querySelector('.bb-pt-y').addEventListener('click', () => done(true));
+    wrap.querySelector('.bb-pt-n').addEventListener('click', () => done(false));
+    setTimeout(() => { if (btn.dataset.ptShowing) done(false); }, 6000);
+}
+
 // ── Search ───────────────────────────────────────────────────────────────────
 
 async function _doSearch(q) {
@@ -744,19 +769,21 @@ async function _doSearch(q) {
             const typeLabel   = r.mediaType === 'movie' ? 'Filme' : 'Série';
             const statusLabel = STATUS[r.status] || '';
             const isTv        = r.mediaType === 'tv';
+            const isAnimated  = Array.isArray(r.genreIds) && r.genreIds.includes(16);
             const canRequest  = isTv || r.status !== 5;
             const btnLabel    = isTv ? 'Pedir ▾' : 'Pedir';
+            const animBadge   = isAnimated ? ' <span class="bb-anim-badge">PT?</span>' : '';
             return `
             <div class="bb-result-item">
                 ${posterSrc
                     ? `<img class="bb-result-poster" src="${posterSrc}" loading="lazy" alt="">`
                     : `<div class="bb-result-poster bb-no-poster"></div>`}
                 <div class="bb-result-info">
-                    <div class="bb-result-title">${esc(r.title)}${r.year ? ` <span class="bb-result-year">${r.year}</span>` : ''}</div>
+                    <div class="bb-result-title">${esc(r.title)}${r.year ? ` <span class="bb-result-year">${r.year}</span>` : ''}${animBadge}</div>
                     <div class="bb-result-meta">${typeLabel}${statusLabel ? ` · <span class="bb-result-status">${statusLabel}</span>` : ''}</div>
                 </div>
                 ${canRequest
-                    ? `<button class="bb-req-btn" data-req-id="${esc(String(r.id))}" data-req-type="${esc(r.mediaType)}">${btnLabel}</button>`
+                    ? `<button class="bb-req-btn" data-req-id="${esc(String(r.id))}" data-req-type="${esc(r.mediaType)}" data-animated="${isAnimated ? '1' : '0'}">${btnLabel}</button>`
                     : ''}
             </div>
             ${canRequest && isTv ? `<div class="bb-tv-picker" id="bb-tvp-${esc(String(r.id))}" style="display:none"></div>` : ''}`;
@@ -764,10 +791,22 @@ async function _doSearch(q) {
 
         res.querySelectorAll('[data-req-id]').forEach(btn => {
             btn.addEventListener('click', async () => {
+                const isAnim = btn.dataset.animated === '1';
                 if (btn.dataset.reqType === 'tv') {
-                    await _showTvPicker(btn.dataset.reqId, btn);
+                    if (isAnim && !btn.dataset.ptDone) {
+                        _ptPrompt(btn, () => {
+                            btn.dataset.ptDone = '1';
+                            _showTvPicker(btn.dataset.reqId, btn);
+                        });
+                    } else {
+                        await _showTvPicker(btn.dataset.reqId, btn);
+                    }
                 } else {
-                    _withConfirm(btn, 'Pedir', () => _sendRequest(parseInt(btn.dataset.reqId), 'movie', btn));
+                    if (isAnim) {
+                        _ptPrompt(btn, pt => _sendRequest(parseInt(btn.dataset.reqId), 'movie', btn, null, pt));
+                    } else {
+                        _withConfirm(btn, 'Pedir', () => _sendRequest(parseInt(btn.dataset.reqId), 'movie', btn));
+                    }
                 }
             });
         });
@@ -791,7 +830,7 @@ function _withConfirm(btn, originalText, action) {
     }
 }
 
-async function _sendRequest(mediaId, mediaType, btn, seasons = null) {
+async function _sendRequest(mediaId, mediaType, btn, seasons = null, ptDub = false) {
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
     const body = { mediaId, mediaType };
     if (seasons) body.seasons = seasons;
@@ -801,7 +840,7 @@ async function _sendRequest(mediaId, mediaType, btn, seasons = null) {
         body: JSON.stringify(body),
     }).catch(() => null);
     if (resp && resp.ok) {
-        if (btn) { btn.textContent = 'Pedido!'; btn.classList.add('bb-req-done'); }
+        if (btn) { btn.textContent = ptDub ? 'Pedido! 🇵🇹' : 'Pedido!'; btn.classList.add('bb-req-done'); }
         setTimeout(async () => {
             await _fetchQueue();
             const ql = document.getElementById('bb-queue-list');

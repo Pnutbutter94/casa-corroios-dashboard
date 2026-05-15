@@ -441,6 +441,7 @@ def bb_search():
                 'year':      (r.get('releaseDate') or r.get('firstAirDate', ''))[:4],
                 'poster':    r.get('posterPath', ''),
                 'status':    (r.get('mediaInfo') or {}).get('status', 0),
+                'genreIds':  r.get('genreIds', []),
             })
         return jsonify(out)
     except Exception as e:

@@ -218,6 +218,43 @@
 
 .bb-req-done { background: #2a2a10 !important; color: #888840 !important; }
 
+/* ── Animated badge + PT prompt ─────────────────────────── */
+.bb-anim-badge {
+    font-size: 9px;
+    font-weight: 700;
+    background: #1a2a3a;
+    color: #6ab0e0;
+    border-radius: 3px;
+    padding: 1px 5px;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+    text-transform: uppercase;
+}
+.bb-pt-prompt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.bb-pt-q {
+    font-size: 11px;
+    color: #8888aa;
+    white-space: nowrap;
+}
+.bb-pt-y, .bb-pt-n {
+    border: none;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.bb-pt-y { background: #FFE600; color: #090920; }
+.bb-pt-n { background: #1a1a3a; color: #606090; }
+
 /* ── Queue ──────────────────────────────────────────────── */
 .bb-queue { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .bb-queue-item {
