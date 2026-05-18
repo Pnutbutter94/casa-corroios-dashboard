@@ -549,6 +549,17 @@
     cursor: pointer;
 }
 .bb-det-delete-btn:disabled { opacity: 0.4; cursor: default; }
+.bb-det-subs-btn {
+    background: transparent;
+    color: #8888ee;
+    border: 1px solid #8888ee;
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+}
+.bb-det-subs-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ── After-rate prompt ──────────────────────────────────── */
 .bb-det-after-rate { padding: 8px 0; }

@@ -439,6 +439,7 @@ function _renderMovieDetail(detail, jfId, title, year) {
         ${detail.overview ? `<div class="bb-det-overview">${esc(detail.overview)}</div>` : ''}
         <div class="bb-det-actions">
             <button class="bb-det-watched-btn" id="bb-det-watched">Já vi</button>
+            <button class="bb-det-subs-btn" id="bb-det-subs">Obter legendas</button>
             <button class="bb-det-delete-btn" id="bb-det-delete">Apagar ficheiro</button>
         </div>`;
 
@@ -462,6 +463,24 @@ function _renderMovieDetail(detail, jfId, title, year) {
             });
             document.getElementById('bb-after-keep').addEventListener('click', _closeDetailModal);
         });
+    });
+
+    const subsMovieBtn = document.getElementById('bb-det-subs');
+    subsMovieBtn.addEventListener('click', async () => {
+        subsMovieBtn.disabled = true;
+        subsMovieBtn.textContent = 'A procurar...';
+        try {
+            const r = await fetch('/api/blockbuster/subtitles/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'movie', radarrId: detail.radarrId }),
+            });
+            const d = await r.json();
+            subsMovieBtn.textContent = d.message || 'Concluído';
+        } catch {
+            subsMovieBtn.textContent = 'Erro';
+        }
+        setTimeout(() => { subsMovieBtn.disabled = false; subsMovieBtn.textContent = 'Obter legendas'; }, 4000);
     });
 
     const delBtn = document.getElementById('bb-det-delete');
@@ -549,6 +568,7 @@ function _renderSeriesDetail(detail, jfId, title, year) {
         ${detail.overview ? `<div class="bb-det-overview">${esc(detail.overview)}</div>` : ''}
         <div class="bb-det-actions">
             <button class="bb-det-watched-btn" id="bb-det-watched">Já vi</button>
+            <button class="bb-det-subs-btn" id="bb-det-subs">Obter legendas</button>
         </div>
         <div class="bb-det-seasons">${seasonsHTML}</div>`;
 
@@ -558,6 +578,24 @@ function _renderSeriesDetail(detail, jfId, title, year) {
         _openRatingSheet(jfId, title, year, 'series', () => {
             _openDetailModal(jfId, 'series', title, year);
         });
+    });
+
+    const subsSeriesBtn = document.getElementById('bb-det-subs');
+    subsSeriesBtn.addEventListener('click', async () => {
+        subsSeriesBtn.disabled = true;
+        subsSeriesBtn.textContent = 'A procurar...';
+        try {
+            const r = await fetch('/api/blockbuster/subtitles/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'series', sonarrId: detail.sonarrId }),
+            });
+            const d = await r.json();
+            subsSeriesBtn.textContent = d.message || 'Concluído';
+        } catch {
+            subsSeriesBtn.textContent = 'Erro';
+        }
+        setTimeout(() => { subsSeriesBtn.disabled = false; subsSeriesBtn.textContent = 'Obter legendas'; }, 4000);
     });
 
     // Season delete buttons (two-tap)

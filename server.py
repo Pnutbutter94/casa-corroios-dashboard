@@ -56,6 +56,8 @@ BB_RAD_URL  = 'http://localhost:7878'
 BB_RAD_KEY  = 'bef659950c1d4ccaa4d40f2301079e0b'
 BB_SON_URL  = 'http://localhost:8989'
 BB_SON_KEY  = 'd47e138c18b542be9dec3e9fec9b0408'
+BB_BAZ_URL  = 'http://localhost:6767'
+BB_BAZ_KEY  = 'c484cd24fd09181cf105a1b51506bae6'
 BB_QUOTA_GB = 150
 
 WEATHER_URL = (
@@ -940,6 +942,55 @@ def bb_delete_episode():
 def bb_library_refresh():
     _bb_jf_library_refresh()
     return '', 204
+
+
+@app.route('/api/blockbuster/subtitles/search', methods=['POST'])
+def bb_subtitles_search():
+    raw       = request.get_json(force=True, silent=True) or {}
+    item_type = raw.get('type')
+    if item_type not in ('movie', 'series'):
+        return jsonify({'error': 'invalid type'}), 400
+    try:
+        if item_type == 'movie':
+            radarr_id = raw.get('radarrId')
+            if not isinstance(radarr_id, int):
+                return jsonify({'error': 'invalid radarrId'}), 400
+            movies = _bb_req(f'{BB_BAZ_URL}/api/movies?apikey={BB_BAZ_KEY}')
+            movie  = next((m for m in movies.get('data', []) if m.get('radarrId') == radarr_id), None)
+            if not movie:
+                return jsonify({'ok': True, 'searched': 0, 'message': 'not in Bazarr yet'})
+            missing = movie.get('missing_subtitles') or []
+            count   = 0
+            for sub in missing:
+                lang = sub.get('code2') or sub.get('code3', 'en')
+                _bb_req(f'{BB_BAZ_URL}/api/movies/subtitles?apikey={BB_BAZ_KEY}',
+                        method='PATCH',
+                        data={'radarrid': radarr_id, 'language': lang,
+                              'hi': False, 'forced': False})
+                count += 1
+            return jsonify({'ok': True, 'searched': count,
+                            'message': 'already complete' if not missing else f'{count} search(es) started'})
+
+        else:  # series
+            sonarr_id = raw.get('sonarrId')
+            if not isinstance(sonarr_id, int):
+                return jsonify({'error': 'invalid sonarrId'}), 400
+            wanted  = _bb_req(f'{BB_BAZ_URL}/api/episodes/wanted?apikey={BB_BAZ_KEY}&seriesid={sonarr_id}')
+            episodes = wanted.get('data', [])[:50]  # cap at 50 episodes per trigger
+            count   = 0
+            for ep in episodes:
+                ep_id = ep.get('sonarrEpisodeId')
+                for sub in (ep.get('missing_subtitles') or []):
+                    lang = sub.get('code2') or sub.get('code3', 'en')
+                    _bb_req(f'{BB_BAZ_URL}/api/episodes/subtitles?apikey={BB_BAZ_KEY}',
+                            method='PATCH',
+                            data={'seriesid': sonarr_id, 'episodeid': ep_id,
+                                  'language': lang, 'hi': False, 'forced': False})
+                    count += 1
+            return jsonify({'ok': True, 'searched': count, 'episodes': len(episodes),
+                            'message': 'all subtitles present' if not episodes else f'{count} search(es) started across {len(episodes)} ep(s)'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
 
 
 # ── STATIC ────────────────────────────────────────────────────────────────────
