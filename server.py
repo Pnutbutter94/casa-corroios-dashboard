@@ -385,6 +385,14 @@ def iot_call():
         return jsonify({'error': 'unknown entity'}), 403
     if domain not in ALLOWED_IOT_SERVICES or service not in ALLOWED_IOT_SERVICES[domain]:
         return jsonify({'error': 'not allowed'}), 403
+    # Viomi vacuum doesn't support return_to_base natively; use the xiaomi_home button entity
+    if entity_id == 'vacuum.viomi_de_428952342_v19' and service == 'return_to_base':
+        try:
+            return jsonify(_ha_request('/api/services/button/press',
+                                       {'entity_id': 'button.viomi_de_428952342_v19_start_charge_a_2_4'}))
+        except Exception as e:
+            return jsonify({'error': str(e)}), 502
+
     service_data = {'entity_id': entity_id}
     if service == 'turn_on' and domain == 'light' and brightness_pct is not None:
         try:
