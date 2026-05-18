@@ -2,10 +2,15 @@ import { esc } from '../utils/esc.js';
 
 export const bb = { queue: [], disk: null, watched: null, library: null, ratings: [] };
 
-let _searchTimer = null;
+let _searchTimer    = null;
+let _onRefresh      = null;
+let _prevQueueCount = -1;
+let _queuePollTimer = null;
 
 export async function initBlockbuster() {
     await Promise.all([_fetchQueue(), _fetchDisk(), _fetchWatched(), _fetchLibrary(), _fetchRatings()]);
+    _prevQueueCount = bb.queue.length;
+    _startQueuePoll();
 }
 
 async function _fetchQueue()   { try { bb.queue   = await fetch('/api/blockbuster/queue').then(r => r.ok ? r.json() : []); } catch (_) {} }
@@ -37,19 +42,22 @@ function _catalogueHTML() {
 
     const _row = (items, label, type) => {
         if (!items.length) return '';
-        const posters = items.map(item => `
+        const posters = items.map(item => {
+            const displayTitle = item.originalTitle || item.title;
+            return `
             <div class="bb-poster-wrap"
                  data-jfid="${esc(item.id)}"
                  data-type="${type}"
-                 data-title="${esc(item.title)}"
+                 data-title="${esc(displayTitle)}"
                  data-year="${item.year || ''}">
                 <img class="bb-poster-img" src="/api/blockbuster/jf-poster/${esc(item.id)}" loading="lazy" alt=""
                      onerror="this.closest('.bb-poster-wrap').classList.add('bb-poster-err')">
                 <div class="bb-poster-overlay">
-                    <div class="bb-poster-title">${esc(item.title)}</div>
+                    <div class="bb-poster-title">${esc(displayTitle)}</div>
                     ${item.year ? `<div class="bb-poster-year">${item.year}</div>` : ''}
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
         return `
         <div class="bb-row-label">${label} <span class="bb-row-count">${items.length}</span></div>
         <div class="bb-poster-row">${posters}</div>`;
@@ -235,6 +243,8 @@ function _bindQueueBtns(el, onRefresh) {
 // ── Main bind ────────────────────────────────────────────────────────────────
 
 export function bindBlockbuster(container, onRefresh) {
+    _onRefresh = onRefresh;
+
     // Poster click → detail modal
     container.querySelectorAll('.bb-poster-wrap').forEach(wrap => {
         wrap.addEventListener('click', () => {
@@ -304,7 +314,8 @@ export function bindBlockbuster(container, onRefresh) {
             }
             btn.disabled = true;
             await fetch(`/api/blockbuster/delete/movie/${btn.dataset.deleteMovie}`, { method: 'DELETE' });
-            await Promise.all([_fetchWatched(), _fetchDisk()]);
+            await new Promise(r => setTimeout(r, 2500));
+            await Promise.all([_fetchWatched(), _fetchDisk(), _fetchLibrary()]);
             onRefresh();
         });
     });
@@ -326,10 +337,38 @@ export function bindBlockbuster(container, onRefresh) {
                     seasonNum: parseInt(btn.dataset.seasonNum),
                 }),
             });
-            await Promise.all([_fetchWatched(), _fetchDisk()]);
+            await new Promise(r => setTimeout(r, 2500));
+            await Promise.all([_fetchWatched(), _fetchDisk(), _fetchLibrary()]);
             onRefresh();
         });
     });
+}
+
+// ── Queue auto-poll ───────────────────────────────────────────────────────────
+
+function _startQueuePoll() {
+    if (_queuePollTimer) return;
+    _queuePollTimer = setInterval(_pollQueue, 30_000);
+}
+
+async function _pollQueue() {
+    const prev = _prevQueueCount;
+    await _fetchQueue();
+    const curr = bb.queue.length;
+    _prevQueueCount = curr;
+
+    if (prev > 0 && curr < prev) {
+        // Items left the queue (download completed) — refresh library
+        await fetch('/api/blockbuster/library/refresh', { method: 'POST' }).catch(() => {});
+        await new Promise(r => setTimeout(r, 3000));
+        await _fetchLibrary();
+        if (_onRefresh) _onRefresh();
+        return;
+    }
+
+    // Update queue display without full re-render
+    const ql = document.getElementById('bb-queue-list');
+    if (ql) { ql.innerHTML = _queueHTML(); _bindQueueBtns(ql, _onRefresh); }
 }
 
 // ── Detail modal ─────────────────────────────────────────────────────────────
@@ -764,7 +803,7 @@ async function _doSearch(q) {
             return;
         }
         const STATUS = { 2: 'Pedido', 3: 'A processar', 4: 'Parcialmente disponível', 5: 'Disponível' };
-        res.innerHTML = data.map(r => {
+        res.innerHTML = data.map((r, idx) => {
             const posterSrc   = r.poster ? `/api/blockbuster/poster?path=${encodeURIComponent(r.poster)}` : '';
             const typeLabel   = r.mediaType === 'movie' ? 'Filme' : 'Série';
             const statusLabel = STATUS[r.status] || '';
@@ -775,12 +814,14 @@ async function _doSearch(q) {
             const animBadge   = isAnimated ? ' <span class="bb-anim-badge">PT?</span>' : '';
             return `
             <div class="bb-result-item">
-                ${posterSrc
-                    ? `<img class="bb-result-poster" src="${posterSrc}" loading="lazy" alt="">`
-                    : `<div class="bb-result-poster bb-no-poster"></div>`}
-                <div class="bb-result-info">
-                    <div class="bb-result-title">${esc(r.title)}${r.year ? ` <span class="bb-result-year">${r.year}</span>` : ''}${animBadge}</div>
-                    <div class="bb-result-meta">${typeLabel}${statusLabel ? ` · <span class="bb-result-status">${statusLabel}</span>` : ''}</div>
+                <div class="bb-result-tap" data-search-idx="${idx}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer">
+                    ${posterSrc
+                        ? `<img class="bb-result-poster" src="${posterSrc}" loading="lazy" alt="">`
+                        : `<div class="bb-result-poster bb-no-poster"></div>`}
+                    <div class="bb-result-info">
+                        <div class="bb-result-title">${esc(r.title)}${r.year ? ` <span class="bb-result-year">${r.year}</span>` : ''}${animBadge}</div>
+                        <div class="bb-result-meta">${typeLabel}${statusLabel ? ` · <span class="bb-result-status">${statusLabel}</span>` : ''}</div>
+                    </div>
                 </div>
                 ${canRequest
                     ? `<button class="bb-req-btn" data-req-id="${esc(String(r.id))}" data-req-type="${esc(r.mediaType)}" data-animated="${isAnimated ? '1' : '0'}">${btnLabel}</button>`
@@ -788,6 +829,14 @@ async function _doSearch(q) {
             </div>
             ${canRequest && isTv ? `<div class="bb-tv-picker" id="bb-tvp-${esc(String(r.id))}" style="display:none"></div>` : ''}`;
         }).join('');
+
+        // Tappable area → search detail modal
+        res.querySelectorAll('[data-search-idx]').forEach(tap => {
+            tap.addEventListener('click', () => {
+                const r = data[parseInt(tap.dataset.searchIdx)];
+                if (r) _openSearchDetailModal(r);
+            });
+        });
 
         res.querySelectorAll('[data-req-id]').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -943,5 +992,139 @@ async function _showEpisodePicker(mediaId, seasonNum, picker) {
         });
     } catch (_) {
         epRow.innerHTML = '<div class="bb-empty">Erro</div>';
+    }
+}
+
+// ── Search detail modal ───────────────────────────────────────────────────────
+
+function _openSearchDetailModal(result) {
+    _closeDetailModal();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'bb-modal-overlay';
+    overlay.id = 'bb-modal-overlay';
+
+    const STATUS    = { 2: 'Pedido', 3: 'A processar', 4: 'Parcialmente disponível', 5: 'Disponível' };
+    const typeLabel = result.mediaType === 'movie' ? 'Filme' : 'Série';
+    const stLabel   = STATUS[result.status] || '';
+    const posterSrc = result.poster ? `/api/blockbuster/poster?path=${encodeURIComponent(result.poster)}` : '';
+    const isAnimated = Array.isArray(result.genreIds) && result.genreIds.includes(16);
+    const isTv = result.mediaType === 'tv';
+
+    overlay.innerHTML = `
+        <div class="bb-modal-panel" id="bb-modal-panel">
+            <div class="bb-modal-header">
+                <div class="bb-modal-htitle">${esc(result.title)}${result.year ? ` <span class="bb-modal-year">${esc(String(result.year))}</span>` : ''}</div>
+                <button class="bb-modal-close" id="bb-modal-close">×</button>
+            </div>
+            <div class="bb-modal-body" id="bb-modal-body">
+                <div class="bb-det-poster-wrap">
+                    ${posterSrc
+                        ? `<img class="bb-det-poster" src="${posterSrc}" loading="lazy" alt="" onerror="this.style.display='none'">`
+                        : '<div class="bb-det-poster" style="background:#13133a"></div>'}
+                    <div class="bb-det-info">
+                        <div class="bb-det-badge" style="background:#1a1a3a;color:#8888cc">${typeLabel}</div>
+                        ${stLabel ? `<div class="bb-det-badge bb-badge-avail" style="margin-top:6px">${stLabel}</div>` : ''}
+                    </div>
+                </div>
+                ${result.overview ? `<div class="bb-det-overview">${esc(result.overview)}</div>` : ''}
+                <div id="bb-sdet-actions">
+                    ${isTv
+                        ? '<div class="bb-empty">A carregar temporadas...</div>'
+                        : result.status !== 5
+                            ? `<div class="bb-det-actions">
+                                   <button class="bb-det-watched-btn" id="bb-sdet-req">Pedir</button>
+                               </div>`
+                            : '<div class="bb-det-badge bb-badge-avail">Já disponível</div>'}
+                </div>
+            </div>
+        </div>`;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.querySelector('#bb-modal-panel').classList.add('bb-modal-open'));
+    overlay.addEventListener('click', e => { if (e.target === overlay) _closeDetailModal(); });
+    overlay.querySelector('#bb-modal-close').addEventListener('click', _closeDetailModal);
+
+    const movieBtn = overlay.querySelector('#bb-sdet-req');
+    if (movieBtn) {
+        movieBtn.addEventListener('click', () => {
+            if (isAnimated) {
+                _ptPrompt(movieBtn, pt => {
+                    _withConfirm(movieBtn, 'Pedir', () => _sendRequest(result.id, 'movie', movieBtn, null, pt));
+                });
+            } else {
+                _withConfirm(movieBtn, 'Pedir', () => _sendRequest(result.id, 'movie', movieBtn));
+            }
+        });
+    }
+
+    if (isTv) {
+        fetch(`/api/blockbuster/tv/${result.id}`)
+            .then(r => r.json())
+            .then(({ seasons = [] }) => {
+                const actDiv = overlay.querySelector('#bb-sdet-actions');
+                if (!actDiv) return;
+                actDiv.innerHTML = `
+                    <div class="bb-det-actions" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                        <button class="bb-det-watched-btn" id="bb-sdet-all" style="flex:none;padding:10px 14px;font-size:13px">Toda a série</button>
+                        ${seasons.map(s => `
+                            <button class="bb-sdet-szn" data-sn="${s.number}"
+                                    style="background:#13133a;color:#e8e8ff;border:1px solid #2a2a6a;border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;cursor:pointer">
+                                T${s.number}${s.episodeCount ? `<span style="color:#606090;font-size:11px;margin-left:3px">${s.episodeCount}ep</span>` : ''}
+                            </button>`).join('')}
+                    </div>
+                    <div id="bb-sdet-ep-wrap"></div>`;
+
+                overlay.querySelector('#bb-sdet-all')?.addEventListener('click', e => {
+                    _withConfirm(e.currentTarget, 'Toda a série', () =>
+                        _sendRequest(result.id, 'tv', e.currentTarget));
+                });
+
+                overlay.querySelectorAll('.bb-sdet-szn').forEach(sb => {
+                    sb.addEventListener('click', () =>
+                        _showSearchEpisodePicker(result.id, parseInt(sb.dataset.sn), overlay));
+                });
+            })
+            .catch(() => {
+                const actDiv = overlay.querySelector('#bb-sdet-actions');
+                if (actDiv) actDiv.innerHTML = '<div class="bb-empty">Erro ao carregar</div>';
+            });
+    }
+}
+
+async function _showSearchEpisodePicker(mediaId, seasonNum, overlay) {
+    const epWrap = overlay.querySelector('#bb-sdet-ep-wrap');
+    if (!epWrap) return;
+
+    if (epWrap.dataset.sn == seasonNum && epWrap.innerHTML.trim()) {
+        epWrap.innerHTML = '';
+        delete epWrap.dataset.sn;
+        return;
+    }
+
+    epWrap.dataset.sn = seasonNum;
+    epWrap.innerHTML = '<div class="bb-empty bb-picker-loading">A carregar...</div>';
+
+    try {
+        const { episodes = [] } = await fetch(`/api/blockbuster/tv/${mediaId}/season/${seasonNum}`).then(r => r.json());
+        epWrap.innerHTML = `
+            <div class="bb-season-row">
+                <button class="bb-season-btn bb-season-all" data-season-req="${seasonNum}">Toda T${seasonNum}</button>
+                ${episodes.map(e => `<button class="bb-season-btn" data-ep="${e.number}" title="${esc(e.title)}">E${e.number}</button>`).join('')}
+            </div>`;
+
+        epWrap.querySelector('[data-season-req]')?.addEventListener('click', e => {
+            _withConfirm(e.currentTarget, `Toda T${seasonNum}`, () =>
+                _sendRequest(mediaId, 'tv', e.currentTarget, [seasonNum]));
+        });
+
+        epWrap.querySelectorAll('[data-ep]').forEach(eb => {
+            eb.addEventListener('click', () => {
+                _withConfirm(eb, `E${eb.dataset.ep}`, () =>
+                    _sendEpisodeRequest(mediaId, seasonNum, [parseInt(eb.dataset.ep)], null, eb));
+            });
+        });
+    } catch (_) {
+        epWrap.innerHTML = '<div class="bb-empty">Erro</div>';
     }
 }

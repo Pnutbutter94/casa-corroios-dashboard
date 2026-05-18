@@ -7,7 +7,7 @@
     color: #FFE600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
 }
 
@@ -32,7 +32,7 @@
 
 /* ── Catalogue rows ─────────────────────────────────────── */
 .bb-row-label {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: #FFE600;
     text-transform: uppercase;
@@ -42,7 +42,7 @@
 .bb-row-label + .bb-row-label { margin-top: 14px; }
 .bb-row-count {
     color: #606090;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 400;
     letter-spacing: 0;
     text-transform: none;
@@ -102,12 +102,12 @@
 }
 .bb-poster-wrap.revealed .bb-poster-overlay { opacity: 1; }
 .bb-poster-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     color: #fff;
     line-height: 1.3;
 }
-.bb-poster-year { font-size: 9px; color: #FFE600; margin-top: 2px; }
+.bb-poster-year { font-size: 11px; color: #FFE600; margin-top: 2px; }
 
 /* ── Search ─────────────────────────────────────────────── */
 .bb-search-wrap  { margin-bottom: 8px; }
@@ -170,7 +170,7 @@
 }
 .bb-result-info { flex: 1; min-width: 0; }
 .bb-result-title {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -178,7 +178,7 @@
     color: #e8e8ff;
 }
 .bb-result-year   { color: #606090; font-weight: 400; }
-.bb-result-meta   { font-size: 12px; color: #606090; margin-top: 3px; }
+.bb-result-meta   { font-size: 14px; color: #606090; margin-top: 3px; }
 .bb-result-status { color: #FFE600; }
 
 .bb-req-btn {
@@ -268,15 +268,15 @@
 .bb-queue-icon  { font-size: 18px; flex-shrink: 0; }
 .bb-queue-info  { flex: 1; min-width: 0; }
 .bb-queue-title {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: #e8e8ff;
 }
-.bb-queue-epcnt { font-size: 10px; color: #606090; font-weight: 400; margin-left: 4px; }
-.bb-queue-meta           { font-size: 11px; color: #606090; margin-top: 2px; }
+.bb-queue-epcnt { font-size: 12px; color: #606090; font-weight: 400; margin-left: 4px; }
+.bb-queue-meta           { font-size: 13px; color: #606090; margin-top: 2px; }
 .bb-queue-meta.bb-s-warn { color: var(--warn); }
 .bb-queue-meta.bb-s-bad  { color: var(--bad); }
 .bb-queue-meta.bb-s-good { color: var(--good); }
@@ -284,7 +284,7 @@
 
 .bb-queue-problem { border-left: 2px solid var(--warn); padding-left: 10px; }
 .bb-queue-msg {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--warn);
     margin-top: 3px;
     white-space: nowrap;
@@ -297,7 +297,7 @@
     border: 1px solid var(--warn);
     border-radius: 6px;
     padding: 7px 10px;
-    font-size: 11px;
+    font-size: 13px;
     font-family: inherit;
     cursor: pointer;
     flex-shrink: 0;
@@ -309,7 +309,7 @@
 .bb-queue-pct-bar   { height: 4px; background: #FFE600; border-radius: 2px; }
 .bb-queue-pct-bar.warn { background: var(--warn); }
 .bb-queue-pct-bar.bad  { background: var(--bad); }
-.bb-queue-pct-label { font-size: 10px; color: #606090; display: block; text-align: right; margin-top: 2px; }
+.bb-queue-pct-label { font-size: 12px; color: #606090; display: block; text-align: right; margin-top: 2px; }
 
 /* ── Disk ───────────────────────────────────────────────── */
 .bb-disk { padding: 4px 0; }
@@ -324,7 +324,7 @@
 .bb-disk-bar.good { background: var(--good); }
 .bb-disk-bar.warn { background: var(--warn); }
 .bb-disk-bar.bad  { background: var(--bad); }
-.bb-disk-stats    { display: flex; justify-content: space-between; font-size: 12px; color: #606090; }
+.bb-disk-stats    { display: flex; justify-content: space-between; font-size: 14px; color: #606090; }
 
 /* ── Clean up ───────────────────────────────────────────── */
 .bb-clean { display: flex; flex-direction: column; gap: 8px; }
@@ -340,7 +340,7 @@
 .bb-clean-info  { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .bb-clean-icon  { font-size: 18px; flex-shrink: 0; }
 .bb-clean-title {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -348,7 +348,7 @@
     color: #e8e8ff;
 }
 .bb-clean-year { color: #606090; font-weight: 400; }
-.bb-clean-size { font-size: 11px; color: #606090; margin-top: 2px; }
+.bb-clean-size { font-size: 13px; color: #606090; margin-top: 2px; }
 
 .bb-delete-btn {
     background: transparent;
@@ -382,7 +382,7 @@
     border: 1px solid #2a2a6a;
     border-radius: 6px;
     color: #e8e8ff;
-    font-size: 12px;
+    font-size: 14px;
     font-family: inherit;
     padding: 5px 10px;
     cursor: pointer;
@@ -392,7 +392,7 @@
 }
 .bb-season-all { border-color: #3a3a8a; color: #b8b8e8; }
 .bb-season-btn:disabled { opacity: 0.5; cursor: default; }
-.bb-sn-ep { color: #505080; font-size: 10px; }
+.bb-sn-ep { color: #505080; font-size: 12px; }
 
 .bb-episode-row {
     display: flex;
@@ -407,7 +407,7 @@
     border: 1px solid #2a2a6a;
     border-radius: 5px;
     color: #8888cc;
-    font-size: 11px;
+    font-size: 13px;
     font-family: inherit;
     padding: 4px 8px;
     cursor: pointer;
@@ -419,7 +419,7 @@
 .bb-picker-loading { padding: 6px 0 2px; }
 
 /* ── Shared ─────────────────────────────────────────────── */
-.bb-empty { color: #606090; font-size: 13px; padding: 6px 0; }
+.bb-empty { color: #606090; font-size: 15px; padding: 6px 0; }
 .bb-gap   { margin-top: 20px; }
 
 /* ── Detail modal ───────────────────────────────────────── */
@@ -509,7 +509,7 @@
 }
 .bb-det-info { display: flex; flex-direction: column; gap: 8px; justify-content: flex-start; }
 .bb-det-badge {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     border-radius: 4px;
     padding: 3px 8px;
@@ -517,9 +517,9 @@
     align-self: flex-start;
 }
 .bb-badge-avail { background: #1a3a1a; color: var(--good); }
-.bb-det-size    { font-size: 12px; color: #606090; }
+.bb-det-size    { font-size: 14px; color: #606090; }
 .bb-det-overview {
-    font-size: 12px;
+    font-size: 14px;
     color: #8888aa;
     line-height: 1.55;
     margin-bottom: 14px;
@@ -586,7 +586,7 @@
     margin-bottom: 8px;
 }
 .bb-det-season-label {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 4px;
@@ -596,14 +596,14 @@
 .bb-sst-warn  { background: #3a2a10; color: var(--warn); }
 .bb-sst-muted { background: #1a1a3a; color: #606090; }
 
-.bb-det-season-count { font-size: 11px; color: #606090; flex: 1; }
+.bb-det-season-count { font-size: 13px; color: #606090; flex: 1; }
 .bb-season-del-btn {
     background: transparent;
     color: var(--bad);
     border: 1px solid var(--bad);
     border-radius: 5px;
     padding: 4px 10px;
-    font-size: 11px;
+    font-size: 13px;
     font-family: inherit;
     cursor: pointer;
     flex-shrink: 0;
@@ -619,7 +619,7 @@
 /* ── Episode chips ──────────────────────────────────────── */
 .bb-ep-chip {
     border-radius: 5px;
-    font-size: 11px;
+    font-size: 13px;
     font-family: inherit;
     padding: 5px 8px;
     cursor: pointer;
@@ -639,7 +639,7 @@
 /* ── Episode action bar ─────────────────────────────────── */
 .bb-ep-act-info {
     flex: 1;
-    font-size: 12px;
+    font-size: 14px;
     color: #8888aa;
     white-space: nowrap;
     overflow: hidden;
@@ -649,7 +649,7 @@
     border: none;
     border-radius: 6px;
     padding: 9px 14px;
-    font-size: 12px;
+    font-size: 14px;
     font-family: inherit;
     cursor: pointer;
     font-weight: 700;
@@ -658,7 +658,7 @@
 .bb-ep-act-btn:disabled { opacity: 0.5; cursor: default; }
 .bb-ep-act-delete  { background: var(--bad);  color: #fff; }
 .bb-ep-act-request { background: #FFE600; color: #090920; }
-.bb-ep-act-future  { font-size: 12px; color: #606090; flex-shrink: 0; }
+.bb-ep-act-future  { font-size: 14px; color: #606090; flex-shrink: 0; }
 
 /* ── Rating sheet ───────────────────────────────────────── */
 .bb-rating-sheet  { display: flex; flex-direction: column; gap: 12px; }
@@ -736,7 +736,7 @@
 }
 .bb-lb-info   { flex: 1; min-width: 0; }
 .bb-lb-title  {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: #e8e8ff;
     white-space: nowrap;
@@ -746,10 +746,10 @@
 }
 .bb-lb-year     { color: #606090; font-weight: 400; }
 .bb-lb-ratings  { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 3px; }
-.bb-lb-person   { font-size: 11px; color: #606090; }
+.bb-lb-person   { font-size: 13px; color: #606090; }
 .bb-lb-stars    { color: #FFE600; letter-spacing: -1px; }
 .bb-lb-comment  {
-    font-size: 11px;
+    font-size: 13px;
     color: #505070;
     font-style: italic;
     white-space: nowrap;
@@ -761,7 +761,7 @@
     border: 1px solid #2a2a6a;
     border-radius: 6px;
     color: #606090;
-    font-size: 12px;
+    font-size: 14px;
     font-family: inherit;
     padding: 9px 16px;
     cursor: pointer;

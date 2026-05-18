@@ -422,6 +422,14 @@ def _bb_req(url, method='GET', data=None, headers=None):
         return json.loads(raw) if raw else {}
 
 
+def _bb_jf_library_refresh():
+    try:
+        _bb_req(f'{BB_JF_URL}/Library/Refresh', method='POST',
+                headers={'X-Emby-Token': BB_JF_TOKEN})
+    except Exception:
+        pass
+
+
 @app.route('/api/blockbuster/search')
 def bb_search():
     q = request.args.get('q', '').strip()
@@ -442,6 +450,7 @@ def bb_search():
                 'poster':    r.get('posterPath', ''),
                 'status':    (r.get('mediaInfo') or {}).get('status', 0),
                 'genreIds':  r.get('genreIds', []),
+                'overview':  (r.get('overview') or '')[:300],
             })
         return jsonify(out)
     except Exception as e:
@@ -740,6 +749,7 @@ def bb_delete_movie(radarr_id):
         _bb_req(
             f'{BB_RAD_URL}/api/v3/movie/{radarr_id}?deleteFiles=true&apikey={BB_RAD_KEY}',
             method='DELETE')
+        _bb_jf_library_refresh()
         return '', 204
     except Exception as e:
         return jsonify({'error': str(e)}), 502
@@ -759,6 +769,7 @@ def bb_delete_season():
             _bb_req(
                 f'{BB_SON_URL}/api/v3/episodefile/bulk?apikey={BB_SON_KEY}',
                 method='DELETE', data={'episodeFileIds': ids})
+        _bb_jf_library_refresh()
         return jsonify({'deleted': len(ids)})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
@@ -771,9 +782,12 @@ def bb_library():
         data = _bb_req(
             f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
             f'?IncludeItemTypes={item_type}&Recursive=true'
-            f'&SortBy=SortName&SortOrder=Ascending&Limit=50',
+            f'&SortBy=SortName&SortOrder=Ascending&Limit=50&Fields=OriginalTitle',
             headers=jf_h)
-        return [{'id': i['Id'], 'title': i.get('Name', ''), 'year': i.get('ProductionYear', '')}
+        return [{'id': i['Id'],
+                 'title': i.get('Name', ''),
+                 'originalTitle': i.get('OriginalTitle') or i.get('Name', ''),
+                 'year': i.get('ProductionYear', '')}
                 for i in data.get('Items', [])]
     try:
         return jsonify({'movies': _fetch('Movie'), 'series': _fetch('Series')})
@@ -916,9 +930,16 @@ def bb_delete_episode():
         _bb_req(
             f'{BB_SON_URL}/api/v3/episodefile/{file_id}?apikey={BB_SON_KEY}',
             method='DELETE')
+        _bb_jf_library_refresh()
         return '', 204
     except Exception as e:
         return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/library/refresh', methods=['POST'])
+def bb_library_refresh():
+    _bb_jf_library_refresh()
+    return '', 204
 
 
 # ── STATIC ────────────────────────────────────────────────────────────────────
