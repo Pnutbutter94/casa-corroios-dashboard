@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, make_response, send_from_directory, request
 import urllib.request
 import urllib.parse
+import http.cookiejar
 import json
 import os
 import time
@@ -58,7 +59,29 @@ BB_SON_URL  = 'http://localhost:8989'
 BB_SON_KEY  = 'd47e138c18b542be9dec3e9fec9b0408'
 BB_BAZ_URL  = 'http://localhost:6767'
 BB_BAZ_KEY  = 'c484cd24fd09181cf105a1b51506bae6'
+BB_QB_URL   = 'http://localhost:8081'
+BB_QB_USER  = 'admin'
+BB_QB_PASS  = 'SportingCP1906!'
 BB_QUOTA_GB = 150
+
+_qb_opener    = None
+_qb_last_auth = 0.0
+_QB_TTL       = 3600
+
+
+def _bb_qb_get(path):
+    global _qb_opener, _qb_last_auth
+    now = time.time()
+    if _qb_opener is None or now - _qb_last_auth > _QB_TTL:
+        jar    = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+        creds  = urllib.parse.urlencode({'username': BB_QB_USER, 'password': BB_QB_PASS}).encode()
+        opener.open(urllib.request.Request(f'{BB_QB_URL}/api/v2/auth/login', data=creds), timeout=5)
+        _qb_opener    = opener
+        _qb_last_auth = now
+    with _qb_opener.open(f'{BB_QB_URL}{path}', timeout=5) as r:
+        raw = r.read()
+        return json.loads(raw) if raw else []
 
 WEATHER_URL = (
     "https://api.open-meteo.com/v1/forecast"
@@ -626,6 +649,7 @@ def bb_queue():
                 'pct':          _pct(size, r.get('sizeleft', 0)),
                 'sizeMb':       round(size / (1024 ** 2)) if size else 0,
                 'message':      _first_msg(r),
+                'dlHash':       (r.get('downloadId') or '').lower(),
             })
     except Exception:
         pass
@@ -660,12 +684,27 @@ def bb_queue():
                 'sizeMb':       round(size / (1024 ** 2)) if size else 0,
                 'message':      _first_msg(r),
                 'epCount':      1,
+                'dlHash':       (dl_id or '').lower(),
             }
             if dl_id:
                 seen_dl[dl_id] = len(items)
             items.append(entry)
     except Exception:
         pass
+
+    hashes = [it['dlHash'] for it in items if it.get('dlHash')]
+    if hashes:
+        try:
+            qb_list = _bb_qb_get('/api/v2/torrents/info?hashes=' + '|'.join(hashes))
+            qb_map  = {t['hash'].lower(): t for t in qb_list}
+            for it in items:
+                qb = qb_map.get(it.get('dlHash', ''))
+                if qb:
+                    it['dlspeed'] = qb.get('dlspeed', 0)
+                    it['seeds']   = qb.get('num_complete', 0)
+        except Exception:
+            pass
+
     return jsonify(items)
 
 

@@ -23,6 +23,12 @@ function _fmtMb(mb) {
     return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
 }
 
+function _fmtSpeed(bps) {
+    if (bps >= 1024 * 1024) return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
+    if (bps >= 1024)        return `${Math.round(bps / 1024)} KB/s`;
+    return `${bps} B/s`;
+}
+
 const QUEUE_LABELS = {
     downloading:   'A descarregar',
     queued:        'Em fila',
@@ -92,14 +98,19 @@ function _queueHTML() {
             : isDownloading
                 ? 'A descarregar'
                 : (QUEUE_LABELS[statusKey] || esc(item.status));
-        const statusCls = isActionable ? (QUEUE_STATUS_CLS[statusKey] || '') : '';
-        const barCls    = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
+        const statusCls  = isActionable ? (QUEUE_STATUS_CLS[statusKey] || '') : '';
+        const barCls     = statusCls === 'warn' ? 'warn' : statusCls === 'bad' ? 'bad' : '';
+        const hasQbData  = isDownloading && item.seeds != null;
+        const speedStr   = hasQbData && item.dlspeed > 0 ? ' · ' + _fmtSpeed(item.dlspeed) : '';
+        const seedStr    = hasQbData ? ` · ${item.seeds} seed${item.seeds !== 1 ? 's' : ''}` : '';
+        const stalled    = hasQbData && item.dlspeed === 0 && item.seeds === 0;
+        const metaCls    = statusCls ? ' bb-s-' + statusCls : stalled ? ' bb-s-warn' : '';
         return `
         <div class="bb-queue-item${isActionable ? ' bb-queue-problem' : ''}">
             <span class="bb-queue-icon">${icon}</span>
             <div class="bb-queue-info">
                 <div class="bb-queue-title">${esc(item.title)}${item.epCount > 1 ? ` <span class="bb-queue-epcnt">${item.epCount} ep</span>` : ''}</div>
-                <div class="bb-queue-meta${statusCls ? ' bb-s-' + statusCls : ''}">${displayLabel}${item.sizeMb > 0 ? ' · ' + _fmtMb(item.sizeMb) : ''}</div>
+                <div class="bb-queue-meta${metaCls}">${displayLabel}${item.sizeMb > 0 ? ' · ' + _fmtMb(item.sizeMb) : ''}${speedStr}${seedStr}</div>
                 ${item.message ? `<div class="bb-queue-msg">${esc(item.message)}</div>` : ''}
             </div>
             ${isActionable
