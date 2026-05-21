@@ -403,7 +403,8 @@ ENERGY_ENTITIES = {
         'label':  'Plug Sala',
     },
 }
-TARIFF_EUR_KWH = 0.2228  # ERSE 2026 simple tariff incl. taxes
+TARIFF_EUR_KWH   = 0.2228  # ERSE 2026 simple tariff incl. taxes
+ENERGIA_API_URL  = 'http://192.168.1.100:8090'
 SERVER_WATTS   = 18.0    # HP i5-4210U average idle draw (estimated)
 
 
@@ -447,6 +448,15 @@ def _parse_eredes_xlsx(fileobj):
     }
 
 
+@app.route('/api/energy/analysis')
+def energy_analysis():
+    try:
+        with urllib.request.urlopen(f'{ENERGIA_API_URL}/analysis', timeout=8) as r:
+            return jsonify(json.loads(r.read()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 @app.route('/api/energy/eredes-upload', methods=['POST'])
 def eredes_upload():
     if 'file' not in request.files:
@@ -455,10 +465,20 @@ def eredes_upload():
     if not f.filename.lower().endswith('.xlsx'):
         return jsonify({'error': 'xlsx only'}), 400
     try:
-        result = _parse_eredes_xlsx(f)
-        with open(EREDES_FILE, 'w') as fp:
-            json.dump(result, fp)
-        return jsonify({'ok': True, 'days': len(result['daily']), 'months': len(result['monthly'])})
+        import urllib.error
+        data = f.read()
+        boundary = b'----boundary'
+        body = (b'--' + boundary + b'\r\nContent-Disposition: form-data; name="file"; filename="eredes.xlsx"\r\n'
+                b'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n'
+                + data + b'\r\n--' + boundary + b'--\r\n')
+        req = urllib.request.Request(
+            f'{ENERGIA_API_URL}/upload/eredes',
+            data=body,
+            headers={'Content-Type': f'multipart/form-data; boundary=----boundary'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return jsonify(json.loads(r.read()))
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

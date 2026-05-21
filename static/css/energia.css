@@ -157,3 +157,85 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+/* ── Trend chart ─────────────────────────────────────────────────────────── */
+.trend-card {
+  margin-top: 1.2rem;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+}
+.trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.8rem;
+}
+.trend-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.trend-legend {
+  display: flex;
+  gap: 0.8rem;
+  font-size: 0.65rem;
+}
+.trend-legend-kwh  { color: #4fc3f7; }
+.trend-legend-cost { color: #f0b429; }
+
+.trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.trend-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+.trend-month {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+.trend-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.trend-bar {
+  height: 6px;
+  border-radius: 3px;
+  min-width: 2px;
+}
+.trend-bar-kwh  { background: #4fc3f7; }
+.trend-bar-cost { background: #f0b429; }
+.trend-bar-none {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 6px;
+}
+.trend-vals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 4.5rem;
+}
+.trend-kwh {
+  font-size: 0.65rem;
+  color: #4fc3f7;
+}
+.trend-cost {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #f0b429;
+}
+.trend-cost-none { color: var(--text-muted); font-weight: 400; }
+.trend-eff {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}

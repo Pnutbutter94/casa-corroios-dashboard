@@ -6,6 +6,19 @@ export async function fetchEnergy() {
   return r.json();
 }
 
+export async function fetchAnalysis() {
+  const r = await fetch('/api/energy/analysis');
+  if (!r.ok) return null;
+  return r.json();
+}
+
+const MONTH_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+function _monthLabel(m) {
+  const [y, mo] = m.split('-');
+  return `${MONTH_PT[parseInt(mo) - 1]} ${y.slice(2)}`;
+}
+
 function _eredesCard(er) {
   const hasToday = er.today_kwh > 0;
   const kwh   = hasToday ? er.today_kwh  : er.yesterday_kwh;
@@ -65,6 +78,54 @@ function _noEredesCard() {
     </div>`;
 }
 
+function _trendChart(analysis) {
+  if (!analysis || !analysis.monthly) return '';
+
+  const rows = analysis.monthly.filter(m => m.bill_eur || m.kwh);
+  if (!rows.length) return '';
+
+  const maxKwh  = Math.max(...rows.map(r => r.kwh  || 0), 1);
+  const maxCost = Math.max(...rows.map(r => r.bill_eur || 0), 1);
+
+  const rowsHtml = rows.map(r => {
+    const kwhPct  = r.kwh      ? Math.round(r.kwh      / maxKwh  * 100) : 0;
+    const costPct = r.bill_eur ? Math.round(r.bill_eur / maxCost * 100) : 0;
+    const effRate = (r.kwh && r.bill_eur)
+      ? `<span class="trend-eff">${(r.bill_eur / r.kwh).toFixed(3)} €/kWh</span>`
+      : '';
+    const kwhBar  = r.kwh
+      ? `<div class="trend-bar trend-bar-kwh" style="width:${kwhPct}%"></div>`
+      : `<div class="trend-bar-none">sem leitura</div>`;
+    const costVal = r.bill_eur
+      ? `<span class="trend-cost">${r.bill_eur.toFixed(2)} €</span>`
+      : `<span class="trend-cost trend-cost-none">—</span>`;
+    const kwhVal  = r.kwh
+      ? `<span class="trend-kwh">${r.kwh.toFixed(0)} kWh</span>`
+      : '';
+    return `
+      <div class="trend-row">
+        <span class="trend-month">${_monthLabel(r.month)}</span>
+        <div class="trend-bars">
+          ${kwhBar}
+          <div class="trend-bar trend-bar-cost" style="width:${costPct}%"></div>
+        </div>
+        <div class="trend-vals">${kwhVal}${costVal}${effRate}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="trend-card">
+      <div class="trend-header">
+        <span class="trend-title">Histórico — Faturas de Luz</span>
+        <div class="trend-legend">
+          <span class="trend-legend-kwh">■ kWh</span>
+          <span class="trend-legend-cost">■ €</span>
+        </div>
+      </div>
+      <div class="trend-list">${rowsHtml}</div>
+    </div>`;
+}
+
 function _wireUpload(el, onSuccess) {
   const input = el.querySelector('.eredes-file-input');
   if (!input) return;
@@ -79,7 +140,7 @@ function _wireUpload(el, onSuccess) {
       const r = await fetch('/api/energy/eredes-upload', { method: 'POST', body: fd });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Erro');
-      onSuccess(`${j.days} dias importados`);
+      onSuccess(`${j.days ?? '?'} dias importados`);
     } catch (e) {
       alert('Erro ao importar: ' + e.message);
       btn.textContent = 'Actualizar';
@@ -94,7 +155,6 @@ export function renderEnergia(data, el, onEredesUpload) {
   }
 
   const { devices, totals, rate_per_kwh, eredes } = data;
-
   const eredesHtml = eredes ? _eredesCard(eredes) : _noEredesCard();
 
   const rows = devices.map(d => `
@@ -144,9 +204,14 @@ export function renderEnergia(data, el, onEredesUpload) {
         <span class="energia-total-cost">${totals.month_cost.toFixed(2)} €</span>
       </div>
     </div>
+    <div id="energia-trend-placeholder"></div>
   `;
 
-  _wireUpload(el, (msg) => {
-    if (onEredesUpload) onEredesUpload(msg);
-  });
+  _wireUpload(el, (msg) => { if (onEredesUpload) onEredesUpload(msg); });
+}
+
+export function renderTrend(analysis, el) {
+  const placeholder = el.querySelector('#energia-trend-placeholder');
+  if (!placeholder) return;
+  placeholder.innerHTML = _trendChart(analysis);
 }
