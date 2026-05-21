@@ -21,6 +21,7 @@ import {
 import {
   bb, initBlockbuster, renderBlockbuster, bindBlockbuster,
 } from './widgets/blockbuster.js';
+import { fetchEnergy, renderEnergia } from './widgets/energia.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -29,10 +30,11 @@ let coloredCounts     = {};
 let whiteCounts       = {};
 const plannerMode     = { white: false }; // object so ref survives re-binds
 let maintenanceData   = {};
-let refeicInitialised = false;
-let listaInitialised  = false;
-let iotInitialised    = false;
-let bbInitialised     = false;
+let refeicInitialised   = false;
+let listaInitialised    = false;
+let iotInitialised      = false;
+let bbInitialised       = false;
+let energiaInitialised  = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -119,6 +121,14 @@ function initTabs() {
         bbInitialised = true;
         await initBlockbuster();
         refreshBlockbuster();
+      } else if (activeTab === 'energia' && !energiaInitialised) {
+        energiaInitialised = true;
+        const el = document.getElementById('energia-card');
+        fetchEnergy().then(d => renderEnergia(d, el)).catch(() => renderEnergia(null, el));
+        setInterval(() => {
+          if (activeTab !== 'energia') return;
+          fetchEnergy().then(d => renderEnergia(d, el)).catch(() => {});
+        }, 60_000);
       }
     });
   });
@@ -263,6 +273,13 @@ function render(data) {
     <!-- BLOCKBUSTER TAB -->
     <div class="tab-page ${activeTab === 'blockbuster' ? 'active' : ''}" id="tab-blockbuster">
       <div class="card fade-in" id="blockbuster-card">
+        <div class="loading"><div class="spinner"></div> A carregar...</div>
+      </div>
+    </div>
+
+    <!-- ENERGIA TAB -->
+    <div class="tab-page ${activeTab === 'energia' ? 'active' : ''}" id="tab-energia">
+      <div class="card fade-in" id="energia-card">
         <div class="loading"><div class="spinner"></div> A carregar...</div>
       </div>
     </div>

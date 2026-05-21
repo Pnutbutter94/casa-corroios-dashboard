@@ -388,6 +388,90 @@ def _ha_request(path, data=None):
         return json.loads(r.read())
 
 
+ENERGY_ENTITIES = {
+    'termoacumulador': {
+        'power':  'sensor.termoacumulador_current_power',
+        'today':  'sensor.termoacumulador_today_energy',
+        'month':  'sensor.termoacumulador_month_energy',
+        'label':  'Termoacumulador',
+    },
+    'plug_sala': {
+        'power':  'sensor.plug_sala_current_power',
+        'today':  'sensor.plug_sala_today_energy',
+        'month':  'sensor.plug_sala_month_energy',
+        'label':  'Plug Sala',
+    },
+}
+TARIFF_EUR_KWH = 0.2228  # ERSE 2026 simple tariff incl. taxes
+SERVER_WATTS   = 18.0    # HP i5-4210U average idle draw (estimated)
+
+
+@app.route('/api/energy/costs')
+def energy_costs():
+    try:
+        all_states = _ha_request('/api/states')
+        state_map = {s['entity_id']: s for s in all_states}
+
+        def _val(entity_id):
+            s = state_map.get(entity_id, {})
+            try:
+                return float(s.get('state', 0))
+            except (ValueError, TypeError):
+                return 0.0
+
+        now = datetime.datetime.now()
+        hours_today = now.hour + now.minute / 60
+        days_elapsed = now.day - 1 + hours_today / 24
+
+        devices = []
+        total_today = 0.0
+        total_month = 0.0
+
+        for key, cfg in ENERGY_ENTITIES.items():
+            today_kwh = _val(cfg['today'])
+            month_kwh = _val(cfg['month'])
+            current_w = _val(cfg['power'])
+            devices.append({
+                'label':      cfg['label'],
+                'current_w':  round(current_w, 1),
+                'today_kwh':  round(today_kwh, 3),
+                'month_kwh':  round(month_kwh, 3),
+                'today_cost': round(today_kwh * TARIFF_EUR_KWH, 2),
+                'month_cost': round(month_kwh * TARIFF_EUR_KWH, 2),
+                'estimated':  False,
+            })
+            total_today += today_kwh
+            total_month += month_kwh
+
+        # Casaserver estimate
+        srv_today = round(SERVER_WATTS * hours_today / 1000, 3)
+        srv_month = round(SERVER_WATTS * 24 * days_elapsed / 1000, 3)
+        devices.append({
+            'label':      'Servidor',
+            'current_w':  SERVER_WATTS,
+            'today_kwh':  srv_today,
+            'month_kwh':  srv_month,
+            'today_cost': round(srv_today * TARIFF_EUR_KWH, 2),
+            'month_cost': round(srv_month * TARIFF_EUR_KWH, 2),
+            'estimated':  True,
+        })
+        total_today += srv_today
+        total_month += srv_month
+
+        return jsonify({
+            'rate_per_kwh': TARIFF_EUR_KWH,
+            'devices': devices,
+            'totals': {
+                'today_kwh':  round(total_today, 3),
+                'month_kwh':  round(total_month, 3),
+                'today_cost': round(total_today * TARIFF_EUR_KWH, 2),
+                'month_cost': round(total_month * TARIFF_EUR_KWH, 2),
+            },
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 @app.route('/api/iot/states')
 def iot_states():
     try:
