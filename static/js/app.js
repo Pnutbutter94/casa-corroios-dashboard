@@ -35,6 +35,7 @@ let listaInitialised    = false;
 let iotInitialised      = false;
 let bbInitialised       = false;
 let energiaInitialised  = false;
+let refreshEnergia      = null;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -124,10 +125,12 @@ function initTabs() {
       } else if (activeTab === 'energia' && !energiaInitialised) {
         energiaInitialised = true;
         const el = document.getElementById('energia-card');
-        const refreshEnergia = () =>
-          fetchEnergy().then(d => renderEnergia(d, el, refreshEnergia)).catch(() => renderEnergia(null, el));
+        refreshEnergia = () =>
+          fetchEnergy()
+            .then(d => renderEnergia(d, el, refreshEnergia))
+            .then(() => fetchAnalysis().then(a => renderTrend(a, el)).catch(() => {}))
+            .catch(() => renderEnergia(null, el));
         refreshEnergia();
-        fetchAnalysis().then(a => renderTrend(a, el)).catch(() => {});
         setInterval(() => { if (activeTab === 'energia') refreshEnergia(); }, 60_000);
       }
     });
@@ -300,6 +303,9 @@ function render(data) {
   }
   if (activeTab === 'blockbuster' && bbInitialised) {
     refreshBlockbuster();
+  }
+  if (activeTab === 'energia' && energiaInitialised && refreshEnergia) {
+    refreshEnergia();
   }
 
   bindWeatherHourly(data);
