@@ -21,6 +21,7 @@ INV_FILE   = os.path.join(BASE_DIR, 'cache', 'inventory.json')
 PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
 SHOP_FILE  = os.path.join(BASE_DIR, 'cache', 'shopping.json')
 RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
+EREDES_FILE  = os.path.join(DATA_DIR, 'energia_eredes.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
 ALLOWED_INV_FIELDS     = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
@@ -406,6 +407,62 @@ TARIFF_EUR_KWH = 0.2228  # ERSE 2026 simple tariff incl. taxes
 SERVER_WATTS   = 18.0    # HP i5-4210U average idle draw (estimated)
 
 
+def _parse_eredes_xlsx(fileobj):
+    try:
+        import openpyxl
+    except ImportError:
+        raise RuntimeError('openpyxl not installed — run: pip install openpyxl')
+    import io
+    raw = fileobj.read() if hasattr(fileobj, 'read') else fileobj
+    wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True, read_only=True)
+    ws = wb.active
+    meta, daily, header_done, last_row = {}, {}, False, None
+    for row in ws.iter_rows(values_only=True):
+        if not header_done:
+            if row and row[0] == 'CPE':
+                meta['cpe'] = row[1] or ''
+            elif row and row[0] == 'Contador':
+                header_done = True
+            continue
+        if not row or row[1] is None or row[3] is None:
+            continue
+        meter, date_str, time_str, power_kw = row[0], row[1], row[2], row[3]
+        if not meta.get('meter'):
+            meta['meter'] = str(meter or '')
+        date_key = str(date_str).replace('/', '-')
+        daily[date_key] = daily.get(date_key, 0.0) + float(power_kw) * 0.25
+        last_row = (date_str, time_str, power_kw)
+    monthly = {}
+    for date_key, kwh in daily.items():
+        mk = date_key[:7]
+        monthly[mk] = monthly.get(mk, 0.0) + kwh
+    return {
+        'cpe':     meta.get('cpe', ''),
+        'meter':   meta.get('meter', ''),
+        'updated': str(last_row[0]).replace('/', '-') if last_row else '',
+        'last_ts': f"{str(last_row[0]).replace('/', '-')} {last_row[1]}" if last_row else '',
+        'last_w':  round(float(last_row[2]) * 1000, 1) if last_row else 0.0,
+        'daily':   {k: round(v, 3) for k, v in daily.items()},
+        'monthly': {k: round(v, 2) for k, v in monthly.items()},
+    }
+
+
+@app.route('/api/energy/eredes-upload', methods=['POST'])
+def eredes_upload():
+    if 'file' not in request.files:
+        return jsonify({'error': 'no file'}), 400
+    f = request.files['file']
+    if not f.filename.lower().endswith('.xlsx'):
+        return jsonify({'error': 'xlsx only'}), 400
+    try:
+        result = _parse_eredes_xlsx(f)
+        with open(EREDES_FILE, 'w') as fp:
+            json.dump(result, fp)
+        return jsonify({'ok': True, 'days': len(result['daily']), 'months': len(result['monthly'])})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/energy/costs')
 def energy_costs():
     try:
@@ -458,8 +515,32 @@ def energy_costs():
         total_today += srv_today
         total_month += srv_month
 
+        eredes_out = None
+        try:
+            with open(EREDES_FILE) as ef:
+                er = json.load(ef)
+            today_str = now.date().isoformat()
+            yest_str  = (now.date() - datetime.timedelta(days=1)).isoformat()
+            month_str = today_str[:7]
+            today_kwh = round(er['daily'].get(today_str, 0.0), 3)
+            yest_kwh  = round(er['daily'].get(yest_str, 0.0), 3)
+            eredes_out = {
+                'today_kwh':     today_kwh,
+                'today_cost':    round(today_kwh * TARIFF_EUR_KWH, 2),
+                'yesterday_kwh': yest_kwh,
+                'yesterday_cost':round(yest_kwh * TARIFF_EUR_KWH, 2),
+                'month_kwh':     round(er['monthly'].get(month_str, 0.0), 2),
+                'month_cost':    round(er['monthly'].get(month_str, 0.0) * TARIFF_EUR_KWH, 2),
+                'last_w':        er.get('last_w', 0.0),
+                'last_ts':       er.get('last_ts', ''),
+                'updated':       er.get('updated', ''),
+            }
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            pass
+
         return jsonify({
             'rate_per_kwh': TARIFF_EUR_KWH,
+            'eredes': eredes_out,
             'devices': devices,
             'totals': {
                 'today_kwh':  round(total_today, 3),

@@ -102,3 +102,58 @@
   text-align: center;
   padding: 2rem;
 }
+
+.eredes-card {
+  background: var(--surface-2, rgba(255,255,255,0.05));
+  border: 1px solid rgba(240,180,41,0.25);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.2rem;
+}
+.eredes-card-empty {
+  border-style: dashed;
+  opacity: 0.7;
+}
+.eredes-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.7rem;
+  flex-wrap: wrap;
+}
+.eredes-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+.eredes-updated {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.eredes-upload-btn {
+  font-size: 0.68rem;
+  color: #f0b429;
+  border: 1px solid rgba(240,180,41,0.4);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.eredes-upload-btn:hover {
+  background: rgba(240,180,41,0.1);
+}
+.eredes-card-body {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.eredes-card-body .energia-stat {
+  flex: 1;
+  min-width: 60px;
+}
+.eredes-empty-msg {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}

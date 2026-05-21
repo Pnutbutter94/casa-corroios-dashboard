@@ -124,11 +124,10 @@ function initTabs() {
       } else if (activeTab === 'energia' && !energiaInitialised) {
         energiaInitialised = true;
         const el = document.getElementById('energia-card');
-        fetchEnergy().then(d => renderEnergia(d, el)).catch(() => renderEnergia(null, el));
-        setInterval(() => {
-          if (activeTab !== 'energia') return;
-          fetchEnergy().then(d => renderEnergia(d, el)).catch(() => {});
-        }, 60_000);
+        const refreshEnergia = () =>
+          fetchEnergy().then(d => renderEnergia(d, el, refreshEnergia)).catch(() => renderEnergia(null, el));
+        refreshEnergia();
+        setInterval(() => { if (activeTab === 'energia') refreshEnergia(); }, 60_000);
       }
     });
   });
