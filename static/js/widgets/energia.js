@@ -78,6 +78,13 @@ function _noEredesCard() {
     </div>`;
 }
 
+function _supplierPills(suppliers) {
+  if (!suppliers || Object.keys(suppliers).length <= 1) return '';
+  return Object.entries(suppliers)
+    .map(([name, eur]) => `<span class="trend-supplier-pill">${esc(name)} ${eur.toFixed(2)}€</span>`)
+    .join('');
+}
+
 function _trendChart(analysis) {
   if (!analysis || !analysis.monthly) return '';
 
@@ -108,6 +115,10 @@ function _trendChart(analysis) {
     const kwhVal  = r.kwh
       ? `<span class="trend-kwh">${r.kwh.toFixed(0)} kWh</span>`
       : '';
+    const potencia = r.potencia_kva
+      ? `<span class="trend-potencia">${r.potencia_kva} kVA</span>`
+      : '';
+    const supplierPills = _supplierPills(r.suppliers);
     return `
       <div class="trend-row${partial ? ' trend-row-partial' : ''}">
         <span class="trend-month">${_monthLabel(r.month)}</span>
@@ -115,7 +126,7 @@ function _trendChart(analysis) {
           ${kwhBar}
           <div class="trend-bar trend-bar-cost" style="width:${costPct}%"></div>
         </div>
-        <div class="trend-vals">${kwhVal}${costVal}${effRate}${partialBadge}</div>
+        <div class="trend-vals">${kwhVal}${costVal}${effRate}${potencia}${partialBadge}${supplierPills}</div>
       </div>`;
   }).join('');
 
@@ -235,10 +246,35 @@ export async function fetchProfile() {
   return r.json();
 }
 
+export async function fetchHourlyDate(date) {
+  const r = await fetch(`/api/energy/hourly?date=${date}`);
+  if (!r.ok) return null;
+  return r.json();
+}
+
 export function renderDailyCharts(daily, profile, el) {
   const ph = el.querySelector('#energia-daily-placeholder');
   if (!ph) return;
   ph.innerHTML = _dailyChart(daily) + _profileChart(profile);
+  _wireHourlyPicker(ph);
+}
+
+function _wireHourlyPicker(container) {
+  const input = container.querySelector('#eredes-date-input');
+  const resultEl = container.querySelector('#eredes-hourly-result');
+  if (!input || !resultEl) return;
+
+  async function loadDate(date) {
+    resultEl.textContent = 'A carregar…';
+    const data = await fetchHourlyDate(date).catch(() => null);
+    if (!data || !data.hourly) {
+      resultEl.innerHTML = '<span class="energia-error" style="padding:0.5rem">Sem dados para essa data.</span>';
+      return;
+    }
+    resultEl.innerHTML = _hourlyChart(data.date, data.hourly);
+  }
+
+  input.addEventListener('change', () => { if (input.value) loadDate(input.value); });
 }
 
 const DOW_PT  = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
@@ -274,6 +310,26 @@ function _dailyChart(rows) {
         <span class="dchart-avg">média ${avg.toFixed(1)} kWh/dia</span>
       </div>
       <div class="dchart-list">${barsHtml}</div>
+    </div>`;
+}
+
+function _hourlyChart(date, hourly) {
+  const maxH = Math.max(...hourly, 0.01);
+  const total = hourly.reduce((s, v) => s + v, 0);
+  const barsHtml = hourly.map((v, h) => {
+    const pct = Math.max(2, Math.round(v / maxH * 100));
+    const isPeak = h >= 8 && h < 22;
+    return `<div class="hchart-col">
+      <div class="hchart-bar-wrap">
+        <div class="hchart-bar${isPeak ? ' hchart-bar-peak' : ''}" style="height:${pct}%" title="${v.toFixed(3)} kWh"></div>
+      </div>
+      ${h % 6 === 0 ? `<span class="hchart-label">${String(h).padStart(2,'0')}h</span>` : '<span class="hchart-label"></span>'}
+    </div>`;
+  }).join('');
+  return `
+    <div class="profile-section">
+      <span class="profile-sub">Consumo hora a hora — ${esc(date)} (total ${total.toFixed(2)} kWh)</span>
+      <div class="hchart">${barsHtml}</div>
     </div>`;
 }
 
@@ -317,5 +373,9 @@ function _profileChart(profile) {
         <span class="profile-sub">Dia da semana (média kWh/dia)</span>
         <div class="dowchart">${dowHtml}</div>
       </div>
+      <div class="profile-section eredes-date-picker">
+        <span class="profile-sub">Ver dia específico</span>
+        <input type="date" id="eredes-date-input" class="eredes-date-input">
+        <div id="eredes-hourly-result"></div>
+      </div>
     </div>`;
-}

@@ -258,6 +258,32 @@
   padding: 1px 4px;
   font-style: italic;
 }
+.trend-potencia {
+  font-size: 0.6rem;
+  color: #81d4fa;
+}
+.trend-supplier-pill {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+/* ── Date picker for hourly breakdown ───────────────────────────── */
+.eredes-date-picker { margin-top: 6px; }
+.eredes-date-input {
+  font-size: 0.72rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+#eredes-hourly-result { min-height: 0; }
 
 /* ── Daily consumption chart ────────────────────────────────────── */
 .dchart-list { display: flex; flex-direction: column; gap: 2px; }

@@ -476,6 +476,16 @@ def energy_profile():
         return jsonify({'error': str(e)}), 502
 
 
+@app.route('/api/energy/hourly')
+def energy_hourly():
+    date_str = request.args.get('date', '')
+    try:
+        with urllib.request.urlopen(f'{ENERGIA_API_URL}/hourly?date={date_str}', timeout=8) as r:
+            return jsonify(json.loads(r.read()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 @app.route('/api/energy/eredes-upload', methods=['POST'])
 def eredes_upload():
     if 'file' not in request.files:
