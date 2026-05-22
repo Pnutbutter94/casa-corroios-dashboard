@@ -90,11 +90,17 @@ function _trendChart(analysis) {
   const rowsHtml = rows.map(r => {
     const kwhPct  = r.kwh      ? Math.round(r.kwh      / maxKwh  * 100) : 0;
     const costPct = r.bill_eur ? Math.round(r.bill_eur / maxCost * 100) : 0;
-    const effRate = (r.kwh && r.bill_eur)
-      ? `<span class="trend-eff">${(r.bill_eur / r.kwh).toFixed(3)} €/kWh</span>`
+    const rate    = (r.kwh && r.bill_eur) ? r.bill_eur / r.kwh : null;
+    // flag months where rate is anomalously low (< 0.15 €/kWh) — indicates partial billing period
+    const partial = rate !== null && rate < 0.15;
+    const effRate = rate !== null
+      ? `<span class="trend-eff${partial ? ' trend-eff-partial' : ''}">${rate.toFixed(3)} €/kWh</span>`
+      : '';
+    const partialBadge = partial
+      ? `<span class="trend-partial-badge">período parcial</span>`
       : '';
     const kwhBar  = r.kwh
-      ? `<div class="trend-bar trend-bar-kwh" style="width:${kwhPct}%"></div>`
+      ? `<div class="trend-bar trend-bar-kwh${partial ? ' trend-bar-partial' : ''}" style="width:${kwhPct}%"></div>`
       : `<div class="trend-bar-none">sem leitura</div>`;
     const costVal = r.bill_eur
       ? `<span class="trend-cost">${r.bill_eur.toFixed(2)} €</span>`
@@ -103,13 +109,13 @@ function _trendChart(analysis) {
       ? `<span class="trend-kwh">${r.kwh.toFixed(0)} kWh</span>`
       : '';
     return `
-      <div class="trend-row">
+      <div class="trend-row${partial ? ' trend-row-partial' : ''}">
         <span class="trend-month">${_monthLabel(r.month)}</span>
         <div class="trend-bars">
           ${kwhBar}
           <div class="trend-bar trend-bar-cost" style="width:${costPct}%"></div>
         </div>
-        <div class="trend-vals">${kwhVal}${costVal}${effRate}</div>
+        <div class="trend-vals">${kwhVal}${costVal}${effRate}${partialBadge}</div>
       </div>`;
   }).join('');
 

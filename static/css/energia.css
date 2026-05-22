@@ -239,3 +239,22 @@
   font-size: 0.6rem;
   color: var(--text-muted);
 }
+.trend-row-partial {
+  opacity: 0.8;
+}
+.trend-bar-partial {
+  background: #f59e0b !important;
+  opacity: 0.6;
+}
+.trend-eff-partial {
+  color: #f59e0b;
+}
+.trend-partial-badge {
+  font-size: 0.55rem;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-style: italic;
+}
