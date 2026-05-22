@@ -379,3 +379,4 @@ function _profileChart(profile) {
         <div id="eredes-hourly-result"></div>
       </div>
     </div>`;
+}
