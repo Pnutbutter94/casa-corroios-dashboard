@@ -457,6 +457,25 @@ def energy_analysis():
         return jsonify({'error': str(e)}), 502
 
 
+@app.route('/api/energy/daily')
+def energy_daily():
+    days = request.args.get('days', '30')
+    try:
+        with urllib.request.urlopen(f'{ENERGIA_API_URL}/daily?days={days}', timeout=8) as r:
+            return jsonify(json.loads(r.read()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/energy/profile')
+def energy_profile():
+    try:
+        with urllib.request.urlopen(f'{ENERGIA_API_URL}/profile', timeout=8) as r:
+            return jsonify(json.loads(r.read()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 @app.route('/api/energy/eredes-upload', methods=['POST'])
 def eredes_upload():
     if 'file' not in request.files:

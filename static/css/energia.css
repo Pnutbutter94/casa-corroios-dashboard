@@ -258,3 +258,64 @@
   padding: 1px 4px;
   font-style: italic;
 }
+
+/* ── Daily consumption chart ────────────────────────────────────── */
+.dchart-list { display: flex; flex-direction: column; gap: 2px; }
+.dchart-avg  { font-size: 0.65rem; color: var(--text-muted); }
+.dchart-row  {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr 4rem;
+  align-items: center;
+  gap: 6px;
+}
+.dchart-label { font-size: 0.6rem; color: var(--text-muted); text-align: right; }
+.dchart-bar-wrap { height: 8px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+.dchart-bar {
+  height: 100%;
+  background: #4fc3f7;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.dchart-bar-wkd  { background: #9575cd; }
+.dchart-bar-none { background: rgba(255,255,255,0.08); }
+.dchart-val      { font-size: 0.6rem; color: var(--text-dim, #aaa); text-align: right; }
+.dchart-val-none { color: var(--text-muted); }
+
+/* ── Hourly + DOW profile charts ────────────────────────────────── */
+.profile-section { margin-top: 10px; }
+.profile-sub     { font-size: 0.6rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+
+.hchart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 60px;
+}
+.hchart-col      { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; }
+.hchart-bar-wrap { flex: 1; display: flex; align-items: flex-end; width: 100%; }
+.hchart-bar {
+  width: 100%;
+  background: rgba(79, 195, 247, 0.4);
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+.hchart-bar-peak { background: #f59e0b; opacity: 0.8; }
+.hchart-label    { font-size: 0.5rem; color: var(--text-muted); margin-top: 2px; min-height: 0.6rem; }
+
+.dowchart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 60px;
+}
+.dowchart-col      { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; }
+.dowchart-bar-wrap { flex: 1; display: flex; align-items: flex-end; width: 100%; }
+.dowchart-bar {
+  width: 100%;
+  background: #4fc3f7;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+.dowchart-bar-wkd { background: #9575cd; }
+.dowchart-label   { font-size: 0.58rem; color: var(--text-muted); margin-top: 2px; }
+.dowchart-val     { font-size: 0.5rem; color: var(--text-dim, #aaa); }

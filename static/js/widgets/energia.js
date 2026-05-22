@@ -211,6 +211,7 @@ export function renderEnergia(data, el, onEredesUpload) {
       </div>
     </div>
     <div id="energia-trend-placeholder"></div>
+    <div id="energia-daily-placeholder"></div>
   `;
 
   _wireUpload(el, (msg) => { if (onEredesUpload) onEredesUpload(msg); });
@@ -220,4 +221,101 @@ export function renderTrend(analysis, el) {
   const placeholder = el.querySelector('#energia-trend-placeholder');
   if (!placeholder) return;
   placeholder.innerHTML = _trendChart(analysis);
+}
+
+export async function fetchDailyHistory(days = 30) {
+  const r = await fetch(`/api/energy/daily?days=${days}`);
+  if (!r.ok) return null;
+  return r.json();
+}
+
+export async function fetchProfile() {
+  const r = await fetch('/api/energy/profile');
+  if (!r.ok) return null;
+  return r.json();
+}
+
+export function renderDailyCharts(daily, profile, el) {
+  const ph = el.querySelector('#energia-daily-placeholder');
+  if (!ph) return;
+  ph.innerHTML = _dailyChart(daily) + _profileChart(profile);
+}
+
+const DOW_PT  = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const DOW_END = ['dom','seg','ter','qua','qui','sex','sáb']; // JS getDay: 0=Sun
+
+function _dailyChart(rows) {
+  if (!rows || !rows.length) return '';
+  const maxKwh = Math.max(...rows.map(r => r.kwh || 0), 1);
+  const barsHtml = rows.map(r => {
+    const d     = new Date(r.date + 'T12:00:00');
+    const label = `${d.getDate()} ${MONTH_PT[d.getMonth()]}`;
+    const isWkd = r.dow >= 5;
+    if (r.kwh === null) {
+      return `<div class="dchart-row">
+        <span class="dchart-label">${label}</span>
+        <div class="dchart-bar-wrap"><div class="dchart-bar dchart-bar-none" style="width:2%"></div></div>
+        <span class="dchart-val dchart-val-none">—</span>
+      </div>`;
+    }
+    const pct = Math.max(2, Math.round(r.kwh / maxKwh * 100));
+    return `<div class="dchart-row">
+      <span class="dchart-label">${label}</span>
+      <div class="dchart-bar-wrap"><div class="dchart-bar${isWkd ? ' dchart-bar-wkd' : ''}" style="width:${pct}%"></div></div>
+      <span class="dchart-val">${r.kwh.toFixed(1)} kWh</span>
+    </div>`;
+  }).join('');
+
+  const avg = rows.filter(r => r.kwh).reduce((s, r) => s + r.kwh, 0) / (rows.filter(r => r.kwh).length || 1);
+  return `
+    <div class="trend-card">
+      <div class="trend-header">
+        <span class="trend-title">Consumo Diário — E-REDES</span>
+        <span class="dchart-avg">média ${avg.toFixed(1)} kWh/dia</span>
+      </div>
+      <div class="dchart-list">${barsHtml}</div>
+    </div>`;
+}
+
+function _profileChart(profile) {
+  if (!profile) return '';
+  const { hourly, dow } = profile;
+
+  const maxH = Math.max(...hourly, 1);
+  const hoursHtml = hourly.map((v, h) => {
+    const pct = Math.max(2, Math.round(v / maxH * 100));
+    const isPeak = h >= 8 && h < 22;
+    return `<div class="hchart-col">
+      <div class="hchart-bar-wrap">
+        <div class="hchart-bar${isPeak ? ' hchart-bar-peak' : ''}" style="height:${pct}%"></div>
+      </div>
+      ${h % 6 === 0 ? `<span class="hchart-label">${String(h).padStart(2,'0')}h</span>` : '<span class="hchart-label"></span>'}
+    </div>`;
+  }).join('');
+
+  const maxD = Math.max(...dow, 1);
+  const dowHtml = dow.map((v, i) => {
+    const pct = Math.max(2, Math.round(v / maxD * 100));
+    const isWkd = i >= 5;
+    return `<div class="dowchart-col">
+      <div class="dowchart-bar-wrap">
+        <div class="dowchart-bar${isWkd ? ' dowchart-bar-wkd' : ''}" style="height:${pct}%"></div>
+      </div>
+      <span class="dowchart-label">${DOW_PT[i]}</span>
+      <span class="dowchart-val">${v.toFixed(1)}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="trend-card">
+      <div class="trend-header"><span class="trend-title">Perfil de Consumo</span></div>
+      <div class="profile-section">
+        <span class="profile-sub">Hora a hora (média)</span>
+        <div class="hchart">${hoursHtml}</div>
+      </div>
+      <div class="profile-section">
+        <span class="profile-sub">Dia da semana (média kWh/dia)</span>
+        <div class="dowchart">${dowHtml}</div>
+      </div>
+    </div>`;
 }
