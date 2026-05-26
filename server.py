@@ -29,7 +29,7 @@ ALLOWED_SHOP_FIELDS    = {'checked', 'name', 'quantity', 'unit', 'category', 'pr
 ALLOWED_PRODUCT_FIELDS = {'name', 'category', 'unit', 'defaultQty'}
 
 HA_URL   = 'http://192.168.1.100:8123'
-HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIwNDYzNzQ4OGY4YTM0ODQ2OWYwMTc4NzlkYmQxODNiOSIsImlhdCI6MTc3ODUxMjE4NCwiZXhwIjoyMDkzODcyMTg0fQ.ahU41zLcGCezf5IEzqQJvQoa1q644YnXuBvAZiHLsZs'
+HA_TOKEN = os.environ['HA_TOKEN']
 
 IOT_ENTITIES = frozenset([
     'light.escritorio_ines', 'light.luz_de_entrada', 'light.wiz_rgbw_tunable_877be6',
