@@ -1392,36 +1392,41 @@ def detect_flight(trip_id, leg_id):
     date         = leg.get('date', '')
     today        = datetime.date.today().isoformat()
 
-    # ── AeroDataBox: airport departures (works for future dates) ─────────────
-    if AERODATABOX_KEY:
+    # ── AeroDataBox: /flights/airports/iata/{iata}/{from}/{to} ───────────────
+    if AERODATABOX_KEY and dep_time:
         try:
             dep_h, dep_m = int(dep_time[:2]), int(dep_time[3:5])
-            offset = max(0, dep_h * 60 + dep_m - 60)
-        except Exception:
-            offset = 360
-        try:
-            data       = _adb_get(f'/airports/iata/{dep_iata}/flights/departures',
-                                  {'localDate': date, 'offsetMinutes': offset, 'duration': 180, 'withLeg': 'true'})
-            departures = data.get('departures', data if isinstance(data, list) else [])
+            from_local = f'{date}T{dep_h:02d}:{max(0,dep_m-60):02d}'
+            to_local   = f'{date}T{dep_h:02d}:{min(59,dep_m+60):02d}'
+            # handle hour overflow/underflow
+            from_dt = datetime.datetime.fromisoformat(f'{date}T{dep_time}') - datetime.timedelta(hours=1)
+            to_dt   = datetime.datetime.fromisoformat(f'{date}T{dep_time}') + datetime.timedelta(hours=1)
+            from_local = from_dt.strftime('%Y-%m-%dT%H:%M')
+            to_local   = to_dt.strftime('%Y-%m-%dT%H:%M')
+            dest_iata  = leg.get('to', '').upper()
+            data       = _adb_get(f'/flights/airports/iata/{dep_iata}/{from_local}/{to_local}')
+            departures = data.get('departures', [])
             best = None
             for f in departures:
-                a     = f.get('airline', {})
-                dep   = f.get('departure', {})
-                st    = dep.get('scheduledTime', {})
-                sched = (st.get('local') or st.get('utc') or '') if isinstance(st, dict) else str(st or '')
-                a_ok  = (airline_iata and a.get('iata', '').upper() == airline_iata.upper()) or \
-                        (airline_name and airline_name in (a.get('name') or '').lower())
-                if a_ok and dep_time and dep_time in sched:
+                a    = f.get('airline', {})
+                mov  = f.get('movement', {})
+                sched = (mov.get('scheduledTime') or {}).get('local', '')
+                arr_iata = mov.get('airport', {}).get('iata', '').upper()
+                a_ok = (airline_iata and a.get('iata', '').upper() == airline_iata.upper()) or \
+                       (airline_name and airline_name in (a.get('name') or '').lower())
+                dest_ok = not dest_iata or arr_iata == dest_iata
+                if a_ok and dest_ok and dep_time in sched:
                     best = f; break
             if not best and airline_iata:
                 best = next((f for f in departures
-                             if f.get('airline', {}).get('iata', '').upper() == airline_iata.upper()), None)
+                             if f.get('airline', {}).get('iata', '').upper() == airline_iata.upper()
+                             and (not dest_iata or f.get('movement', {}).get('airport', {}).get('iata', '').upper() == dest_iata)), None)
             if best:
-                flt_num = best.get('number', '')
-                a_code  = best.get('airline', {}).get('iata', '') or airline_iata
-                iata_fn = f'{a_code}{flt_num}' if flt_num and not flt_num.upper().startswith(a_code.upper()) else flt_num
+                raw_num = best.get('number', '')
+                # number is already "U2 7653" — strip spaces and return as-is
+                iata_fn = raw_num.replace(' ', '').upper()
                 if iata_fn:
-                    leg['flight'] = iata_fn.upper()
+                    leg['flight'] = iata_fn
                     _save_trip(trip_id, t)
                     return jsonify({'flight': leg['flight'], 'source': 'aerodatabox'})
         except Exception:
