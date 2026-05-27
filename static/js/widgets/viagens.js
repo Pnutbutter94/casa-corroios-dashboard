@@ -923,7 +923,7 @@ function _renderDay(day, dayData, allPois) {
   const hotel       = activeCity?.hotel;
   const hotelCoords = hotel?.coords;
 
-  // All POIs assigned to this day, in slot order, with coords
+  // All POIs assigned to this day, in slot order, filtered to those with coords
   const dayPois = ['manha','tarde','noite']
     .flatMap(s => (dayData[s] || []))
     .map(item => allPois.find(p => p.id === item.poiId))
@@ -931,11 +931,16 @@ function _renderDay(day, dayData, allPois) {
   const firstGeo = dayPois.find(p => p.coords);
   const lastGeo  = [...dayPois].reverse().find(p => p.coords);
 
-  // Hotel anchor keys for ORS (hotel→first POI and last POI→hotel)
-  // Arrival day already has a check-in block — skip hotel-start anchor there
-  const startKey = (hotelCoords && firstGeo && !isFirst)
+  // Hotel anchor: show whenever hotel has coords
+  // Arrival day: skip top anchor (check-in block already covers departure from airport)
+  // Departure day: skip bottom anchor (heading to airport, not back to hotel)
+  const showStart = hotelCoords && !isFirst;
+  const showEnd   = hotelCoords && !isLast;
+
+  // ORS pills only when there's a geocoded POI to route from/to
+  const startOrs = (showStart && firstGeo)
     ? `${hotelCoords.lat},${hotelCoords.lon},${firstGeo.coords.lat},${firstGeo.coords.lon}` : null;
-  const endKey   = (hotelCoords && lastGeo)
+  const endOrs   = (showEnd && lastGeo)
     ? `${lastGeo.coords.lat},${lastGeo.coords.lon},${hotelCoords.lat},${hotelCoords.lon}` : null;
 
   const _tt = key => key && _travelTimes[key] ? `~${_travelTimes[key]}min 🚶` : '';
@@ -953,9 +958,9 @@ function _renderDay(day, dayData, allPois) {
             <span class="block-label">${esc(b.label)}</span>
           </div>`).join('')}
 
-        ${startKey ? `
+        ${showStart ? `
           <div class="hotel-anchor-block">🏨 ${esc(hotel.name)}</div>
-          <div class="travel-time-pill" data-traveltime="${esc(startKey)}">${_tt(startKey)}</div>
+          ${startOrs ? `<div class="travel-time-pill" data-traveltime="${esc(startOrs)}">${_tt(startOrs)}</div>` : ''}
         ` : ''}
 
         ${SLOTS.map(slot => {
@@ -992,8 +997,8 @@ function _renderDay(day, dayData, allPois) {
             </div>`;
         }).join('')}
 
-        ${endKey ? `
-          <div class="travel-time-pill" data-traveltime="${esc(endKey)}">${_tt(endKey)}</div>
+        ${showEnd ? `
+          ${endOrs ? `<div class="travel-time-pill" data-traveltime="${esc(endOrs)}">${_tt(endOrs)}</div>` : ''}
           <div class="hotel-anchor-block">🏨 ${esc(hotel.name)} · regresso</div>
         ` : ''}
       </div>
