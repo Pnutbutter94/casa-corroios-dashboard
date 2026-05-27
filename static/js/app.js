@@ -331,6 +331,9 @@ function render(data) {
   if (activeTab === 'energia' && energiaInitialised && refreshEnergia) {
     refreshEnergia();
   }
+  if (activeTab === 'viagens' && viagensInitialised) {
+    refreshViagens();
+  }
 
   bindWeatherHourly(data);
 }
