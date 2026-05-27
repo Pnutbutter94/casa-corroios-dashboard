@@ -10,6 +10,10 @@ let _selectorOpen = false;
 let _pollInterval = null;
 let _pollTripId   = null;
 let _travelTimes  = {};  // cache: "lat,lon-lat,lon" → minutes
+let _map          = null;
+let _markersLayer = null;
+let _routeLayer   = null;
+let _mapDay       = null;
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -277,6 +281,13 @@ export function bindViagens(card, refresh) {
 
   // auto-poll on travel day
   _startFlightPolling(refresh);
+
+  // map — destroy stale instance when itinerary re-renders, then reinit
+  if (_view === 'itinerario') {
+    const mapEl = card.querySelector('#viagens-map');
+    if (_map && mapEl && !mapEl._leaflet_id) { _map.remove(); _map = null; _markersLayer = null; _routeLayer = null; }
+    _bindMap(card);
+  }
 
   // ORS travel times — lazy fetch for all placeholder pills
   card.querySelectorAll('[data-traveltime]').forEach(async el => {
@@ -886,10 +897,16 @@ function _renderItinerario() {
     ${days.length>0 ? `
       <div class="itinerary-header">
         <span class="budget-title">Itinerário sugerido</span>
-        <span class="itinerary-hint">Sugerido → toca ✓ para fixar · o hotel aparece como início e fim de cada dia quando identificado</span>
+        <span class="itinerary-hint">Sugerido → toca ✓ para fixar · toca no dia para ver no mapa</span>
       </div>
       <div class="itinerary-days">
         ${days.map(day => _renderDay(day, schedule[day]||{blocks:[],manha:[],tarde:[],noite:[]}, allPois)).join('')}
+      </div>
+
+      <!-- MAP -->
+      <div class="viagens-map-section">
+        <div class="viagens-map-label" id="viagens-map-label"></div>
+        <div id="viagens-map" class="viagens-map-container"></div>
       </div>
     ` : ''}`;
 }
@@ -947,9 +964,10 @@ function _renderDay(day, dayData, allPois) {
 
   return `
     <div class="itinerary-day">
-      <div class="itinerary-day-header">
+      <div class="itinerary-day-header" data-map-day="${day}">
         <span>${DAYS_PT[d.getDay()]}, ${d.getDate()} ${MONTHS_PT[d.getMonth()]}</span>
         ${isFirst?'<span class="day-badge arrival">Chegada</span>':isLast?'<span class="day-badge departure">Partida</span>':''}
+        <span class="day-map-hint">ver no mapa ▾</span>
       </div>
       <div class="itinerary-slots">
         ${blocks.map(b => `
@@ -1428,6 +1446,102 @@ function _startFlightPolling(refresh) {
     _trip = await _api(`/api/trips/${_trip.id}`);
     refresh();
   }, 5 * 60 * 1000);
+}
+
+// ── MAP ─────────────────────────────────────────────────────────────────────
+
+function _bindMap(card) {
+  const container = card.querySelector('#viagens-map');
+  if (!container || typeof L === 'undefined') return;
+
+  const days = _getTripDays(_trip);
+  if (!days.length) return;
+
+  // Default: today if during trip, else first day
+  if (!_mapDay || !days.includes(_mapDay)) {
+    const today = new Date().toISOString().slice(0, 10);
+    _mapDay = days.includes(today) ? today : days[0];
+  }
+
+  // Day header clicks update map without re-render
+  card.querySelectorAll('[data-map-day]').forEach(el => {
+    el.addEventListener('click', () => {
+      _mapDay = el.dataset.mapDay;
+      card.querySelectorAll('[data-map-day]').forEach(d =>
+        d.classList.toggle('map-day-active', d === el));
+      _updateMapLabel(card);
+      _updateMapMarkers();
+    });
+  });
+  card.querySelectorAll('[data-map-day]').forEach(el =>
+    el.classList.toggle('map-day-active', el.dataset.mapDay === _mapDay));
+  _updateMapLabel(card);
+
+  if (!_map) {
+    _map = L.map(container, { scrollWheelZoom: false, tap: true, zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org">OSM</a>',
+      maxZoom: 19,
+    }).addTo(_map);
+  }
+
+  _updateMapMarkers();
+}
+
+function _updateMapLabel(card) {
+  const lbl = card.querySelector('#viagens-map-label');
+  if (!lbl || !_mapDay) return;
+  const d = new Date(_mapDay + 'T12:00:00');
+  lbl.textContent = `${DAYS_PT[d.getDay()]}, ${d.getDate()} ${MONTHS_PT[d.getMonth()]}`;
+}
+
+function _updateMapMarkers() {
+  if (!_map || !_mapDay) return;
+
+  if (!_markersLayer) _markersLayer = L.layerGroup().addTo(_map);
+  else _markersLayer.clearLayers();
+  if (_routeLayer) { _routeLayer.remove(); _routeLayer = null; }
+
+  const city  = _trip.cities.find(c => c.arrival <= _mapDay && _mapDay <= c.departure) || _trip.cities[0];
+  const hotel = city?.hotel;
+  const allPois = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
+  const schedule = _computeAutoRoute(_trip);
+  const dayData  = schedule[_mapDay] || {};
+  const dayPois  = ['manha','tarde','noite']
+    .flatMap(s => (dayData[s]||[]))
+    .map(item => allPois.find(p => p.id === item.poiId))
+    .filter(p => p?.coords);
+
+  const bounds      = [];
+  const routePts    = [];
+
+  if (hotel?.coords) {
+    const ic = L.divIcon({ className:'', html:`<div class="map-pin map-hotel">🏨</div>`, iconSize:[34,34], iconAnchor:[17,34] });
+    L.marker([hotel.coords.lat, hotel.coords.lon], { icon: ic })
+      .bindPopup(`<b>${hotel.name || 'Hotel'}</b>`)
+      .addTo(_markersLayer);
+    bounds.push([hotel.coords.lat, hotel.coords.lon]);
+    routePts.push([hotel.coords.lat, hotel.coords.lon]);
+  }
+
+  dayPois.forEach((p, i) => {
+    const ic = L.divIcon({ className:'', html:`<div class="map-pin map-poi">${i+1}</div>`, iconSize:[30,30], iconAnchor:[15,30] });
+    L.marker([p.coords.lat, p.coords.lon], { icon: ic })
+      .bindPopup(`<b>${p.name}</b>`)
+      .addTo(_markersLayer);
+    bounds.push([p.coords.lat, p.coords.lon]);
+    routePts.push([p.coords.lat, p.coords.lon]);
+  });
+
+  // Close route back to hotel
+  if (hotel?.coords && routePts.length > 1) routePts.push([hotel.coords.lat, hotel.coords.lon]);
+
+  if (routePts.length > 1) {
+    _routeLayer = L.polyline(routePts, { color:'#7c6aff', weight:3, opacity:.7, dashArray:'7 5' }).addTo(_map);
+  }
+
+  if (bounds.length === 1) _map.setView(bounds[0], 15);
+  else if (bounds.length > 1) _map.fitBounds(bounds, { padding:[40,40], maxZoom:16 });
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────

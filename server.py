@@ -106,7 +106,7 @@ def security_headers(response):
         "style-src 'self' 'unsafe-inline'; "
         "font-src 'self'; "
         "connect-src 'self' https://api.open-meteo.com; "
-        "img-src 'self' data:;"
+        "img-src 'self' data: https://*.tile.openstreetmap.org;"
     )
     return response
 
