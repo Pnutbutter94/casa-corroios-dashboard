@@ -1081,10 +1081,28 @@
   font-size: .78rem;
 }
 
-/* ── Hotel edit hint ── */
+/* ── Hotel edit hint + geo status ── */
 .hotel-edit-hint { font-size: .85rem; opacity: .5; }
 .viagens-hotel:hover .hotel-edit-hint { opacity: 1; }
 .viagens-hotel:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 8px; }
+.hotel-geo-ok   { color: #4c8; }
+.hotel-geo-warn { color: #fa0; }
+.hotel-geo-status { font-size: .78rem; margin: .2rem 0 .4rem; min-height: 1rem; }
+.hotel-geo-status.ok   { color: #4c8; }
+.hotel-geo-status.warn { color: #fa0; }
+
+/* ── Section contextual hints ── */
+.section-hint {
+  font-size: .78rem;
+  color: var(--text-dim);
+  margin: .1rem 0 .4rem;
+  line-height: 1.4;
+}
+.btn-hint {
+  font-size: .72rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
 
 /* ── Add leg / add city buttons ── */
 .btn-add-leg, .btn-add-city {

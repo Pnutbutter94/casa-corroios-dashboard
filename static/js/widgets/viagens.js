@@ -377,15 +377,27 @@ function _openNewTripModal(refresh) {
 
 // ── EDITAR HOTEL ───────────────────────────────────────────────────────────
 function _openHotelModal(city, refresh) {
+  const existingName   = city.hotel?.name   || '';
+  const existingCoords = city.hotel?.coords || null;
+  let _pendingCoords   = existingCoords; // updated by background geocode
+
+  const geoLine = existingName && existingCoords
+    ? `<div id="ht-geo" class="hotel-geo-status ok">📍 Localização identificada</div>`
+    : existingName
+      ? `<div id="ht-geo" class="hotel-geo-status warn">📍 A localizar…</div>`
+      : `<div id="ht-geo" class="hotel-geo-status"></div>`;
+
   const overlay = _overlay(`
     <div class="modal-title">Alojamento · ${esc(city.name)} <button class="modal-close" id="mc">✕</button></div>
     <div class="modal-field">
       <label class="modal-label">Nome do hotel / alojamento</label>
-      <input class="modal-input" id="ht-name" placeholder="Hotel Amano, Airbnb Mitte…" value="${esc(city.hotel.name||'')}" />
+      <input class="modal-input" id="ht-name" placeholder="Hotel Amano, Airbnb Mitte…" value="${esc(existingName)}" />
     </div>
+    ${geoLine}
     <label class="modal-check-row">
-      <input type="checkbox" id="ht-conf" ${city.hotel.confirmed?'checked':''} /> Reserva confirmada
+      <input type="checkbox" id="ht-conf" ${city.hotel?.confirmed?'checked':''} /> Reserva confirmada
     </label>
+    <p class="modal-hint" style="margin-top:.5rem">O hotel é usado como ponto de partida e chegada no itinerário diário.</p>
     <div id="ht-err" style="color:var(--danger,#e05);font-size:.85rem;min-height:1.2rem"></div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
@@ -397,29 +409,51 @@ function _openHotelModal(city, refresh) {
   overlay.querySelector('#mcancel').addEventListener('click', close);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
+  // Auto-geocode in background if name exists but no coords yet
+  if (existingName && !existingCoords) {
+    (async () => {
+      const geoEl = overlay.querySelector('#ht-geo');
+      try {
+        const geo = await fetch(
+          `/api/geo/geocode?q=${encodeURIComponent(existingName + ' ' + city.name)}`
+        ).then(r => r.json());
+        if (!overlay.isConnected) return;
+        if (geo.found) {
+          _pendingCoords = { lat: geo.lat, lon: geo.lon };
+          geoEl.className = 'hotel-geo-status ok';
+          geoEl.textContent = `📍 ${geo.display_name.split(',').slice(0,2).join(',')}`;
+        } else {
+          geoEl.className = 'hotel-geo-status warn';
+          geoEl.textContent = '⚠️ Localização não encontrada — verifica o nome';
+        }
+      } catch (_) {
+        if (overlay.isConnected) overlay.querySelector('#ht-geo').textContent = '';
+      }
+    })();
+  }
+
   overlay.querySelector('#msave').addEventListener('click', async () => {
-    const name  = overlay.querySelector('#ht-name').value.trim();
-    const conf  = overlay.querySelector('#ht-conf').checked;
-    const errEl = overlay.querySelector('#ht-err');
+    const name    = overlay.querySelector('#ht-name').value.trim();
+    const conf    = overlay.querySelector('#ht-conf').checked;
+    const errEl   = overlay.querySelector('#ht-err');
     const saveBtn = overlay.querySelector('#msave');
 
-    let coords = null;
-    if (name) {
+    // Re-geocode only if name changed
+    if (name && name !== existingName) {
       saveBtn.textContent = 'A geolocalizar…';
       saveBtn.disabled = true;
       try {
         const geo = await fetch(
           `/api/geo/geocode?q=${encodeURIComponent(name + ' ' + city.name)}`
         ).then(r => r.json());
-        if (geo.found) coords = { lat: geo.lat, lon: geo.lon };
-      } catch (_) {}
+        _pendingCoords = geo.found ? { lat: geo.lat, lon: geo.lon } : null;
+      } catch (_) { _pendingCoords = null; }
       saveBtn.textContent = 'Guardar';
       saveBtn.disabled = false;
     }
 
     const r = await _api(`/api/trips/${_trip.id}/cities/${city.id}`, 'PATCH', {
-      hotel_name: name, hotel_confirmed: conf,
-      ...(coords ? { hotel_coords: coords } : {}),
+      hotel_name: name, hotel_confirmed: conf, hotel_coords: _pendingCoords,
     });
     if (r.error) { errEl.textContent = r.error; return; }
     _trip = await _api(`/api/trips/${_trip.id}`);
@@ -651,20 +685,33 @@ function _renderResumo() {
 
   return `
     <div class="viagens-legs">
-      ${t.legs.map(l => _renderLegCard(l)).join('')}
+      ${t.legs.length===0
+        ? `<p class="section-hint">Adiciona voos para rastrear o estado em tempo real e calcular a disponibilidade no itinerário.</p>`
+        : t.legs.map(l => _renderLegCard(l)).join('')}
       <button class="btn-add-leg" id="btn-add-leg">＋ Voo</button>
     </div>
 
-    ${t.cities.map(c => `
+    ${t.cities.map(c => {
+      const hasCoords = !!c.hotel?.coords;
+      const hasName   = !!c.hotel?.name;
+      const geoTag    = hasName
+        ? (hasCoords
+            ? `<span class="hotel-geo-ok" title="Localização identificada">📍</span>`
+            : `<span class="hotel-geo-warn" title="Localização não identificada — toca para corrigir">⚠️</span>`)
+        : '';
+      return `
       <div class="viagens-hotel" style="cursor:pointer" data-edit-hotel="${esc(c.id)}">
         <div class="hotel-icon">🏨</div>
         <div style="flex:1">
-          <div class="hotel-name">${c.hotel.name ? esc(c.hotel.name) : '<span style="color:var(--text-dim);font-style:italic">Alojamento por definir — toca para editar</span>'}</div>
+          <div class="hotel-name">
+            ${hasName ? esc(c.hotel.name) : '<span style="color:var(--text-dim);font-style:italic">Alojamento por definir</span>'}
+            ${geoTag}
+          </div>
           <div class="hotel-meta">${esc(c.name)} · ${_fmtDate(c.arrival)} → ${_fmtDate(c.departure)} · ${c.hotel.nights} noite${c.hotel.nights!==1?'s':''}</div>
         </div>
         ${c.hotel.confirmed?'<span class="leg-confirmed">✓</span>':'<span class="hotel-edit-hint">✏️</span>'}
-      </div>`).join('')}
-    <button class="btn-add-city" id="btn-add-city">＋ Cidade</button>
+      </div>`;}).join('')}
+    <button class="btn-add-city" id="btn-add-city">＋ Cidade <span class="btn-hint">· ou para trocar de hotel a meio da estadia</span></button>
 
     <div class="viagens-stats">
       ${[
@@ -839,7 +886,7 @@ function _renderItinerario() {
     ${days.length>0 ? `
       <div class="itinerary-header">
         <span class="budget-title">Itinerário sugerido</span>
-        <span class="itinerary-hint">Toca em ✓ para confirmar um slot</span>
+        <span class="itinerary-hint">Sugerido → toca ✓ para fixar · o hotel aparece como início e fim de cada dia quando identificado</span>
       </div>
       <div class="itinerary-days">
         ${days.map(day => _renderDay(day, schedule[day]||{blocks:[],manha:[],tarde:[],noite:[]}, allPois)).join('')}
