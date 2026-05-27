@@ -1254,6 +1254,73 @@ def bb_subtitles_search():
         return jsonify({'error': str(e)}), 502
 
 
+# ── GEO ───────────────────────────────────────────────────────────────────────
+
+@app.route('/api/geo/geocode')
+def geocode():
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify({'found': False})
+    try:
+        url = 'https://nominatim.openstreetmap.org/search?' + urllib.parse.urlencode(
+            {'q': q, 'format': 'json', 'limit': '1'})
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'casaserver-dashboard/1.0 apcestrela@gmail.com'})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            data = json.load(r)
+        if not data:
+            return jsonify({'found': False})
+        return jsonify({'found': True, 'lat': float(data[0]['lat']),
+                        'lon': float(data[0]['lon']),
+                        'display_name': data[0]['display_name'][:120]})
+    except Exception:
+        return jsonify({'found': False})
+
+
+@app.route('/api/geo/nearby')
+def nearby():
+    try:
+        lat  = float(request.args.get('lat', 0))
+        lon  = float(request.args.get('lon', 0))
+        radius = min(int(request.args.get('radius', 1000)), 2000)
+        overpass_q = f'''[out:json][timeout:15];
+(
+  node(around:{radius},{lat},{lon})[tourism~"^(museum|attraction|gallery)$"][name];
+  way(around:{radius},{lat},{lon})[tourism~"^(museum|attraction)$"][name];
+  node(around:{radius},{lat},{lon})[leisure="park"][name];
+  way(around:{radius},{lat},{lon})[leisure="park"][name];
+  node(around:{radius},{lat},{lon})[amenity="restaurant"][name][cuisine];
+  node(around:{radius},{lat},{lon})[amenity="cafe"][name];
+)->.a;
+.a out body center;'''
+        req = urllib.request.Request(
+            'https://overpass-api.de/api/interpreter',
+            data=urllib.parse.urlencode({'data': overpass_q}).encode(),
+            headers={'User-Agent': 'casaserver-dashboard/1.0'})
+        with urllib.request.urlopen(req, timeout=18) as r:
+            data = json.load(r)
+        SKIP = ('estatua', 'monumento', 'escultura', 'busto', 'placa', 'statue')
+        seen, results = set(), []
+        for el in data.get('elements', []):
+            tags = el.get('tags', {})
+            name = tags.get('name', '').strip()
+            if not name or name in seen or len(name) < 3:
+                continue
+            if name.lower().startswith(SKIP):
+                continue
+            seen.add(name)
+            lat_el = el.get('lat') or el.get('center', {}).get('lat')
+            lon_el = el.get('lon') or el.get('center', {}).get('lon')
+            poi_type = tags.get('tourism') or tags.get('leisure') or tags.get('amenity', 'attraction')
+            results.append({'name': name, 'type': poi_type,
+                            'lat': lat_el, 'lon': lon_el,
+                            'opening_hours': tags.get('opening_hours', ''),
+                            'website': tags.get('website', '')})
+        return jsonify(results[:12])
+    except Exception:
+        return jsonify([])
+
+
 # ── TRIPS ─────────────────────────────────────────────────────────────────────
 
 TRIPS_DIR = os.path.join(DATA_DIR, 'trips')

@@ -569,6 +569,252 @@
 }
 .btn-modal-save:hover { opacity: .85; }
 
+/* ── TRIP SELECTOR BAR ───────────────────────────────────────────────────── */
+
+.trip-sel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+
+.trip-sel-btn {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .35rem .75rem;
+  color: var(--text);
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.trip-sel-btn:hover { background: var(--surface3, #2a2a35); }
+
+.trip-sel-name { font-size: .95rem; }
+
+.trip-sel-chevron {
+  font-size: .7rem;
+  color: var(--text-dim);
+  margin-left: .15rem;
+}
+
+.trip-selector-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: .75rem;
+}
+
+.trip-sel-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .9rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  color: var(--text);
+  font-size: .9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.trip-sel-item:last-child { border-bottom: none; }
+.trip-sel-item:hover { background: var(--surface3, #2a2a35); }
+.trip-sel-item.active { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.trip-sel-item.new { color: var(--accent); justify-content: center; font-weight: 600; }
+
+.trip-sel-item-flag { font-size: 1rem; }
+.trip-sel-item-name { flex: 1; font-weight: 600; }
+.trip-sel-item-cd { font-size: .75rem; color: var(--text-dim); }
+.trip-sel-item-cd.past { color: var(--text-dim); }
+
+/* ── ITINERARY HEADER & BLOCKS ───────────────────────────────────────────── */
+
+.itinerary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1rem 0 .5rem;
+}
+
+.itinerary-hint {
+  font-size: .72rem;
+  color: var(--text-dim);
+}
+
+.itinerary-block {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .9rem;
+  background: color-mix(in srgb, var(--text-dim) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  font-size: .82rem;
+  color: var(--text-dim);
+}
+
+.block-icon { font-size: 1rem; }
+.block-label { flex: 1; }
+
+/* ── DAY BADGES ──────────────────────────────────────────────────────────── */
+
+.day-badge {
+  font-size: .7rem;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.day-badge.arrival   { background: color-mix(in srgb, #4caf7d 15%, transparent); color: #4caf7d; }
+.day-badge.departure { background: color-mix(in srgb, #f0a040 15%, transparent); color: #f0a040; }
+
+/* ── SLOT ENHANCEMENTS ───────────────────────────────────────────────────── */
+
+.slot-blocked {
+  color: var(--text-dim);
+  font-size: .78rem;
+  font-style: italic;
+  opacity: .6;
+}
+
+.slot-pois {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  flex: 1;
+}
+
+.slot-poi-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .85rem;
+  padding: .15rem 0;
+}
+
+.slot-poi-row.suggested { opacity: .75; }
+.slot-poi-row.confirmed .slot-poi-name { font-weight: 600; }
+
+.slot-poi-icon { font-size: .85rem; }
+
+.btn-confirm-slot {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: .7rem;
+  padding: .1rem .35rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color .15s, border-color .15s;
+}
+.btn-confirm-slot:hover { color: #4caf7d; border-color: #4caf7d; }
+
+/* ── NEARBY PANEL ────────────────────────────────────────────────────────── */
+
+.nearby-panel {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: .75rem .9rem;
+  margin-bottom: 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.nearby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+
+.nearby-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: .85rem;
+  cursor: pointer;
+  padding: 0 .2rem;
+  opacity: .5;
+  transition: opacity .15s;
+}
+.nearby-dismiss:hover { opacity: 1; }
+
+.nearby-list {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.nearby-card {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .35rem .5rem;
+  border-radius: 8px;
+  background: var(--surface3, #2a2a35);
+  font-size: .85rem;
+}
+
+.nearby-info { flex: 1; min-width: 0; }
+.nearby-name { font-weight: 500; }
+.nearby-hours { font-size: .72rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.btn-add-nearby {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: .85rem;
+  padding: .1rem .4rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.btn-add-nearby:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+/* ── POI ENHANCEMENTS ────────────────────────────────────────────────────── */
+
+.poi-type-icon { font-size: .95rem; flex-shrink: 0; }
+
+.poi-free-badge {
+  font-size: .7rem;
+  background: color-mix(in srgb, #4caf7d 12%, transparent);
+  color: #4caf7d;
+  border-radius: 999px;
+  padding: .1rem .4rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.poi-free-badge.small { padding: .05rem .25rem; font-size: .65rem; }
+
+/* ── MODAL KB HINT ───────────────────────────────────────────────────────── */
+
+.poi-kb-hint {
+  font-size: .8rem;
+  color: var(--text-dim);
+  margin-top: .4rem;
+  min-height: 0;
+  line-height: 1.4;
+}
+
+.kb-hint-tag {
+  display: inline-block;
+  background: color-mix(in srgb, #4caf7d 12%, transparent);
+  color: #4caf7d;
+  border-radius: 999px;
+  padding: .1rem .45rem;
+  font-size: .75rem;
+  font-weight: 600;
+  margin-right: .3rem;
+}
+
 /* links inbox */
 .links-list {
   display: flex;
