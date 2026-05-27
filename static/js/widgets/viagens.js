@@ -7,6 +7,8 @@ let _trip   = null;
 let _view   = 'resumo';       // resumo | despesas | itinerario | links
 let _nearby = [];             // nearby suggestions for last added POI
 let _selectorOpen = false;
+let _pollInterval = null;
+let _pollTripId   = null;
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -224,6 +226,38 @@ export function bindViagens(card, refresh) {
       refresh();
     });
   });
+
+  // flight tracker — detect
+  card.querySelectorAll('[data-detect-leg]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { tripId, legId } = JSON.parse(btn.dataset.detectLeg);
+      btn.textContent = '🔍 A detectar...';
+      btn.disabled = true;
+      const r = await _api(`/api/trips/${tripId}/legs/${legId}/detect`, 'POST');
+      if (r.flight) {
+        _trip = await _api(`/api/trips/${_trip.id}`);
+        refresh();
+      } else {
+        btn.textContent = '❌ ' + (r.error || 'Não encontrado');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // flight tracker — manual refresh status
+  card.querySelectorAll('[data-status-leg]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { tripId, legId } = JSON.parse(btn.dataset.statusLeg);
+      btn.textContent = '⏳';
+      btn.disabled = true;
+      await _api(`/api/trips/${tripId}/legs/${legId}/status`);
+      _trip = await _api(`/api/trips/${_trip.id}`);
+      refresh();
+    });
+  });
+
+  // auto-poll on travel day
+  _startFlightPolling(refresh);
 }
 
 // ── SELECTOR ───────────────────────────────────────────────────────────────
@@ -249,18 +283,10 @@ function _renderResumo() {
   const nights   = t.cities.reduce((s,c) => s + Math.round((new Date(c.departure) - new Date(c.arrival)) / 86400000), 0);
   const totalPoi = t.cities.reduce((s,c) => s + (c.pois?.length||0), 0);
   const { pedro, ines } = _budgetCalc(t);
-  const pPct = pedro / t.budget_per_person * 100;
-  const iPct = ines  / t.budget_per_person * 100;
 
   return `
     <div class="viagens-legs">
-      ${t.legs.map(l => `
-        <div class="viagens-leg">
-          <div class="leg-route">${esc(l.from)} → ${esc(l.to)}</div>
-          <div class="leg-meta">${_fmtDate(l.date)} · ${esc(l.airline)}</div>
-          <div class="leg-time">${esc(l.departs_local)}${l.arrives_local?' → '+esc(l.arrives_local):''}</div>
-          ${l.confirmed?'<span class="leg-confirmed">✓</span>':''}
-        </div>`).join('')}
+      ${t.legs.map(l => _renderLegCard(l)).join('')}
     </div>
 
     ${t.cities.map(c => `
@@ -293,6 +319,84 @@ function _renderResumo() {
         ${_personBar('Inês',  ines,  t.budget_per_person)}
       </div>
     </div>`;
+}
+
+function _renderLegCard(l) {
+  const today    = new Date().toISOString().slice(0, 10);
+  const isToday  = l.date === today;
+  const hasFlight = !!l.flight;
+  const hasStatus = !!l.status_updated;
+  const detectData = JSON.stringify({ tripId: _trip.id, legId: l.id });
+
+  const depInfo = (l.terminal_dep || l.gate_dep)
+    ? `<div class="flight-terminal">T${esc(String(l.terminal_dep||'?'))}${l.gate_dep ? ' · Porta ' + esc(String(l.gate_dep)) : ''}</div>`
+    : '';
+  const arrInfo = (l.terminal_arr || l.gate_arr)
+    ? `<div class="flight-terminal">T${esc(String(l.terminal_arr||'?'))}${l.gate_arr ? ' · Porta ' + esc(String(l.gate_arr)) : ''}</div>`
+    : '';
+  const baggage = l.baggage_belt
+    ? `<div class="flight-baggage">🧳 Tapete ${esc(String(l.baggage_belt))}</div>`
+    : '';
+  const delayBadge = l.delay_minutes > 0
+    ? `<div class="flight-time-delay">+${l.delay_minutes}min</div>`
+    : '';
+
+  return `
+    <div class="viagens-leg flight-card ${isToday ? 'today' : ''}">
+      <div class="flight-card-top">
+        <div class="leg-route">${esc(l.from)} → ${esc(l.to)}</div>
+        <div class="leg-meta">${_fmtDate(l.date)} · ${esc(l.airline)}</div>
+        <div class="flight-right">
+          ${hasFlight ? `<span class="flight-num">${esc(l.flight)}</span>` : ''}
+          ${_statusBadge(l.status, l.delay_minutes)}
+          ${l.confirmed ? '<span class="leg-confirmed">✓</span>' : ''}
+        </div>
+      </div>
+
+      ${isToday && hasFlight ? `<div class="flight-today-banner">Hoje em monitorização · atualiza de 5 em 5 min</div>` : ''}
+
+      <div class="flight-times">
+        <div class="flight-time-col dep">
+          <div class="flight-airport">${esc(l.from)}</div>
+          <div class="flight-time-sched">${esc(l.departs_local || '--')}</div>
+          ${delayBadge}
+          ${depInfo}
+        </div>
+        <div class="flight-arrow">✈️</div>
+        <div class="flight-time-col arr">
+          <div class="flight-airport">${esc(l.to)}</div>
+          <div class="flight-time-sched">${esc(l.arrives_local || '--')}</div>
+          ${arrInfo}
+          ${baggage}
+        </div>
+      </div>
+
+      <div class="flight-actions">
+        ${!hasFlight
+          ? `<button class="btn-detect-flight" data-detect-leg='${detectData}'>🔍 Detectar voo</button>`
+          : `<button class="btn-refresh-status" data-status-leg='${detectData}'>🔄</button>
+             <a class="btn-fr24" href="https://www.flightradar24.com/data/flights/${esc(l.flight.toLowerCase())}" target="_blank" rel="noopener">FR24 ↗</a>`
+        }
+        ${hasFlight && !hasStatus ? '<span class="flight-no-data">Tracking disponível próximo ao voo</span>' : ''}
+      </div>
+    </div>`;
+}
+
+function _statusBadge(status, delay) {
+  if (!status) return '';
+  const CLS = {
+    'On Time':'on-time', 'Scheduled':'scheduled', 'Delayed':'delayed',
+    'Cancelled':'cancelled', 'Landed':'landed', 'Active':'active',
+  };
+  const PT = {
+    'On Time':'No horário', 'Scheduled':'Programado', 'Delayed':'Atrasado',
+    'Cancelled':'Cancelado', 'Landed':'Aterrou', 'Active':'Em voo',
+  };
+  const cls   = CLS[status] || 'scheduled';
+  const label = status === 'Delayed' && delay > 0
+    ? `Atrasado ${delay}min`
+    : (PT[status] || status);
+  return `<span class="flight-status-badge ${cls}">${esc(label)}</span>`;
 }
 
 // ── DESPESAS ───────────────────────────────────────────────────────────────
@@ -827,6 +931,28 @@ function _openLinkModal(refresh) {
     _trip = await _api(`/api/trips/${_trip.id}`);
     close(); _view = 'links'; refresh();
   });
+}
+
+// ── FLIGHT POLLING ─────────────────────────────────────────────────────────
+
+function _startFlightPolling(refresh) {
+  if (!_trip) return;
+  if (_pollInterval && _pollTripId === _trip.id) return; // already running
+
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+
+  const today     = new Date().toISOString().slice(0, 10);
+  const todayLegs = (_trip.legs || []).filter(l => l.date === today && l.flight);
+  if (!todayLegs.length) return;
+
+  _pollTripId   = _trip.id;
+  _pollInterval = setInterval(async () => {
+    for (const leg of todayLegs) {
+      try { await _api(`/api/trips/${_trip.id}/legs/${leg.id}/status`); } catch(_) {}
+    }
+    _trip = await _api(`/api/trips/${_trip.id}`);
+    refresh();
+  }, 5 * 60 * 1000);
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────

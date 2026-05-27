@@ -1321,6 +1321,182 @@ def nearby():
         return jsonify([])
 
 
+# ── FLIGHT TRACKER ────────────────────────────────────────────────────────────
+
+AERODATABOX_KEY   = os.environ.get('AERODATABOX_KEY', '')
+AVIATIONSTACK_KEY = os.environ.get('AVIATIONSTACK_KEY', '')
+
+AIRLINE_IATA = {
+    'easyjet': 'U2', 'ryanair': 'FR', 'tap': 'TP', 'tap portugal': 'TP',
+    'iberia': 'IB', 'vueling': 'VY', 'lufthansa': 'LH', 'british airways': 'BA',
+    'wizz air': 'W6', 'transavia': 'HV', 'klm': 'KL', 'air france': 'AF',
+    'swiss': 'LX', 'turkish airlines': 'TK', 'united': 'UA', 'delta': 'DL',
+    'american airlines': 'AA', 'ryan air': 'FR',
+}
+
+ALLOWED_LEG_FIELDS = {
+    'flight', 'status', 'delay_minutes',
+    'terminal_dep', 'gate_dep', 'actual_departs',
+    'terminal_arr', 'gate_arr', 'baggage_belt', 'actual_arrives',
+    'status_updated',
+}
+
+
+def _adb_get(path, params=None):
+    url = 'https://aerodatabox.p.rapidapi.com' + path
+    if params:
+        url += '?' + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={
+        'x-rapidapi-host': 'aerodatabox.p.rapidapi.com',
+        'x-rapidapi-key': AERODATABOX_KEY,
+    })
+    with urllib.request.urlopen(req, timeout=12) as r:
+        return json.loads(r.read())
+
+
+@app.route('/api/trips/<trip_id>/legs/<leg_id>/detect', methods=['POST'])
+def detect_flight(trip_id, leg_id):
+    t = _load_trip(trip_id)
+    if not t: return jsonify({'error': 'not found'}), 404
+    leg = next((l for l in t.get('legs', []) if l['id'] == leg_id), None)
+    if not leg: return jsonify({'error': 'leg not found'}), 404
+
+    if leg.get('flight'):
+        return jsonify({'flight': leg['flight'], 'cached': True})
+
+    if not AERODATABOX_KEY:
+        return jsonify({'error': 'AERODATABOX_KEY not configured'}), 503
+
+    try:
+        airline_name = (leg.get('airline') or '').lower()
+        airline_iata = AIRLINE_IATA.get(airline_name, '')
+        dep_iata     = leg.get('from', '')
+        dep_time     = (leg.get('departs_local') or '')[:5]
+        date         = leg.get('date', '')
+
+        try:
+            dep_h, dep_m = int(dep_time[:2]), int(dep_time[3:5])
+            offset = max(0, dep_h * 60 + dep_m - 60)
+        except Exception:
+            offset = 360
+
+        data = _adb_get(
+            f'/airports/iata/{dep_iata}/flights/departures',
+            {'localDate': date, 'offsetMinutes': offset, 'duration': 180, 'withLeg': 'true'},
+        )
+        departures = data.get('departures', data if isinstance(data, list) else [])
+
+        best = None
+        for f in departures:
+            a    = f.get('airline', {})
+            dep  = f.get('departure', {})
+            st   = dep.get('scheduledTime', {})
+            sched = (st.get('local') or st.get('utc') or '') if isinstance(st, dict) else str(st or '')
+            a_iata_match = airline_iata and a.get('iata', '').upper() == airline_iata.upper()
+            a_name_match = airline_name and airline_name in (a.get('name') or '').lower()
+            t_match = dep_time and dep_time in sched
+            if (a_iata_match or a_name_match) and t_match:
+                best = f; break
+
+        if not best and airline_iata:
+            best = next(
+                (f for f in departures if f.get('airline', {}).get('iata', '').upper() == airline_iata.upper()),
+                None
+            )
+
+        if not best:
+            return jsonify({'error': 'flight not found in airport schedule'}), 404
+
+        flt_num = best.get('number', '')
+        if not flt_num:
+            return jsonify({'error': 'no flight number in result'}), 404
+
+        a_code  = best.get('airline', {}).get('iata', '') or airline_iata
+        iata_fn = f'{a_code}{flt_num}' if not flt_num.upper().startswith(a_code.upper()) else flt_num
+        leg['flight'] = iata_fn.upper()
+        _save_trip(trip_id, t)
+        return jsonify({'flight': leg['flight']})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trips/<trip_id>/legs/<leg_id>/status')
+def leg_status(trip_id, leg_id):
+    t = _load_trip(trip_id)
+    if not t: return jsonify({'error': 'not found'}), 404
+    leg = next((l for l in t.get('legs', []) if l['id'] == leg_id), None)
+    if not leg: return jsonify({'error': 'leg not found'}), 404
+
+    if not leg.get('flight'):
+        return jsonify({'error': 'no flight number — detect first'}), 400
+
+    updated = leg.get('status_updated')
+    if updated:
+        try:
+            age = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(updated)).total_seconds()
+            if age < 300:
+                return jsonify({k: leg.get(k) for k in ALLOWED_LEG_FIELDS})
+        except Exception:
+            pass
+
+    if not AERODATABOX_KEY:
+        return jsonify({'error': 'AERODATABOX_KEY not configured'}), 503
+
+    try:
+        date = leg.get('date', datetime.date.today().isoformat())
+        data = _adb_get(f'/flights/number/{urllib.parse.quote(leg["flight"])}/{date}')
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        if not data or 'error' in data:
+            return jsonify({'error': 'not found', 'detail': data}), 404
+
+        dep = data.get('departure', {})
+        arr = data.get('arrival', {})
+
+        def _local(obj, key):
+            v = obj.get(key, {})
+            if isinstance(v, dict): return v.get('local') or v.get('utc')
+            return v or None
+
+        def _belt(arr_obj):
+            bc = arr_obj.get('baggageClaim', {})
+            return bc.get('belt') if isinstance(bc, dict) else (bc or None)
+
+        updates = {
+            'status':         data.get('status', 'Unknown'),
+            'delay_minutes':  int(dep.get('delay') or 0),
+            'terminal_dep':   dep.get('terminal'),
+            'gate_dep':       dep.get('gate'),
+            'actual_departs': _local(dep, 'revisedTime') or _local(dep, 'scheduledTime'),
+            'terminal_arr':   arr.get('terminal'),
+            'gate_arr':       arr.get('gate'),
+            'baggage_belt':   _belt(arr),
+            'actual_arrives': _local(arr, 'revisedTime') or _local(arr, 'scheduledTime'),
+            'status_updated': datetime.datetime.utcnow().isoformat(),
+        }
+        leg.update(updates)
+        _save_trip(trip_id, t)
+        return jsonify(updates)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trips/<trip_id>/legs/<leg_id>', methods=['PATCH'])
+def patch_leg(trip_id, leg_id):
+    t = _load_trip(trip_id)
+    if not t: return jsonify({'error': 'not found'}), 404
+    leg = next((l for l in t.get('legs', []) if l['id'] == leg_id), None)
+    if not leg: return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    for k, v in body.items():
+        if k in ALLOWED_LEG_FIELDS:
+            leg[k] = v
+    _save_trip(trip_id, t)
+    return jsonify(leg)
+
+
 # ── TRIPS ─────────────────────────────────────────────────────────────────────
 
 TRIPS_DIR = os.path.join(DATA_DIR, 'trips')
