@@ -127,6 +127,10 @@ export function bindViagens(card, refresh) {
   // new trip
   card.querySelector('#btn-new-trip')?.addEventListener('click', () => _openNewTripModal(refresh));
 
+  // add leg / add city
+  card.querySelector('#btn-add-leg')?.addEventListener('click', () => _openAddLegModal(refresh));
+  card.querySelector('#btn-add-city')?.addEventListener('click', () => _openAddCityModal(refresh));
+
   // fechar viagem
   card.querySelector('#btn-fechar-viagem')?.addEventListener('click', () => _openFecharModal());
   card.querySelectorAll('[data-select-trip]').forEach(btn => {
@@ -363,6 +367,125 @@ function _openNewTripModal(refresh) {
   });
 }
 
+// ── ADICIONAR VOO ──────────────────────────────────────────────────────────
+function _openAddLegModal(refresh) {
+  const overlay = _overlay(`
+    <div class="modal-title">Adicionar voo <button class="modal-close" id="mc">✕</button></div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">De (IATA ou cidade)</label>
+        <input class="modal-input" id="al-from" placeholder="LIS" style="text-transform:uppercase" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Para (IATA ou cidade)</label>
+        <input class="modal-input" id="al-to" placeholder="BER" style="text-transform:uppercase" />
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Data</label>
+        <input class="modal-input" type="date" id="al-date" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Companhia</label>
+        <input class="modal-input" id="al-airline" placeholder="Ryanair" />
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Partida</label>
+        <input class="modal-input" type="time" id="al-dep" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Chegada</label>
+        <input class="modal-input" type="time" id="al-arr" />
+      </div>
+    </div>
+    <label class="modal-check-row">
+      <input type="checkbox" id="al-conf" /> Confirmado / bilhete comprado
+    </label>
+    <div id="al-err" style="color:var(--danger,#e05);font-size:.85rem;min-height:1.2rem"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+      <button class="btn-modal-save"   id="msave">Guardar</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const from    = overlay.querySelector('#al-from').value.trim().toUpperCase();
+    const to      = overlay.querySelector('#al-to').value.trim().toUpperCase();
+    const date    = overlay.querySelector('#al-date').value;
+    const airline = overlay.querySelector('#al-airline').value.trim();
+    const dep     = overlay.querySelector('#al-dep').value;
+    const arr     = overlay.querySelector('#al-arr').value;
+    const conf    = overlay.querySelector('#al-conf').checked;
+    const errEl   = overlay.querySelector('#al-err');
+
+    if (!from || !to) { errEl.textContent = 'De e Para são obrigatórios.'; return; }
+    if (!date)        { errEl.textContent = 'A data é obrigatória.'; return; }
+
+    const r = await _api(`/api/trips/${_trip.id}/legs`, 'POST', {
+      from, to, date, airline, departs_local: dep, arrives_local: arr, confirmed: conf,
+    });
+    if (r.error) { errEl.textContent = r.error; return; }
+    _trip = await _api(`/api/trips/${_trip.id}`);
+    close();
+    refresh();
+  });
+}
+
+// ── ADICIONAR CIDADE ───────────────────────────────────────────────────────
+function _openAddCityModal(refresh) {
+  const overlay = _overlay(`
+    <div class="modal-title">Adicionar cidade <button class="modal-close" id="mc">✕</button></div>
+    <div class="modal-field">
+      <label class="modal-label">Cidade</label>
+      <input class="modal-input" id="ac-name" placeholder="Paris" />
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Chegada</label>
+        <input class="modal-input" type="date" id="ac-arr" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Partida</label>
+        <input class="modal-input" type="date" id="ac-dep" />
+      </div>
+    </div>
+    <div id="ac-err" style="color:var(--danger,#e05);font-size:.85rem;min-height:1.2rem"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+      <button class="btn-modal-save"   id="msave">Guardar</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const name = overlay.querySelector('#ac-name').value.trim();
+    const arr  = overlay.querySelector('#ac-arr').value;
+    const dep  = overlay.querySelector('#ac-dep').value;
+    const errEl = overlay.querySelector('#ac-err');
+
+    if (!name) { errEl.textContent = 'O nome é obrigatório.'; return; }
+    if (arr && dep && arr >= dep) { errEl.textContent = 'A partida tem de ser depois da chegada.'; return; }
+
+    const r = await _api(`/api/trips/${_trip.id}/cities`, 'POST', {
+      name, arrival: arr, departure: dep,
+    });
+    if (r.error) { errEl.textContent = r.error; return; }
+    _trip = await _api(`/api/trips/${_trip.id}`);
+    close();
+    refresh();
+  });
+}
+
 // ── FECHAR VIAGEM ──────────────────────────────────────────────────────────
 function _openFecharModal() {
   const t = _trip;
@@ -468,17 +591,19 @@ function _renderResumo() {
   return `
     <div class="viagens-legs">
       ${t.legs.map(l => _renderLegCard(l)).join('')}
+      <button class="btn-add-leg" id="btn-add-leg">＋ Voo</button>
     </div>
 
     ${t.cities.map(c => `
       <div class="viagens-hotel">
         <div class="hotel-icon">🏨</div>
         <div>
-          <div class="hotel-name">${esc(c.hotel.name)}</div>
+          <div class="hotel-name">${esc(c.hotel.name || '—')}</div>
           <div class="hotel-meta">${esc(c.name)} · ${_fmtDate(c.arrival)} → ${_fmtDate(c.departure)} · ${c.hotel.nights} noite${c.hotel.nights!==1?'s':''}</div>
         </div>
         ${c.hotel.confirmed?'<span class="leg-confirmed">✓</span>':''}
       </div>`).join('')}
+    <button class="btn-add-city" id="btn-add-city">＋ Cidade</button>
 
     <div class="viagens-stats">
       ${[

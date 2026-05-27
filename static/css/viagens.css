@@ -1081,6 +1081,39 @@
   font-size: .78rem;
 }
 
+/* ── Add leg / add city buttons ── */
+.btn-add-leg, .btn-add-city {
+  display: block;
+  width: 100%;
+  margin-top: .5rem;
+  padding: .45rem;
+  background: transparent;
+  border: 1px dashed var(--border, #333);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: .82rem;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s, color .15s;
+}
+.btn-add-leg:hover, .btn-add-city:hover {
+  border-color: var(--accent, #7c6aff);
+  color: var(--accent, #7c6aff);
+}
+.btn-add-city { margin-top: .5rem; margin-bottom: .5rem; }
+
+/* ── Modal checkbox row ── */
+.modal-check-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .88rem;
+  color: var(--text-dim);
+  margin: .25rem 0 .5rem;
+  cursor: pointer;
+}
+.modal-check-row input[type="checkbox"] { accent-color: var(--accent, #7c6aff); }
+
 /* ── Travel time pills ── */
 .travel-time-pill {
   font-size: .72rem;

@@ -1821,6 +1821,70 @@ def poi_delete(trip_id, city_id, poi_id):
     return jsonify({'ok': True})
 
 
+@app.route('/api/trips/<trip_id>/legs', methods=['POST'])
+def leg_add(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    date = str(body.get('date', ''))[:10]
+    if date and not DATE_RE.match(date):
+        date = ''
+    leg = {
+        'id':           f'leg-{uuid.uuid4().hex[:8]}',
+        'date':         date,
+        'from':         str(body.get('from', ''))[:10].upper(),
+        'to':           str(body.get('to', ''))[:10].upper(),
+        'airline':      str(body.get('airline', ''))[:100],
+        'departs_local': str(body.get('departs_local', ''))[:5],
+        'arrives_local': str(body.get('arrives_local', ''))[:5],
+        'confirmed':    bool(body.get('confirmed', False)),
+        'flight':       None,
+        'status':       None,
+        'delay_minutes': 0,
+    }
+    t.setdefault('legs', []).append(leg)
+    _save_trip(trip_id, t)
+    return jsonify(leg), 201
+
+
+@app.route('/api/trips/<trip_id>/cities', methods=['POST'])
+def city_add(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    name = str(body.get('name', '')).strip()[:200]
+    if not name:
+        return jsonify({'error': 'name required'}), 400
+    arrival   = str(body.get('arrival', ''))[:10]
+    departure = str(body.get('departure', ''))[:10]
+    if arrival and not DATE_RE.match(arrival):
+        arrival = ''
+    if departure and not DATE_RE.match(departure):
+        departure = ''
+    nights = 0
+    if arrival and departure:
+        try:
+            import datetime as _dt2
+            nights = (_dt2.date.fromisoformat(departure) - _dt2.date.fromisoformat(arrival)).days
+        except Exception:
+            pass
+    idx  = len(t.get('cities', [])) + 1
+    city = {
+        'id':        f'city-{idx}',
+        'name':      name,
+        'country':   str(body.get('country', ''))[:100],
+        'arrival':   arrival,
+        'departure': departure,
+        'hotel':     {'name': '', 'confirmed': False, 'nights': nights},
+        'pois':      [],
+    }
+    t.setdefault('cities', []).append(city)
+    _save_trip(trip_id, t)
+    return jsonify(city), 201
+
+
 @app.route('/api/trips/<trip_id>/links', methods=['POST'])
 def link_add(trip_id):
     t = _load_trip(trip_id)
