@@ -1254,6 +1254,235 @@ def bb_subtitles_search():
         return jsonify({'error': str(e)}), 502
 
 
+# ── TRIPS ─────────────────────────────────────────────────────────────────────
+
+TRIPS_DIR = os.path.join(DATA_DIR, 'trips')
+
+ALLOWED_TRIP_FIELDS    = {'name', 'status', 'countdown_to', 'budget_per_person', 'flag'}
+ALLOWED_EXPENSE_FIELDS = {'description', 'category', 'amount', 'date', 'split'}
+ALLOWED_POI_FIELDS     = {'done', 'priority', 'notes', 'duration_h', 'assigned_day',
+                           'assigned_slot', 'checkin_time', 'name', 'type'}
+ALLOWED_LINK_FIELDS    = {'status', 'summary', 'classified_as'}
+
+VALID_SPLITS    = {'comum', 'pedro', 'ines'}
+VALID_PRIORITY  = {'must', 'want', 'backlog'}
+VALID_SLOTS     = {'manha', 'tarde', 'noite'}
+VALID_LINK_STATUS = {'pending', 'processed', 'discarded'}
+
+
+def _trip_path(trip_id):
+    name = re.sub(r'[^a-z0-9\-]', '', trip_id.lower())
+    return os.path.join(TRIPS_DIR, f'{name}.json')
+
+
+def _load_trip(trip_id):
+    path = _trip_path(trip_id)
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def _save_trip(trip_id, data):
+    os.makedirs(TRIPS_DIR, exist_ok=True)
+    with open(_trip_path(trip_id), 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+@app.route('/api/trips')
+def trips_list():
+    os.makedirs(TRIPS_DIR, exist_ok=True)
+    trips = []
+    for fname in sorted(os.listdir(TRIPS_DIR)):
+        if not fname.endswith('.json'):
+            continue
+        with open(os.path.join(TRIPS_DIR, fname)) as f:
+            t = json.load(f)
+        trips.append({k: t.get(k) for k in ('id', 'name', 'flag', 'status', 'countdown_to', 'travellers', 'budget_per_person')})
+    return jsonify(trips)
+
+
+@app.route('/api/trips/<trip_id>')
+def trip_get(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify(t)
+
+
+@app.route('/api/trips/<trip_id>', methods=['PATCH'])
+def trip_update(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    for k, v in body.items():
+        if k in ALLOWED_TRIP_FIELDS:
+            t[k] = v
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/trips/<trip_id>/expenses', methods=['POST'])
+def expense_add(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    split = body.get('split', 'comum')
+    if split not in VALID_SPLITS:
+        return jsonify({'error': 'invalid split'}), 400
+    exp = {
+        'id':          f'exp-{uuid.uuid4().hex[:8]}',
+        'description': str(body.get('description', ''))[:200],
+        'category':    str(body.get('category', 'outros'))[:50],
+        'amount':      float(body.get('amount', 0)),
+        'date':        str(body.get('date', datetime.date.today().isoformat()))[:10],
+        'split':       split,
+        'confirmed':   False,
+    }
+    t.setdefault('expenses', []).append(exp)
+    _save_trip(trip_id, t)
+    return jsonify(exp), 201
+
+
+@app.route('/api/trips/<trip_id>/expenses/<exp_id>', methods=['PATCH'])
+def expense_update(trip_id, exp_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    exp = next((e for e in t.get('expenses', []) if e['id'] == exp_id), None)
+    if exp is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    for k, v in body.items():
+        if k in ALLOWED_EXPENSE_FIELDS:
+            if k == 'split' and v not in VALID_SPLITS:
+                continue
+            exp[k] = v
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/trips/<trip_id>/expenses/<exp_id>', methods=['DELETE'])
+def expense_delete(trip_id, exp_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    t['expenses'] = [e for e in t.get('expenses', []) if e['id'] != exp_id]
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/trips/<trip_id>/pois', methods=['POST'])
+def poi_add(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    city_id = body.get('city_id', '')
+    city = next((c for c in t.get('cities', []) if c['id'] == city_id), None)
+    if city is None:
+        return jsonify({'error': 'city not found'}), 404
+    priority = body.get('priority', 'want')
+    if priority not in VALID_PRIORITY:
+        priority = 'want'
+    poi = {
+        'id':           f'poi-{uuid.uuid4().hex[:8]}',
+        'name':         str(body.get('name', ''))[:200],
+        'type':         str(body.get('type', 'outro'))[:50],
+        'priority':     priority,
+        'duration_h':   float(body.get('duration_h', 1)),
+        'notes':        str(body.get('notes', ''))[:500],
+        'opening_hours': str(body.get('opening_hours', ''))[:200],
+        'free_entry':   str(body.get('free_entry', ''))[:200],
+        'coords':       body.get('coords'),
+        'done':         False,
+        'assigned_day': None,
+        'assigned_slot': None,
+        'checkin_time': None,
+    }
+    city.setdefault('pois', []).append(poi)
+    _save_trip(trip_id, t)
+    return jsonify(poi), 201
+
+
+@app.route('/api/trips/<trip_id>/cities/<city_id>/pois/<poi_id>', methods=['PATCH'])
+def poi_update(trip_id, city_id, poi_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    city = next((c for c in t.get('cities', []) if c['id'] == city_id), None)
+    if city is None:
+        return jsonify({'error': 'city not found'}), 404
+    poi = next((p for p in city.get('pois', []) if p['id'] == poi_id), None)
+    if poi is None:
+        return jsonify({'error': 'poi not found'}), 404
+    body = request.get_json(silent=True) or {}
+    for k, v in body.items():
+        if k not in ALLOWED_POI_FIELDS:
+            continue
+        if k == 'priority' and v not in VALID_PRIORITY:
+            continue
+        if k == 'assigned_slot' and v not in VALID_SLOTS and v is not None:
+            continue
+        poi[k] = v
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/trips/<trip_id>/cities/<city_id>/pois/<poi_id>', methods=['DELETE'])
+def poi_delete(trip_id, city_id, poi_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    city = next((c for c in t.get('cities', []) if c['id'] == city_id), None)
+    if city is None:
+        return jsonify({'error': 'city not found'}), 404
+    city['pois'] = [p for p in city.get('pois', []) if p['id'] != poi_id]
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/trips/<trip_id>/links', methods=['POST'])
+def link_add(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    link = {
+        'id':            f'lnk-{uuid.uuid4().hex[:8]}',
+        'url':           str(body.get('url', ''))[:2000],
+        'platform':      str(body.get('platform', 'web'))[:50],
+        'summary':       str(body.get('summary', ''))[:1000],
+        'status':        'pending',
+        'classified_as': None,
+        'added_at':      datetime.datetime.utcnow().isoformat(),
+    }
+    t.setdefault('links', []).append(link)
+    _save_trip(trip_id, t)
+    return jsonify(link), 201
+
+
+@app.route('/api/trips/<trip_id>/links/<link_id>', methods=['PATCH'])
+def link_update(trip_id, link_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    link = next((l for l in t.get('links', []) if l['id'] == link_id), None)
+    if link is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    for k, v in body.items():
+        if k not in ALLOWED_LINK_FIELDS:
+            continue
+        if k == 'status' and v not in VALID_LINK_STATUS:
+            continue
+        link[k] = v
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
 # ── STATIC ────────────────────────────────────────────────────────────────────
 
 @app.route('/', defaults={'path': 'index.html'})

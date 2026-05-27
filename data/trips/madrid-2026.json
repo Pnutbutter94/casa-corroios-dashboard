@@ -1,0 +1,70 @@
+{
+  "id": "madrid-2026",
+  "name": "Madrid 2026",
+  "flag": "🇪🇸",
+  "status": "confirmed",
+  "countdown_to": "2026-06-19",
+  "travellers": ["Pedro", "Inês"],
+  "budget_per_person": 500,
+  "legs": [
+    {
+      "id": "leg-1",
+      "from": "LIS",
+      "to": "MAD",
+      "date": "2026-06-19",
+      "departs_local": "13:55",
+      "arrives_local": null,
+      "airline": "EasyJet",
+      "flight": null,
+      "confirmed": true
+    },
+    {
+      "id": "leg-2",
+      "from": "MAD",
+      "to": "LIS",
+      "date": "2026-06-21",
+      "departs_local": "22:30",
+      "arrives_local": "22:55",
+      "airline": "EasyJet",
+      "flight": null,
+      "confirmed": true
+    }
+  ],
+  "cities": [
+    {
+      "id": "city-1",
+      "name": "Madrid",
+      "country": "Espanha",
+      "arrival": "2026-06-19",
+      "departure": "2026-06-21",
+      "hotel": {
+        "name": "Hostal Besaya",
+        "confirmed": true,
+        "nights": 2
+      },
+      "pois": []
+    }
+  ],
+  "expenses": [
+    {
+      "id": "exp-1",
+      "description": "Voos EasyJet LIS↔MAD",
+      "category": "voos",
+      "amount": 194.92,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": true
+    },
+    {
+      "id": "exp-2",
+      "description": "Hostal Besaya (2 noites)",
+      "category": "alojamento",
+      "amount": 312.99,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": true
+    }
+  ],
+  "tips": [],
+  "links": []
+}

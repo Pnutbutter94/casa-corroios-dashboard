@@ -22,6 +22,7 @@ import {
   bb, initBlockbuster, renderBlockbuster, bindBlockbuster,
 } from './widgets/blockbuster.js';
 import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, fetchDailyHistory, fetchProfile, renderDailyCharts } from './widgets/energia.js';
+import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -36,6 +37,7 @@ let iotInitialised      = false;
 let bbInitialised       = false;
 let energiaInitialised  = false;
 let refreshEnergia      = null;
+let viagensInitialised  = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -80,6 +82,16 @@ function refreshBlockbuster() {
   if (!card) return;
   card.innerHTML = renderBlockbuster();
   bindBlockbuster(card, refreshBlockbuster);
+}
+
+// ── VIAGENS ────────────────────────────────────────────────────────────────
+function refreshViagens() {
+  const card = document.getElementById('viagens-card');
+  const tab  = document.getElementById('tab-viagens');
+  if (!tab) return;
+  tab.innerHTML = renderViagens();
+  const c = document.getElementById('viagens-card');
+  if (c) bindViagens(c, refreshViagens);
 }
 
 // ── IOT ────────────────────────────────────────────────────────────────────
@@ -135,6 +147,10 @@ function initTabs() {
             .catch(() => renderEnergia(null, el));
         refreshEnergia();
         setInterval(() => { if (activeTab === 'energia') refreshEnergia(); }, 60_000);
+      } else if (activeTab === 'viagens' && !viagensInitialised) {
+        viagensInitialised = true;
+        await initViagens();
+        refreshViagens();
       }
     });
   });
@@ -288,6 +304,11 @@ function render(data) {
       <div class="card fade-in" id="energia-card">
         <div class="loading"><div class="spinner"></div> A carregar...</div>
       </div>
+    </div>
+
+    <!-- VIAGENS TAB -->
+    <div class="tab-page ${activeTab === 'viagens' ? 'active' : ''}" id="tab-viagens">
+      <div class="loading"><div class="spinner"></div> A carregar...</div>
     </div>
 
   `;
