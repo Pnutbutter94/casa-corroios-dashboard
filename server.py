@@ -1885,6 +1885,23 @@ def city_add(trip_id):
     return jsonify(city), 201
 
 
+@app.route('/api/trips/<trip_id>/cities/<city_id>', methods=['PATCH'])
+def city_update(trip_id, city_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    city = next((c for c in t.get('cities', []) if c['id'] == city_id), None)
+    if city is None:
+        return jsonify({'error': 'city not found'}), 404
+    body = request.get_json(silent=True) or {}
+    if 'hotel_name' in body:
+        city.setdefault('hotel', {})['name'] = str(body['hotel_name'])[:300]
+    if 'hotel_confirmed' in body:
+        city.setdefault('hotel', {})['confirmed'] = bool(body['hotel_confirmed'])
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
 @app.route('/api/trips/<trip_id>/links', methods=['POST'])
 def link_add(trip_id):
     t = _load_trip(trip_id)

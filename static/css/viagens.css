@@ -1081,6 +1081,11 @@
   font-size: .78rem;
 }
 
+/* ── Hotel edit hint ── */
+.hotel-edit-hint { font-size: .85rem; opacity: .5; }
+.viagens-hotel:hover .hotel-edit-hint { opacity: 1; }
+.viagens-hotel:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 8px; }
+
 /* ── Add leg / add city buttons ── */
 .btn-add-leg, .btn-add-city {
   display: block;

@@ -131,6 +131,14 @@ export function bindViagens(card, refresh) {
   card.querySelector('#btn-add-leg')?.addEventListener('click', () => _openAddLegModal(refresh));
   card.querySelector('#btn-add-city')?.addEventListener('click', () => _openAddCityModal(refresh));
 
+  // edit hotel
+  card.querySelectorAll('[data-edit-hotel]').forEach(el => {
+    el.addEventListener('click', () => {
+      const city = _trip.cities.find(c => c.id === el.dataset.editHotel);
+      if (city) _openHotelModal(city, refresh);
+    });
+  });
+
   // fechar viagem
   card.querySelector('#btn-fechar-viagem')?.addEventListener('click', () => _openFecharModal());
   card.querySelectorAll('[data-select-trip]').forEach(btn => {
@@ -367,6 +375,42 @@ function _openNewTripModal(refresh) {
   });
 }
 
+// ── EDITAR HOTEL ───────────────────────────────────────────────────────────
+function _openHotelModal(city, refresh) {
+  const overlay = _overlay(`
+    <div class="modal-title">Alojamento · ${esc(city.name)} <button class="modal-close" id="mc">✕</button></div>
+    <div class="modal-field">
+      <label class="modal-label">Nome do hotel / alojamento</label>
+      <input class="modal-input" id="ht-name" placeholder="Hotel Amano, Airbnb Mitte…" value="${esc(city.hotel.name||'')}" />
+    </div>
+    <label class="modal-check-row">
+      <input type="checkbox" id="ht-conf" ${city.hotel.confirmed?'checked':''} /> Reserva confirmada
+    </label>
+    <div id="ht-err" style="color:var(--danger,#e05);font-size:.85rem;min-height:1.2rem"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+      <button class="btn-modal-save"   id="msave">Guardar</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const name = overlay.querySelector('#ht-name').value.trim();
+    const conf = overlay.querySelector('#ht-conf').checked;
+    const errEl = overlay.querySelector('#ht-err');
+    const r = await _api(`/api/trips/${_trip.id}/cities/${city.id}`, 'PATCH', {
+      hotel_name: name, hotel_confirmed: conf,
+    });
+    if (r.error) { errEl.textContent = r.error; return; }
+    _trip = await _api(`/api/trips/${_trip.id}`);
+    close();
+    refresh();
+  });
+}
+
 // ── ADICIONAR VOO ──────────────────────────────────────────────────────────
 function _openAddLegModal(refresh) {
   const overlay = _overlay(`
@@ -595,13 +639,13 @@ function _renderResumo() {
     </div>
 
     ${t.cities.map(c => `
-      <div class="viagens-hotel">
+      <div class="viagens-hotel" style="cursor:pointer" data-edit-hotel="${esc(c.id)}">
         <div class="hotel-icon">🏨</div>
-        <div>
-          <div class="hotel-name">${esc(c.hotel.name || '—')}</div>
+        <div style="flex:1">
+          <div class="hotel-name">${c.hotel.name ? esc(c.hotel.name) : '<span style="color:var(--text-dim);font-style:italic">Alojamento por definir — toca para editar</span>'}</div>
           <div class="hotel-meta">${esc(c.name)} · ${_fmtDate(c.arrival)} → ${_fmtDate(c.departure)} · ${c.hotel.nights} noite${c.hotel.nights!==1?'s':''}</div>
         </div>
-        ${c.hotel.confirmed?'<span class="leg-confirmed">✓</span>':''}
+        ${c.hotel.confirmed?'<span class="leg-confirmed">✓</span>':'<span class="hotel-edit-hint">✏️</span>'}
       </div>`).join('')}
     <button class="btn-add-city" id="btn-add-city">＋ Cidade</button>
 
@@ -921,14 +965,21 @@ function _getTimeBlocks(trip) {
   const ret    = legs[legs.length-1];
 
   if (out) {
-    blocks.push({ date:out.date, slot:'manha',  type:'flight',
+    blocks.push({ date:out.date, slot:'manha', type:'flight',
       label:`✈️ Voo ${out.from}→${out.to} · parte ${out.departs_local}` });
+    const freeFrom = out.arrives_local ? _addH(out.arrives_local, 1.5) : null;
     blocks.push({ date:out.date, slot:'tarde_partial', type:'checkin',
-      label:`🏨 Transfer aeroporto → hotel · check-in · livre após as 17:30` });
+      label: freeFrom
+        ? `🏨 Aeroporto → hotel · check-in · livre após as ${freeFrom}`
+        : `🏨 Aeroporto → hotel · check-in` });
   }
   if (ret && ret.date !== out?.date) {
+    const retDepart = ret.departs_local || '';
+    const airportH  = retDepart ? _addH(retDepart, -2) : null; // 2h buffer to airport
     blocks.push({ date:ret.date, slot:'noite', type:'flight',
-      label:`✈️ Voo ${ret.from}→${ret.to} · ${ret.departs_local} · sair para aeroporto às 20:00` });
+      label: airportH
+        ? `✈️ Voo ${ret.from}→${ret.to} · ${retDepart} · sair para aeroporto às ${airportH}`
+        : `✈️ Voo ${ret.from}→${ret.to} · ${retDepart}` });
   }
   return blocks;
 }
@@ -948,15 +999,23 @@ function _computeAutoRoute(trip) {
     cap[day] = { manha: SLOTS[0].cap, tarde: SLOTS[1].cap, noite: SLOTS[2].cap };
   });
 
-  // Apply flight/travel blocks
-  const firstDay = trip.legs[0]?.date;
-  const lastDay  = trip.legs[trip.legs.length-1]?.date;
+  // Apply flight/travel blocks using actual leg times
+  const outLeg  = trip.legs[0];
+  const retLeg  = trip.legs[trip.legs.length - 1];
+  const firstDay = outLeg?.date;
+  const lastDay  = retLeg?.date;
   if (firstDay && cap[firstDay]) {
+    // morning blocked by outbound flight; free time = arrival + 1.5h transfer/check-in
+    const freeH = _timeToH(outLeg.arrives_local) + 1.5;
     cap[firstDay].manha = 0;
-    cap[firstDay].tarde = 1.5; // free from ~17:30
+    cap[firstDay].tarde = freeH >= 19 ? 0 : Math.max(0, 19 - Math.max(13, freeH));
+    if (freeH > 19) cap[firstDay].noite = Math.max(0, 22 - freeH);
   }
-  if (lastDay && cap[lastDay]) {
-    cap[lastDay].noite = 0;    // blocked: airport from 20:00
+  if (lastDay && cap[lastDay] && lastDay !== firstDay) {
+    // return flight: block from 2h before departure
+    const blockFromH = _timeToH(retLeg.departs_local) - 2;
+    if (blockFromH <= 19) cap[lastDay].noite = 0;
+    else cap[lastDay].noite = Math.max(0, blockFromH - 19);
   }
 
   // Deduct capacity for confirmed POIs
@@ -1324,4 +1383,19 @@ function _fmtDate(dateStr) {
 function _fmtTime(isoStr) {
   const d = new Date(isoStr);
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// Convert "HH:MM" → decimal hours; defaults to noon if missing
+function _timeToH(t) {
+  if (!t) return 12;
+  const [h, m] = t.split(':').map(Number);
+  return h + (m || 0) / 60;
+}
+
+// Return "HH:MM" string for (time + addH hours)
+function _addH(t, addH) {
+  const total = _timeToH(t) + addH;
+  const h = Math.floor(total) % 24;
+  const m = Math.round((total % 1) * 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
