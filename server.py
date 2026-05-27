@@ -1349,6 +1349,7 @@ def _adb_get(path, params=None):
     req = urllib.request.Request(url, headers={
         'x-rapidapi-host': 'aerodatabox.p.rapidapi.com',
         'x-rapidapi-key': AERODATABOX_KEY,
+        'User-Agent': 'Mozilla/5.0',
     })
     with urllib.request.urlopen(req, timeout=12) as r:
         return json.loads(r.read())
