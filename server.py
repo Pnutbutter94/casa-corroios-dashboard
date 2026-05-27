@@ -1354,6 +1354,27 @@ def _adb_get(path, params=None):
         return json.loads(r.read())
 
 
+def _avstack_to_updates(f):
+    dep = f.get('departure', {})
+    arr = f.get('arrival', {})
+    STATUS_MAP = {
+        'scheduled': 'Scheduled', 'active': 'Active', 'landed': 'Landed',
+        'cancelled': 'Cancelled', 'incident': 'Delayed', 'diverted': 'Delayed',
+    }
+    return {
+        'status':         STATUS_MAP.get(f.get('flight_status', 'scheduled'), 'Scheduled'),
+        'delay_minutes':  int(dep.get('delay') or 0),
+        'terminal_dep':   dep.get('terminal'),
+        'gate_dep':       dep.get('gate'),
+        'actual_departs': dep.get('actual') or dep.get('estimated') or dep.get('scheduled'),
+        'terminal_arr':   arr.get('terminal'),
+        'gate_arr':       arr.get('gate'),
+        'baggage_belt':   arr.get('baggage'),
+        'actual_arrives': arr.get('actual') or arr.get('estimated') or arr.get('scheduled'),
+        'status_updated': datetime.datetime.utcnow().isoformat(),
+    }
+
+
 @app.route('/api/trips/<trip_id>/legs/<leg_id>/detect', methods=['POST'])
 def detect_flight(trip_id, leg_id):
     t = _load_trip(trip_id)
@@ -1364,61 +1385,78 @@ def detect_flight(trip_id, leg_id):
     if leg.get('flight'):
         return jsonify({'flight': leg['flight'], 'cached': True})
 
-    if not AERODATABOX_KEY:
-        return jsonify({'error': 'AERODATABOX_KEY not configured'}), 503
+    airline_name = (leg.get('airline') or '').lower()
+    airline_iata = AIRLINE_IATA.get(airline_name, '')
+    dep_iata     = leg.get('from', '')
+    dep_time     = (leg.get('departs_local') or '')[:5]
+    date         = leg.get('date', '')
+    today        = datetime.date.today().isoformat()
 
-    try:
-        airline_name = (leg.get('airline') or '').lower()
-        airline_iata = AIRLINE_IATA.get(airline_name, '')
-        dep_iata     = leg.get('from', '')
-        dep_time     = (leg.get('departs_local') or '')[:5]
-        date         = leg.get('date', '')
-
+    # ── AeroDataBox: airport departures (works for future dates) ─────────────
+    if AERODATABOX_KEY:
         try:
             dep_h, dep_m = int(dep_time[:2]), int(dep_time[3:5])
             offset = max(0, dep_h * 60 + dep_m - 60)
         except Exception:
             offset = 360
+        try:
+            data       = _adb_get(f'/airports/iata/{dep_iata}/flights/departures',
+                                  {'localDate': date, 'offsetMinutes': offset, 'duration': 180, 'withLeg': 'true'})
+            departures = data.get('departures', data if isinstance(data, list) else [])
+            best = None
+            for f in departures:
+                a     = f.get('airline', {})
+                dep   = f.get('departure', {})
+                st    = dep.get('scheduledTime', {})
+                sched = (st.get('local') or st.get('utc') or '') if isinstance(st, dict) else str(st or '')
+                a_ok  = (airline_iata and a.get('iata', '').upper() == airline_iata.upper()) or \
+                        (airline_name and airline_name in (a.get('name') or '').lower())
+                if a_ok and dep_time and dep_time in sched:
+                    best = f; break
+            if not best and airline_iata:
+                best = next((f for f in departures
+                             if f.get('airline', {}).get('iata', '').upper() == airline_iata.upper()), None)
+            if best:
+                flt_num = best.get('number', '')
+                a_code  = best.get('airline', {}).get('iata', '') or airline_iata
+                iata_fn = f'{a_code}{flt_num}' if flt_num and not flt_num.upper().startswith(a_code.upper()) else flt_num
+                if iata_fn:
+                    leg['flight'] = iata_fn.upper()
+                    _save_trip(trip_id, t)
+                    return jsonify({'flight': leg['flight'], 'source': 'aerodatabox'})
+        except Exception:
+            pass
 
-        data = _adb_get(
-            f'/airports/iata/{dep_iata}/flights/departures',
-            {'localDate': date, 'offsetMinutes': offset, 'duration': 180, 'withLeg': 'true'},
-        )
-        departures = data.get('departures', data if isinstance(data, list) else [])
+    # ── AviationStack: real-time only (today) ─────────────────────────────────
+    if AVIATIONSTACK_KEY and date == today:
+        try:
+            params = {'access_key': AVIATIONSTACK_KEY, 'dep_iata': dep_iata,
+                      'arr_iata': leg.get('to', ''), 'limit': 20}
+            if airline_iata:
+                params['airline_iata'] = airline_iata
+            url = 'https://api.aviationstack.com/v1/flights?' + urllib.parse.urlencode(params)
+            with urllib.request.urlopen(url, timeout=10) as r:
+                data = json.loads(r.read())
+            flights = data.get('data', [])
+            best = None
+            for f in flights:
+                if dep_time and dep_time in (f.get('departure', {}).get('scheduled') or ''):
+                    best = f; break
+            if not best and flights:
+                best = flights[0]
+            if best:
+                iata_fn = (best.get('flight', {}).get('iata') or '').upper()
+                if iata_fn:
+                    leg['flight'] = iata_fn
+                    leg.update(_avstack_to_updates(best))
+                    _save_trip(trip_id, t)
+                    return jsonify({'flight': leg['flight'], 'source': 'aviationstack'})
+        except Exception as e:
+            return jsonify({'error': f'aviationstack: {e}'}), 500
 
-        best = None
-        for f in departures:
-            a    = f.get('airline', {})
-            dep  = f.get('departure', {})
-            st   = dep.get('scheduledTime', {})
-            sched = (st.get('local') or st.get('utc') or '') if isinstance(st, dict) else str(st or '')
-            a_iata_match = airline_iata and a.get('iata', '').upper() == airline_iata.upper()
-            a_name_match = airline_name and airline_name in (a.get('name') or '').lower()
-            t_match = dep_time and dep_time in sched
-            if (a_iata_match or a_name_match) and t_match:
-                best = f; break
-
-        if not best and airline_iata:
-            best = next(
-                (f for f in departures if f.get('airline', {}).get('iata', '').upper() == airline_iata.upper()),
-                None
-            )
-
-        if not best:
-            return jsonify({'error': 'flight not found in airport schedule'}), 404
-
-        flt_num = best.get('number', '')
-        if not flt_num:
-            return jsonify({'error': 'no flight number in result'}), 404
-
-        a_code  = best.get('airline', {}).get('iata', '') or airline_iata
-        iata_fn = f'{a_code}{flt_num}' if not flt_num.upper().startswith(a_code.upper()) else flt_num
-        leg['flight'] = iata_fn.upper()
-        _save_trip(trip_id, t)
-        return jsonify({'flight': leg['flight']})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    if date != today:
+        return jsonify({'error': f'Subscribe to AeroDataBox on RapidAPI for advance detection. On the travel day ({date}), AviationStack handles it automatically.'}), 503
+    return jsonify({'error': 'flight not found'}), 404
 
 
 @app.route('/api/trips/<trip_id>/legs/<leg_id>/status')
@@ -1440,47 +1478,57 @@ def leg_status(trip_id, leg_id):
         except Exception:
             pass
 
-    if not AERODATABOX_KEY:
-        return jsonify({'error': 'AERODATABOX_KEY not configured'}), 503
+    # ── AeroDataBox (any date) ────────────────────────────────────────────────
+    if AERODATABOX_KEY:
+        try:
+            date = leg.get('date', datetime.date.today().isoformat())
+            data = _adb_get(f'/flights/number/{urllib.parse.quote(leg["flight"])}/{date}')
+            if isinstance(data, list): data = data[0] if data else {}
+            if data and 'error' not in data:
+                dep = data.get('departure', {})
+                arr = data.get('arrival', {})
+                def _lt(obj, key):
+                    v = obj.get(key, {})
+                    return (v.get('local') or v.get('utc')) if isinstance(v, dict) else (v or None)
+                def _belt(a):
+                    bc = a.get('baggageClaim', {})
+                    return bc.get('belt') if isinstance(bc, dict) else (bc or None)
+                updates = {
+                    'status':         data.get('status', 'Unknown'),
+                    'delay_minutes':  int(dep.get('delay') or 0),
+                    'terminal_dep':   dep.get('terminal'),
+                    'gate_dep':       dep.get('gate'),
+                    'actual_departs': _lt(dep, 'revisedTime') or _lt(dep, 'scheduledTime'),
+                    'terminal_arr':   arr.get('terminal'),
+                    'gate_arr':       arr.get('gate'),
+                    'baggage_belt':   _belt(arr),
+                    'actual_arrives': _lt(arr, 'revisedTime') or _lt(arr, 'scheduledTime'),
+                    'status_updated': datetime.datetime.utcnow().isoformat(),
+                }
+                leg.update(updates)
+                _save_trip(trip_id, t)
+                return jsonify(updates)
+        except Exception:
+            pass
 
-    try:
-        date = leg.get('date', datetime.date.today().isoformat())
-        data = _adb_get(f'/flights/number/{urllib.parse.quote(leg["flight"])}/{date}')
-        if isinstance(data, list):
-            data = data[0] if data else {}
-        if not data or 'error' in data:
-            return jsonify({'error': 'not found', 'detail': data}), 404
+    # ── AviationStack fallback (real-time, today only) ────────────────────────
+    if AVIATIONSTACK_KEY:
+        try:
+            url = ('https://api.aviationstack.com/v1/flights?' +
+                   urllib.parse.urlencode({'access_key': AVIATIONSTACK_KEY,
+                                          'flight_iata': leg['flight'], 'limit': 1}))
+            with urllib.request.urlopen(url, timeout=10) as r:
+                data = json.loads(r.read())
+            flights = data.get('data', [])
+            if flights:
+                updates = _avstack_to_updates(flights[0])
+                leg.update(updates)
+                _save_trip(trip_id, t)
+                return jsonify(updates)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
-        dep = data.get('departure', {})
-        arr = data.get('arrival', {})
-
-        def _local(obj, key):
-            v = obj.get(key, {})
-            if isinstance(v, dict): return v.get('local') or v.get('utc')
-            return v or None
-
-        def _belt(arr_obj):
-            bc = arr_obj.get('baggageClaim', {})
-            return bc.get('belt') if isinstance(bc, dict) else (bc or None)
-
-        updates = {
-            'status':         data.get('status', 'Unknown'),
-            'delay_minutes':  int(dep.get('delay') or 0),
-            'terminal_dep':   dep.get('terminal'),
-            'gate_dep':       dep.get('gate'),
-            'actual_departs': _local(dep, 'revisedTime') or _local(dep, 'scheduledTime'),
-            'terminal_arr':   arr.get('terminal'),
-            'gate_arr':       arr.get('gate'),
-            'baggage_belt':   _belt(arr),
-            'actual_arrives': _local(arr, 'revisedTime') or _local(arr, 'scheduledTime'),
-            'status_updated': datetime.datetime.utcnow().isoformat(),
-        }
-        leg.update(updates)
-        _save_trip(trip_id, t)
-        return jsonify(updates)
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({'error': 'no API keys configured'}), 503
 
 
 @app.route('/api/trips/<trip_id>/legs/<leg_id>', methods=['PATCH'])
