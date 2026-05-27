@@ -1034,3 +1034,58 @@
 .link-status.pending   { background: color-mix(in srgb, #f0a040 12%, transparent); color: #f0a040; }
 .link-status.processed { background: color-mix(in srgb, #4caf7d 12%, transparent); color: #4caf7d; }
 .link-status.discarded { background: color-mix(in srgb, var(--text-dim) 12%, transparent); color: var(--text-dim); }
+
+/* ── Fechar viagem button ── */
+.btn-fechar-viagem {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: .55rem;
+  background: transparent;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: .85rem;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s, color .15s;
+}
+.btn-fechar-viagem:hover { border-color: var(--accent, #7c6aff); color: var(--text, #fff); }
+
+/* ── Export modal textarea ── */
+.modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface2, #1e1e28);
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  color: var(--text, #e8e8f0);
+  font-family: monospace;
+  font-size: .78rem;
+  line-height: 1.5;
+  padding: .6rem;
+  resize: vertical;
+  min-height: 260px;
+}
+
+/* ── Modal hint text ── */
+.modal-hint {
+  font-size: .8rem;
+  color: var(--text-dim);
+  margin: -.25rem 0 .75rem;
+}
+.modal-hint code {
+  background: var(--surface2, #1e1e28);
+  padding: .1rem .3rem;
+  border-radius: 4px;
+  font-size: .78rem;
+}
+
+/* ── Travel time pills ── */
+.travel-time-pill {
+  font-size: .72rem;
+  color: var(--text-dim);
+  text-align: center;
+  padding: .1rem 0;
+  min-height: 1rem;
+}

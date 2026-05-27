@@ -1321,6 +1321,38 @@ def nearby():
         return jsonify([])
 
 
+ORS_KEY = os.environ.get('ORS_KEY', '')
+
+
+@app.route('/api/geo/traveltime')
+def geo_traveltime():
+    if not ORS_KEY:
+        return jsonify({'error': 'no ors key'}), 503
+    from_lat = request.args.get('from_lat', '')
+    from_lon = request.args.get('from_lon', '')
+    to_lat   = request.args.get('to_lat', '')
+    to_lon   = request.args.get('to_lon', '')
+    mode     = request.args.get('mode', 'foot-walking')
+    if not all([from_lat, from_lon, to_lat, to_lon]):
+        return jsonify({'error': 'missing params'}), 400
+    if mode not in ('foot-walking', 'driving-car', 'cycling-regular'):
+        mode = 'foot-walking'
+    url = (f'https://api.openrouteservice.org/v2/directions/{mode}?'
+           + urllib.parse.urlencode({'api_key': ORS_KEY,
+                                     'start': f'{from_lon},{from_lat}',
+                                     'end': f'{to_lon},{to_lat}'}))
+    try:
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'casaserver-dashboard/1.0 apcestrela@gmail.com'})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.load(r)
+        seg = data['features'][0]['properties']['segments'][0]
+        return jsonify({'minutes': round(seg['duration'] / 60),
+                        'distance_m': round(seg['distance'])})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 # ── FLIGHT TRACKER ────────────────────────────────────────────────────────────
 
 AERODATABOX_KEY   = os.environ.get('AERODATABOX_KEY', '')
@@ -1597,6 +1629,54 @@ def trips_list():
             t = json.load(f)
         trips.append({k: t.get(k) for k in ('id', 'name', 'flag', 'status', 'countdown_to', 'travellers', 'budget_per_person')})
     return jsonify(trips)
+
+
+@app.route('/api/trips', methods=['POST'])
+def trip_create():
+    body = request.get_json(silent=True) or {}
+    name = body.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'name required'}), 400
+    trip_id = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    if not trip_id:
+        return jsonify({'error': 'invalid name'}), 400
+    if os.path.exists(_trip_path(trip_id)):
+        return jsonify({'error': 'trip already exists', 'id': trip_id}), 409
+    arrival   = body.get('arrival', '')
+    departure = body.get('departure', '')
+    nights = 0
+    if arrival and departure:
+        try:
+            from datetime import datetime as _dt
+            nights = (_dt.strptime(departure, '%Y-%m-%d') - _dt.strptime(arrival, '%Y-%m-%d')).days
+        except Exception:
+            pass
+    travellers = [t.strip() for t in body.get('travellers', 'Pedro, Inês').split(',') if t.strip()]
+    city_name  = body.get('city', name)
+    trip = {
+        'id': trip_id,
+        'name': name,
+        'flag': body.get('flag', '✈️') or '✈️',
+        'status': 'planned',
+        'countdown_to': arrival or departure,
+        'travellers': travellers,
+        'budget_per_person': float(body.get('budget_per_person', 500) or 500),
+        'tips': [],
+        'legs': [],
+        'cities': [{
+            'id': 'city-1',
+            'name': city_name,
+            'country': body.get('country', ''),
+            'arrival': arrival,
+            'departure': departure,
+            'hotel': {'name': '', 'confirmed': False, 'nights': nights},
+            'pois': [],
+        }] if city_name else [],
+        'expenses': [],
+        'links': [],
+    }
+    _save_trip(trip_id, trip)
+    return jsonify({'ok': True, 'id': trip_id})
 
 
 @app.route('/api/trips/<trip_id>')

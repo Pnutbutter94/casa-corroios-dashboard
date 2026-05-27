@@ -9,6 +9,7 @@ let _nearby = [];             // nearby suggestions for last added POI
 let _selectorOpen = false;
 let _pollInterval = null;
 let _pollTripId   = null;
+let _travelTimes  = {};  // cache: "lat,lon-lat,lon" → minutes
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -122,6 +123,12 @@ export function bindViagens(card, refresh) {
   card.querySelector('#trip-sel-btn')?.addEventListener('click', () => {
     _selectorOpen = !_selectorOpen; refresh();
   });
+
+  // new trip
+  card.querySelector('#btn-new-trip')?.addEventListener('click', () => _openNewTripModal(refresh));
+
+  // fechar viagem
+  card.querySelector('#btn-fechar-viagem')?.addEventListener('click', () => _openFecharModal());
   card.querySelectorAll('[data-select-trip]').forEach(btn => {
     btn.addEventListener('click', async () => {
       _tripId = btn.dataset.selectTrip;
@@ -258,6 +265,180 @@ export function bindViagens(card, refresh) {
 
   // auto-poll on travel day
   _startFlightPolling(refresh);
+
+  // ORS travel times — lazy fetch for all placeholder pills
+  card.querySelectorAll('[data-traveltime]').forEach(async el => {
+    const key = el.dataset.traveltime;
+    if (_travelTimes[key] !== undefined) {
+      if (_travelTimes[key]) el.textContent = `~${_travelTimes[key]}min 🚶`;
+      return;
+    }
+    const [fla, flo, tla, tlo] = key.split(',');
+    try {
+      const r = await fetch(
+        `/api/geo/traveltime?from_lat=${fla}&from_lon=${flo}&to_lat=${tla}&to_lon=${tlo}`
+      ).then(r => r.json());
+      _travelTimes[key] = r.minutes || 0;
+      if (r.minutes) el.textContent = `~${r.minutes}min 🚶`;
+    } catch (_) { _travelTimes[key] = 0; }
+  });
+}
+
+// ── NOVA VIAGEM ────────────────────────────────────────────────────────────
+function _openNewTripModal(refresh) {
+  const overlay = _overlay(`
+    <div class="modal-title">Nova viagem <button class="modal-close" id="mc">✕</button></div>
+    <div class="modal-field">
+      <label class="modal-label">Nome</label>
+      <input class="modal-input" id="nt-name" placeholder="Ex: Madrid 2026" />
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Emoji</label>
+        <input class="modal-input" id="nt-flag" placeholder="✈️" style="width:4rem;text-align:center" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Destino</label>
+        <input class="modal-input" id="nt-city" placeholder="Madrid" />
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Chegada</label>
+        <input class="modal-input" type="date" id="nt-arr" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Partida</label>
+        <input class="modal-input" type="date" id="nt-dep" />
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Viajantes</label>
+      <input class="modal-input" id="nt-trav" value="Pedro, Inês" />
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Orçamento por pessoa (€)</label>
+      <input class="modal-input" type="number" id="nt-budget" value="500" min="0" />
+    </div>
+    <div id="nt-err" style="color:var(--danger,#e05);font-size:.85rem;min-height:1.2rem"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+      <button class="btn-modal-save"   id="msave">Criar viagem</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const name   = overlay.querySelector('#nt-name').value.trim();
+    const flag   = overlay.querySelector('#nt-flag').value.trim() || '✈️';
+    const city   = overlay.querySelector('#nt-city').value.trim();
+    const arr    = overlay.querySelector('#nt-arr').value;
+    const dep    = overlay.querySelector('#nt-dep').value;
+    const trav   = overlay.querySelector('#nt-trav').value.trim();
+    const budget = parseFloat(overlay.querySelector('#nt-budget').value) || 500;
+    const errEl  = overlay.querySelector('#nt-err');
+
+    if (!name)              { errEl.textContent = 'O nome é obrigatório.'; return; }
+    if (arr && dep && arr >= dep) { errEl.textContent = 'A partida tem de ser depois da chegada.'; return; }
+
+    const r = await _api('/api/trips', 'POST', {
+      name, flag, city, arrival: arr, departure: dep,
+      travellers: trav, budget_per_person: budget,
+    });
+    if (r.error) {
+      errEl.textContent = r.error === 'trip already exists'
+        ? 'Já existe uma viagem com este nome.' : r.error;
+      return;
+    }
+    _trips  = await _api('/api/trips');
+    _tripId = r.id;
+    _trip   = await _api(`/api/trips/${r.id}`);
+    _selectorOpen = false;
+    _nearby = [];
+    close();
+    refresh();
+  });
+}
+
+// ── FECHAR VIAGEM ──────────────────────────────────────────────────────────
+function _openFecharModal() {
+  const t = _trip;
+  const { pedro, ines } = _budgetCalc(t);
+  const nights = (t.cities||[]).reduce(
+    (s,c) => s + Math.round((new Date(c.departure) - new Date(c.arrival)) / 86400000), 0);
+
+  const legLines = (t.legs||[]).map(l =>
+    `- ✈️ ${l.from} → ${l.to} · ${_fmtDate(l.date)} · ${l.airline}${l.flight ? ' ' + l.flight : ''}`
+  ).join('\n') || '— (sem voos registados)';
+
+  const cityLines = (t.cities||[]).map(c =>
+    `- **${c.name}** · ${_fmtDate(c.arrival)} → ${_fmtDate(c.departure)} · ${c.hotel.name || 'alojamento a definir'}`
+  ).join('\n') || '— (sem alojamento)';
+
+  const allPois = (t.cities||[]).flatMap(c => (c.pois||[]).map(p => ({...p, cityName:c.name})));
+  const poiLines = [
+    ...allPois.filter(p=>p.done).map(p =>
+      `- ✓ **${p.name}** (${p.type})${p.checkin_time ? ' · ' + _fmtTime(p.checkin_time) : ''}`),
+    ...allPois.filter(p=>!p.done && p.priority!=='backlog').map(p =>
+      `- ○ ${p.name} (${p.type}) — não visitado`),
+  ].join('\n') || '— (sem POIs)';
+
+  const exps = (t.expenses||[]);
+  let expBlock = '— (sem despesas)';
+  if (exps.length) {
+    const rows = exps.map(e =>
+      `| ${esc(e.description||'—')} | ${esc(CATEGORY_LABELS[e.category]||e.category)} | €${Number(e.amount).toFixed(2)} | ${esc(SPLIT_LABELS[e.split]||e.split)} |`
+    ).join('\n');
+    expBlock = `| Descrição | Categoria | Valor | Split |\n|---|---|---|---|\n${rows}\n\n**Total:** €${(pedro+ines).toFixed(2)} · Pedro €${pedro.toFixed(2)} · Inês €${ines.toFixed(2)}`;
+  }
+
+  const today = new Date().toLocaleDateString('pt-PT');
+  const slug  = t.name.replace(/\s+/g, '-');
+  const md = `# ${t.name}
+${_fmtDate(t.countdown_to)} · ${nights} noite${nights!==1?'s':''} · ${(t.cities||[]).map(c=>c.name).join(', ')}
+
+## Voos
+${legLines}
+
+## Alojamento
+${cityLines}
+
+## POIs
+${poiLines}
+
+## Despesas
+${expBlock}
+
+---
+*Exportado em ${today}*`;
+
+  const overlay = _overlay(`
+    <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
+    <p class="modal-hint">Copia para o Obsidian em <code>Viagens/${esc(slug)}.md</code></p>
+    <textarea class="modal-textarea" id="md-out" readonly>${esc(md)}</textarea>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="mcancel">Fechar</button>
+      <button class="btn-modal-save"   id="msave">📋 Copiar</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const saveBtn = overlay.querySelector('#msave');
+    try {
+      await navigator.clipboard.writeText(md);
+      saveBtn.textContent = '✓ Copiado!';
+      setTimeout(() => { saveBtn.textContent = '📋 Copiar'; }, 2000);
+    } catch (_) {
+      overlay.querySelector('#md-out').select();
+    }
+  });
 }
 
 // ── SELECTOR ───────────────────────────────────────────────────────────────
@@ -318,7 +499,8 @@ function _renderResumo() {
         ${_personBar('Pedro', pedro, t.budget_per_person)}
         ${_personBar('Inês',  ines,  t.budget_per_person)}
       </div>
-    </div>`;
+    </div>
+    <button class="btn-fechar-viagem" id="btn-fechar-viagem">Fechar viagem ↗</button>`;
 }
 
 function _renderLegCard(l) {
@@ -524,11 +706,17 @@ function _renderDay(day, dayData, allPois) {
               <div class="slot-pois">
                 ${avail===0 ? `<span class="slot-blocked">Bloqueado</span>` :
                   pois.length===0 ? `<span class="slot-empty">Livre</span>` :
-                  pois.map(item => {
-                    const poi = allPois.find(p => p.id === item.poiId) || item;
+                  pois.map((item, idx) => {
+                    const poi      = allPois.find(p => p.id === item.poiId) || item;
+                    const nextItem = pois[idx + 1];
+                    const nextPoi  = nextItem ? allPois.find(p => p.id === nextItem.poiId) : null;
                     const kb  = _matchKB(poi.name||'');
                     const confirmed = !!poi.assigned_day;
                     const confirmData = JSON.stringify({cityId:poi.cityId, poiId:poi.id, day, slot:slot.id});
+                    const ttKey = (poi.coords && nextPoi?.coords)
+                      ? `${poi.coords.lat},${poi.coords.lon},${nextPoi.coords.lat},${nextPoi.coords.lon}`
+                      : null;
+                    const cached = ttKey && _travelTimes[ttKey];
                     return `
                       <div class="slot-poi-row ${confirmed?'confirmed':'suggested'}">
                         <span class="slot-poi-icon">${TYPE_ICONS[poi.type]||'📍'}</span>
@@ -536,7 +724,8 @@ function _renderDay(day, dayData, allPois) {
                         ${kb?`<span class="poi-free-badge small" title="${esc(kb.free)}">🎟</span>`:''}
                         ${poi.checkin_time?`<span class="slot-checkin">✓ ${_fmtTime(poi.checkin_time)}</span>`:''}
                         ${!confirmed?`<button class="btn-confirm-slot" data-confirm-slot='${confirmData}'>✓</button>`:''}
-                      </div>`;
+                      </div>
+                      ${ttKey ? `<div class="travel-time-pill" data-traveltime="${esc(ttKey)}">${cached ? `~${cached}min 🚶` : ''}</div>` : ''}`;
                   }).join('')}
               </div>
             </div>`;
