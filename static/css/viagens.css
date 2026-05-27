@@ -1119,6 +1119,15 @@
 }
 .modal-check-row input[type="checkbox"] { accent-color: var(--accent, #7c6aff); }
 
+/* ── Hotel day anchor ── */
+.hotel-anchor-block {
+  font-size: .78rem;
+  color: var(--text-dim);
+  padding: .2rem .4rem;
+  border-left: 2px solid var(--border, #333);
+  margin: .15rem 0;
+}
+
 /* ── Travel time pills ── */
 .travel-time-pill {
   font-size: .72rem;

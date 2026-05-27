@@ -1898,6 +1898,17 @@ def city_update(trip_id, city_id):
         city.setdefault('hotel', {})['name'] = str(body['hotel_name'])[:300]
     if 'hotel_confirmed' in body:
         city.setdefault('hotel', {})['confirmed'] = bool(body['hotel_confirmed'])
+    if 'hotel_coords' in body:
+        hc = body['hotel_coords']
+        if isinstance(hc, dict) and 'lat' in hc and 'lon' in hc:
+            try:
+                city.setdefault('hotel', {})['coords'] = {
+                    'lat': float(hc['lat']), 'lon': float(hc['lon'])
+                }
+            except (TypeError, ValueError):
+                pass
+        elif hc is None:
+            city.setdefault('hotel', {}).pop('coords', None)
     _save_trip(trip_id, t)
     return jsonify({'ok': True})
 

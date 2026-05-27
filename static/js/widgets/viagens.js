@@ -398,11 +398,28 @@ function _openHotelModal(city, refresh) {
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
   overlay.querySelector('#msave').addEventListener('click', async () => {
-    const name = overlay.querySelector('#ht-name').value.trim();
-    const conf = overlay.querySelector('#ht-conf').checked;
+    const name  = overlay.querySelector('#ht-name').value.trim();
+    const conf  = overlay.querySelector('#ht-conf').checked;
     const errEl = overlay.querySelector('#ht-err');
+    const saveBtn = overlay.querySelector('#msave');
+
+    let coords = null;
+    if (name) {
+      saveBtn.textContent = 'A geolocalizar…';
+      saveBtn.disabled = true;
+      try {
+        const geo = await fetch(
+          `/api/geo/geocode?q=${encodeURIComponent(name + ' ' + city.name)}`
+        ).then(r => r.json());
+        if (geo.found) coords = { lat: geo.lat, lon: geo.lon };
+      } catch (_) {}
+      saveBtn.textContent = 'Guardar';
+      saveBtn.disabled = false;
+    }
+
     const r = await _api(`/api/trips/${_trip.id}/cities/${city.id}`, 'PATCH', {
       hotel_name: name, hotel_confirmed: conf,
+      ...(coords ? { hotel_coords: coords } : {}),
     });
     if (r.error) { errEl.textContent = r.error; return; }
     _trip = await _api(`/api/trips/${_trip.id}`);
@@ -854,6 +871,28 @@ function _renderDay(day, dayData, allPois) {
   const isFirst = day === _trip.legs[0]?.date;
   const isLast  = day === _trip.legs[_trip.legs.length-1]?.date;
 
+  // Active hotel for this day
+  const activeCity  = _trip.cities.find(c => c.arrival <= day && day <= c.departure) || _trip.cities[0];
+  const hotel       = activeCity?.hotel;
+  const hotelCoords = hotel?.coords;
+
+  // All POIs assigned to this day, in slot order, with coords
+  const dayPois = ['manha','tarde','noite']
+    .flatMap(s => (dayData[s] || []))
+    .map(item => allPois.find(p => p.id === item.poiId))
+    .filter(Boolean);
+  const firstGeo = dayPois.find(p => p.coords);
+  const lastGeo  = [...dayPois].reverse().find(p => p.coords);
+
+  // Hotel anchor keys for ORS (hotel→first POI and last POI→hotel)
+  // Arrival day already has a check-in block — skip hotel-start anchor there
+  const startKey = (hotelCoords && firstGeo && !isFirst)
+    ? `${hotelCoords.lat},${hotelCoords.lon},${firstGeo.coords.lat},${firstGeo.coords.lon}` : null;
+  const endKey   = (hotelCoords && lastGeo)
+    ? `${lastGeo.coords.lat},${lastGeo.coords.lon},${hotelCoords.lat},${hotelCoords.lon}` : null;
+
+  const _tt = key => key && _travelTimes[key] ? `~${_travelTimes[key]}min 🚶` : '';
+
   return `
     <div class="itinerary-day">
       <div class="itinerary-day-header">
@@ -866,6 +905,12 @@ function _renderDay(day, dayData, allPois) {
             <span class="block-icon">${b.type==='flight'?'✈️':'🏨'}</span>
             <span class="block-label">${esc(b.label)}</span>
           </div>`).join('')}
+
+        ${startKey ? `
+          <div class="hotel-anchor-block">🏨 ${esc(hotel.name)}</div>
+          <div class="travel-time-pill" data-traveltime="${esc(startKey)}">${_tt(startKey)}</div>
+        ` : ''}
+
         ${SLOTS.map(slot => {
           const pois  = (dayData[slot.id] || []);
           const avail = dayData[slot.id+'_cap'] ?? slot.cap;
@@ -899,6 +944,11 @@ function _renderDay(day, dayData, allPois) {
               </div>
             </div>`;
         }).join('')}
+
+        ${endKey ? `
+          <div class="travel-time-pill" data-traveltime="${esc(endKey)}">${_tt(endKey)}</div>
+          <div class="hotel-anchor-block">🏨 ${esc(hotel.name)} · regresso</div>
+        ` : ''}
       </div>
     </div>`;
 }
