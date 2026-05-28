@@ -304,7 +304,7 @@ export function bindBlockbuster(container, onRefresh) {
             if (!q) { if (res) res.innerHTML = ''; return; }
             _searchTimer = setTimeout(() => _doSearch(q), 400);
         });
-        input.addEventListener('blur', () => setTimeout(_clearSearch, 300));
+        input.addEventListener('blur', () => setTimeout(() => { if (document.hasFocus()) _clearSearch(); }, 300));
     }
     const resultsDiv = container.querySelector('#bb-results');
     if (resultsDiv) {
@@ -325,9 +325,15 @@ export function bindBlockbuster(container, onRefresh) {
             }
             btn.disabled = true;
             await fetch(`/api/blockbuster/delete/movie/${btn.dataset.deleteMovie}`, { method: 'DELETE' });
-            await new Promise(r => setTimeout(r, 2500));
+            await new Promise(r => setTimeout(r, 4000));
             await Promise.all([_fetchWatched(), _fetchDisk(), _fetchLibrary()]);
             onRefresh();
+            // Secondary disk refresh — Radarr sizeOnDisk stats can lag
+            setTimeout(async () => {
+                await _fetchDisk();
+                const diskEl = document.querySelector('.bb-disk');
+                if (diskEl) diskEl.innerHTML = _diskHTML();
+            }, 10000);
         });
     });
 
@@ -348,9 +354,15 @@ export function bindBlockbuster(container, onRefresh) {
                     seasonNum: parseInt(btn.dataset.seasonNum),
                 }),
             });
-            await new Promise(r => setTimeout(r, 2500));
+            await new Promise(r => setTimeout(r, 4000));
             await Promise.all([_fetchWatched(), _fetchDisk(), _fetchLibrary()]);
             onRefresh();
+            // Secondary disk refresh — Sonarr sizeOnDisk stats can lag after season delete
+            setTimeout(async () => {
+                await _fetchDisk();
+                const diskEl = document.querySelector('.bb-disk');
+                if (diskEl) diskEl.innerHTML = _diskHTML();
+            }, 10000);
         });
     });
 }
@@ -939,11 +951,13 @@ async function _sendRequest(mediaId, mediaType, btn, seasons = null, ptDub = fal
     }).catch(() => null);
     if (resp && resp.ok) {
         if (btn) { btn.textContent = ptDub ? 'Pedido! 🇵🇹' : 'Pedido!'; btn.classList.add('bb-req-done'); }
-        setTimeout(async () => {
+        // Poll queue at increasing intervals for 2min — torrent search can take time
+        const delays = [5, 10, 20, 35, 60, 90, 120];
+        delays.forEach(s => setTimeout(async () => {
             await _fetchQueue();
             const ql = document.getElementById('bb-queue-list');
             if (ql) { ql.innerHTML = _queueHTML(); _bindQueueBtns(ql); }
-        }, 4000);
+        }, s * 1000));
     } else {
         if (btn) { btn.textContent = 'Erro'; btn.disabled = false; }
     }
