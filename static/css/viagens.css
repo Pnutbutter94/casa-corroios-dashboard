@@ -1238,3 +1238,341 @@
   padding: .1rem 0;
   min-height: 1rem;
 }
+
+/* ── PHASE 1: ITINERARY REDESIGN ─────────────────────────────────────────── */
+
+/* Top bar */
+.itin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.itin-city-label { font-size: .9rem; color: var(--text-dim); }
+
+/* ── BACKLOG PANEL ── */
+.backlog-panel {
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface2, #1e1e28));
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 10px;
+  padding: .75rem;
+  margin-bottom: 1.25rem;
+}
+.backlog-title {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: .5rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.backlog-count {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: .7rem;
+  padding: .1rem .45rem;
+  font-weight: 700;
+}
+.backlog-hint { font-size: .7rem; color: var(--text-dim); font-weight: 400; }
+.backlog-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  min-height: 2.5rem;
+  border-radius: 8px;
+  padding: .25rem;
+  transition: background .15s;
+}
+.backlog-empty {
+  font-size: .8rem;
+  color: var(--text-dim);
+  padding: .5rem;
+  font-style: italic;
+}
+
+/* ── DAY SECTIONS ── */
+.itin-days { display: flex; flex-direction: column; gap: 1rem; }
+.itin-day {
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.itin-day-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .75rem;
+  background: var(--surface2, #1e1e28);
+  cursor: pointer;
+  transition: background .15s;
+}
+.itin-day-header:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface2, #1e1e28)); }
+.itin-day-header.map-day-active {
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface2, #1e1e28));
+  color: var(--accent);
+}
+.itin-day-title { font-weight: 600; font-size: .9rem; }
+.day-notes-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  color: var(--text-dim);
+  font-size: .78rem;
+  font-family: inherit;
+  padding: .4rem .75rem;
+  resize: none;
+  min-height: 1.8rem;
+  max-height: 5rem;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color .15s, color .15s;
+}
+.day-notes-input:focus {
+  border-color: var(--accent);
+  color: var(--text, #e8e8f0);
+}
+.itin-blocks { padding: .35rem .75rem 0; }
+.hotel-anchor-block {
+  font-size: .78rem;
+  color: var(--text-dim);
+  padding: .3rem .75rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.hotel-anchor-return { padding-bottom: .4rem; }
+
+/* ── SLOT BUCKETS ── */
+.itin-slots { display: flex; flex-direction: column; }
+.itin-bucket {
+  border-top: 1px solid var(--border, #2e2e3e);
+}
+.itin-bucket-label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .3rem .75rem .2rem;
+}
+.itin-slot-name { font-size: .78rem; font-weight: 600; color: var(--text, #e8e8f0); }
+.itin-slot-time { font-size: .7rem; color: var(--text-dim); }
+.itin-slot-pois {
+  min-height: 2.75rem;
+  padding: .3rem .5rem .4rem;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  border-radius: 0 0 0 0;
+  transition: background .15s;
+}
+.slot-drop-hint {
+  font-size: .75rem;
+  color: var(--text-dim);
+  padding: .4rem .5rem;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 6px;
+  text-align: center;
+  opacity: .6;
+}
+.travel-time-pill.between-pois {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  padding: .15rem 0;
+  font-size: .71rem;
+}
+.maps-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: .71rem;
+  opacity: .8;
+  transition: opacity .15s;
+}
+.maps-link:hover { opacity: 1; text-decoration: underline; }
+
+/* ── POI CARDS (new) ── */
+.poi-card {
+  display: flex;
+  align-items: flex-start;
+  gap: .4rem;
+  background: var(--surface2, #1e1e28);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 8px;
+  padding: .45rem .5rem;
+  transition: border-color .15s, opacity .15s, box-shadow .15s;
+  cursor: grab;
+  position: relative;
+  user-select: none;
+  touch-action: none;
+}
+.poi-card:active { cursor: grabbing; }
+.poi-card.poi-locked { border-color: color-mix(in srgb, gold 40%, transparent); }
+.poi-card.poi-done { opacity: .5; }
+.poi-drag-handle {
+  color: var(--text-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: grab;
+  flex-shrink: 0;
+  margin-top: .1rem;
+}
+.poi-type-icon { font-size: .9rem; flex-shrink: 0; margin-top: .1rem; }
+.poi-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.poi-name-row { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+.poi-name { font-size: .85rem; font-weight: 600; word-break: break-word; }
+.poi-lock { font-size: .75rem; }
+.poi-meta-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.poi-planned-time { font-size: .72rem; color: var(--accent); }
+.poi-duration { font-size: .72rem; color: var(--text-dim); }
+.poi-url-link {
+  font-size: .72rem;
+  color: var(--accent);
+  text-decoration: none;
+  opacity: .8;
+}
+.poi-url-link:hover { opacity: 1; text-decoration: underline; }
+.poi-times {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.poi-time-tag {
+  font-size: .7rem;
+  border-radius: 4px;
+  padding: .1rem .35rem;
+}
+.poi-time-tag.in  { background: color-mix(in srgb, #4c8 15%, transparent); color: #4c8; }
+.poi-time-tag.out { background: color-mix(in srgb, #f90 15%, transparent); color: #f90; }
+.poi-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .2rem;
+  flex-shrink: 0;
+}
+.poi-priority-btn {
+  font-size: .65rem;
+  padding: .1rem .35rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: transparent;
+  white-space: nowrap;
+}
+.poi-priority-btn.must  { color: #f66; border-color: #f66; }
+.poi-priority-btn.want  { color: var(--accent); border-color: var(--accent); }
+.poi-priority-btn.backlog { color: var(--text-dim); border-color: var(--text-dim); }
+.poi-checkin-btn, .poi-checkout-btn {
+  font-size: .7rem;
+  padding: .2rem .5rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.poi-checkin-btn  { background: #4c8; color: #000; }
+.poi-checkout-btn { background: #f90; color: #000; }
+.poi-priority-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: .35rem;
+}
+.poi-priority-dot.must    { background: #f66; }
+.poi-priority-dot.want    { background: var(--accent); }
+.poi-priority-dot.backlog { background: var(--text-dim); }
+
+/* ── DRAG AND DROP STATES ── */
+.poi-dragging {
+  opacity: .35;
+  box-shadow: 0 4px 16px rgba(0,0,0,.5);
+}
+.drop-zone-active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent) !important;
+  border-radius: 6px;
+}
+.drop-zone-active .slot-drop-hint {
+  border-color: var(--accent);
+  opacity: 1;
+  color: var(--accent);
+}
+.poi-insert-before {
+  border-top: 2px solid var(--accent) !important;
+}
+.poi-insert-after {
+  border-bottom: 2px solid var(--accent) !important;
+}
+
+/* ── MODAL: checkbox label ── */
+.modal-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .85rem;
+  color: var(--text, #e8e8f0);
+  cursor: pointer;
+}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────────────── */
+
+/* Tablet portrait & phone landscape */
+@media (max-width: 900px) {
+  .viagens-subnav { gap: .25rem; }
+  .viagens-subnav-btn { font-size: .82rem; padding: .25rem .6rem; }
+  .itin-day { border-radius: 8px; }
+  .poi-card { padding: .4rem; }
+  .poi-name { font-size: .82rem; }
+  .backlog-list { gap: .4rem; }
+}
+
+/* Phone portrait — primary on-trip mode */
+@media (max-width: 600px) {
+  .viagens-header { flex-wrap: wrap; gap: .35rem; }
+  .viagens-trip-name { font-size: 1.2rem; }
+  .viagens-subnav { overflow-x: auto; flex-wrap: nowrap; padding-bottom: .3rem; }
+  .viagens-subnav-btn { flex-shrink: 0; font-size: .8rem; padding: .25rem .55rem; }
+
+  .backlog-panel { padding: .5rem; }
+  .backlog-hint { display: none; }
+  .backlog-list { gap: .35rem; }
+
+  .itin-topbar { margin-bottom: .5rem; }
+  .itin-day { border-radius: 8px; }
+  .itin-day-header { padding: .5rem .6rem; }
+  .itin-day-title { font-size: .85rem; }
+
+  /* Bigger touch targets for on-trip buttons */
+  .poi-checkin-btn, .poi-checkout-btn {
+    font-size: .78rem;
+    padding: .3rem .65rem;
+    min-height: 2rem;
+  }
+  .poi-delete-btn { font-size: .8rem; padding: .25rem .45rem; }
+
+  .poi-card { padding: .4rem .4rem; gap: .35rem; }
+  .poi-drag-handle { font-size: .85rem; }
+  .poi-name { font-size: .82rem; }
+  .poi-duration { font-size: .7rem; }
+
+  .day-notes-input { font-size: .75rem; }
+
+  .travel-time-pill.between-pois { font-size: .7rem; gap: .4rem; }
+  .maps-link { font-size: .7rem; }
+
+  /* Map: smaller on phone */
+  .viagens-map-container { height: 200px !important; }
+
+  /* Modal: full width on phone */
+  .viagens-modal { width: 95vw !important; max-height: 85vh; overflow-y: auto; }
+  .modal-row { flex-direction: column; gap: .5rem; }
+}

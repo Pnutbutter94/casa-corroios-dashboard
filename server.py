@@ -1695,7 +1695,8 @@ TRIPS_DIR = os.path.join(DATA_DIR, 'trips')
 ALLOWED_TRIP_FIELDS    = {'name', 'status', 'countdown_to', 'budget_per_person', 'flag'}
 ALLOWED_EXPENSE_FIELDS = {'description', 'category', 'amount', 'date', 'split'}
 ALLOWED_POI_FIELDS     = {'done', 'priority', 'notes', 'duration_h', 'assigned_day',
-                           'assigned_slot', 'checkin_time', 'name', 'type'}
+                           'assigned_slot', 'assigned_order', 'checkin_time', 'checkout_time',
+                           'planned_time', 'locked', 'url', 'name', 'type', 'note_post_visit'}
 ALLOWED_LINK_FIELDS    = {'status', 'summary', 'classified_as'}
 
 VALID_SPLITS    = {'comum', 'pedro', 'ines'}
@@ -1879,10 +1880,16 @@ def poi_add(trip_id):
         'opening_hours': str(body.get('opening_hours', ''))[:200],
         'free_entry':   str(body.get('free_entry', ''))[:200],
         'coords':       body.get('coords'),
-        'done':         False,
-        'assigned_day': None,
-        'assigned_slot': None,
-        'checkin_time': None,
+        'done':           False,
+        'assigned_day':   None,
+        'assigned_slot':  None,
+        'assigned_order': None,
+        'checkin_time':   None,
+        'checkout_time':  None,
+        'planned_time':   str(body.get('planned_time', ''))[:5],
+        'locked':         bool(body.get('locked', False)),
+        'url':            str(body.get('url', ''))[:500],
+        'note_post_visit': None,
     }
     city.setdefault('pois', []).append(poi)
     _save_trip(trip_id, t)
@@ -1990,6 +1997,33 @@ def city_add(trip_id):
     return jsonify(city), 201
 
 
+@app.route('/api/trips/<trip_id>/reorder', methods=['POST'])
+def trip_reorder(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body = request.get_json(silent=True) or {}
+    for upd in body.get('pois', []):
+        poi_id  = upd.get('id')
+        city_id = upd.get('city_id')
+        city = next((c for c in t.get('cities', []) if c['id'] == city_id), None)
+        if not city:
+            continue
+        poi = next((p for p in city.get('pois', []) if p['id'] == poi_id), None)
+        if not poi:
+            continue
+        if 'assigned_day' in upd:
+            poi['assigned_day'] = upd['assigned_day']
+        if 'assigned_slot' in upd:
+            v = upd['assigned_slot']
+            if v in VALID_SLOTS or v is None:
+                poi['assigned_slot'] = v
+        if 'assigned_order' in upd:
+            poi['assigned_order'] = upd['assigned_order']
+    _save_trip(trip_id, t)
+    return jsonify({'ok': True})
+
+
 @app.route('/api/trips/<trip_id>/cities/<city_id>', methods=['PATCH'])
 def city_update(trip_id, city_id):
     t = _load_trip(trip_id)
@@ -2014,6 +2048,8 @@ def city_update(trip_id, city_id):
                 pass
         elif hc is None:
             city.setdefault('hotel', {}).pop('coords', None)
+    if 'day_notes' in body and isinstance(body['day_notes'], dict):
+        city['day_notes'] = {str(k)[:10]: str(v)[:500] for k, v in body['day_notes'].items()}
     _save_trip(trip_id, t)
     return jsonify({'ok': True})
 

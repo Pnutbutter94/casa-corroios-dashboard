@@ -4,7 +4,9 @@ import { esc } from '../utils/esc.js';
 let _trips  = [];
 let _tripId = null;
 let _trip   = null;
-let _view   = 'resumo';       // resumo | despesas | itinerario | links
+let _view         = 'resumo';  // resumo | despesas | itinerario | links
+let _drag         = null;      // {poiId, cityId, sourceDay, sourceSlot}
+let _insertTarget = null;      // {poiId, before:bool}
 let _nearby = [];             // nearby suggestions for last added POI
 let _selectorOpen = false;
 let _pollInterval = null;
@@ -63,11 +65,11 @@ const FREE_ENTRY_KB = {
   },
 };
 
-// Slot definitions: label, hour range, default capacity
+// Slot definitions
 const SLOTS = [
-  { id:'manha',  label:'Manhã',  from:9,  to:13, cap:4 },
-  { id:'tarde',  label:'Tarde',  from:13, to:19, cap:6 },
-  { id:'noite',  label:'Noite',  from:19, to:22, cap:3 },
+  { id:'manha', label:'Manhã',  subtitle:'→13h',     from:9,  to:13 },
+  { id:'tarde', label:'Tarde',  subtitle:'13h→20h',  from:13, to:20 },
+  { id:'noite', label:'Noite',  subtitle:'20h→',     from:20, to:24 },
 ];
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -196,23 +198,130 @@ export function bindViagens(card, refresh) {
     });
   });
 
-  // check-in
+  // check-in (I'm here)
   card.querySelectorAll('[data-checkin]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const { cityId, poiId, current } = JSON.parse(btn.dataset.checkin);
+      const { cityId, poiId } = JSON.parse(btn.dataset.checkin);
       await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'PATCH',
-        { checkin_time: current ? null : new Date().toISOString(), done: !current });
+        { checkin_time: new Date().toISOString() });
       _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
     });
   });
 
-  // confirm slot (save auto-assigned)
-  card.querySelectorAll('[data-confirm-slot]').forEach(btn => {
+  // check-out (I'm out)
+  card.querySelectorAll('[data-checkout]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const { cityId, poiId, day, slot } = JSON.parse(btn.dataset.confirmSlot);
+      const { cityId, poiId } = JSON.parse(btn.dataset.checkout);
       await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'PATCH',
-        { assigned_day: day, assigned_slot: slot });
+        { checkout_time: new Date().toISOString(), done: true });
+      _trip = await _api(`/api/trips/${_trip.id}`);
+      refresh();
+    });
+  });
+
+  // day notes — save on blur (no refresh to avoid losing focus)
+  card.querySelectorAll('[data-day-note]').forEach(textarea => {
+    textarea.addEventListener('blur', async () => {
+      const day    = textarea.dataset.dayNote;
+      const cityId = textarea.dataset.cityId;
+      const city   = _trip.cities.find(c => c.id === cityId);
+      if (!city) return;
+      const dayNotes = { ...(city.day_notes||{}), [day]: textarea.value.trim() };
+      city.day_notes = dayNotes; // optimistic local update
+      await _api(`/api/trips/${_trip.id}/cities/${cityId}`, 'PATCH', { day_notes: dayNotes });
+    });
+  });
+
+  // ── DRAG AND DROP ────────────────────────────────────────────────────────
+  const _clearDragUI = () => {
+    card.querySelectorAll('.poi-dragging, .drop-zone-active, .poi-insert-before, .poi-insert-after')
+      .forEach(el => el.classList.remove('poi-dragging','drop-zone-active','poi-insert-before','poi-insert-after'));
+  };
+
+  // Draggable POI cards
+  card.querySelectorAll('[data-drag]').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      _drag = JSON.parse(el.dataset.drag);
+      _insertTarget = null;
+      el.classList.add('poi-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.stopPropagation();
+    });
+    el.addEventListener('dragend', () => {
+      _drag = null;
+      _insertTarget = null;
+      _clearDragUI();
+    });
+
+    // Within-bucket: insertion indicator when dragging over another card
+    el.addEventListener('dragover', e => {
+      if (!_drag || el.dataset.drag === JSON.stringify(_drag)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('poi-insert-before','poi-insert-after');
+      const rect = el.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        el.classList.add('poi-insert-before');
+        _insertTarget = { poiId: el.dataset.poiId, before: true };
+      } else {
+        el.classList.add('poi-insert-after');
+        _insertTarget = { poiId: el.dataset.poiId, before: false };
+      }
+    });
+    el.addEventListener('dragleave', () => {
+      el.classList.remove('poi-insert-before','poi-insert-after');
+    });
+  });
+
+  // Drop zones (slot buckets + backlog)
+  card.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => {
+      if (!_drag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drop-zone-active');
+    });
+    zone.addEventListener('dragleave', e => {
+      if (!zone.contains(e.relatedTarget)) zone.classList.remove('drop-zone-active');
+    });
+    zone.addEventListener('drop', async e => {
+      e.preventDefault();
+      if (!_drag) return;
+      _clearDragUI();
+
+      const targetDay  = zone.dataset.dropDay  || null;
+      const targetSlot = zone.dataset.dropSlot || null;
+      const toBacklog  = zone.hasAttribute('data-drop-backlog');
+
+      if (toBacklog) {
+        await _api(`/api/trips/${_trip.id}/cities/${_drag.cityId}/pois/${_drag.poiId}`, 'PATCH',
+          { assigned_day: null, assigned_slot: null, assigned_order: null });
+      } else if (targetDay && targetSlot) {
+        // Re-fetch to avoid stale state then compute new order
+        _trip = await _api(`/api/trips/${_trip.id}`);
+        const all = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
+        const bucket = all
+          .filter(p => p.assigned_day === targetDay && p.assigned_slot === targetSlot && p.id !== _drag.poiId)
+          .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
+
+        let insertIdx = bucket.length; // default: append
+        if (_insertTarget) {
+          const ref = bucket.findIndex(p => p.id === _insertTarget.poiId);
+          if (ref !== -1) insertIdx = _insertTarget.before ? ref : ref + 1;
+        }
+        bucket.splice(insertIdx, 0, { id: _drag.poiId, cityId: _drag.cityId });
+
+        await _api(`/api/trips/${_trip.id}/reorder`, 'POST', {
+          pois: bucket.map((p, i) => ({
+            id: p.id, city_id: p.cityId,
+            assigned_day: targetDay, assigned_slot: targetSlot, assigned_order: i,
+          }))
+        });
+      }
+
+      _drag = null;
+      _insertTarget = null;
       _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
     });
@@ -865,67 +974,190 @@ function _renderDespesas() {
 
 // ── ITINERÁRIO ─────────────────────────────────────────────────────────────
 function _renderItinerario() {
-  const t = _trip;
-  const allPois   = t.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id, cityName:c.name})));
-  const schedule  = _computeAutoRoute(t);
-  const days      = _getTripDays(t);
-  const poolPois  = allPois.filter(p => !p.assigned_day && p.priority !== 'backlog');
-  const backlog   = allPois.filter(p => p.priority === 'backlog');
+  const t       = _trip;
+  const allPois = t.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id, cityName:c.name})));
+  const days    = _getTripDays(t);
+
+  // Backlog = all unassigned POIs, sorted by priority then order
+  const PRIO = {must:0, want:1, backlog:2};
+  const backlog = allPois
+    .filter(p => !p.assigned_day)
+    .sort((a,b) => {
+      const pd = (PRIO[a.priority]??1) - (PRIO[b.priority]??1);
+      return pd !== 0 ? pd : (a.assigned_order??99) - (b.assigned_order??99);
+    });
 
   return `
-    <!-- POI POOL -->
-    <div class="poi-pool-header">
-      <span class="poi-city-label">📍 ${esc(t.cities[0]?.name||'')}</span>
-      <button class="btn-add-poi" id="btn-add-poi">＋ Adicionar POI</button>
+    <div class="itin-topbar">
+      <span class="itin-city-label">📍 ${esc(t.cities[0]?.name||'')}</span>
+      <button class="btn-add-poi" id="btn-add-poi">＋ POI</button>
     </div>
 
-    ${allPois.length===0
-      ? `<div class="poi-empty">Adiciona locais que queres visitar. O itinerário é gerado automaticamente.</div>`
-      : `<div class="poi-list">
-          ${[...allPois.filter(p=>p.priority==='must'), ...allPois.filter(p=>p.priority==='want')]
-            .map(p => _renderPoiCard(p)).join('')}
-        </div>`}
+    <!-- BACKLOG -->
+    <div class="backlog-panel">
+      <div class="backlog-title">
+        Backlog
+        <span class="backlog-count">${backlog.length}</span>
+        <span class="backlog-hint">Arrasta para um dia · prioridade: Imprescindível → Quero ir → Backlog</span>
+      </div>
+      <div class="backlog-list drop-zone" data-drop-backlog>
+        ${backlog.length === 0
+          ? `<span class="backlog-empty">Nenhum POI por agendar</span>`
+          : backlog.map(p => _renderPoiCard(p, 'backlog')).join('')}
+      </div>
+    </div>
 
     ${_nearby.length>0 ? _renderNearby() : ''}
 
-    ${backlog.length>0 ? `
-      <div class="budget-title" style="margin-top:1rem">Backlog</div>
-      <div class="poi-list">${backlog.map(p => _renderPoiCard(p)).join('')}</div>
-    ` : ''}
-
-    <!-- AUTO ITINERARY -->
-    ${days.length>0 ? `
-      <div class="itinerary-header">
-        <span class="budget-title">Itinerário sugerido</span>
-        <span class="itinerary-hint">Sugerido → toca ✓ para fixar · toca no dia para ver no mapa</span>
-      </div>
-      <div class="itinerary-days">
-        ${days.map(day => _renderDay(day, schedule[day]||{blocks:[],manha:[],tarde:[],noite:[]}, allPois)).join('')}
-      </div>
-
-      <!-- MAP -->
-      <div class="viagens-map-section">
-        <div class="viagens-map-label" id="viagens-map-label"></div>
-        <div id="viagens-map" class="viagens-map-container"></div>
-      </div>
-    ` : ''}`;
+    <!-- DAYS -->
+    ${days.length === 0
+      ? `<div class="poi-empty">Adiciona voos ou cidades para ver o itinerário.</div>`
+      : `<div class="itin-days">
+          ${days.map(day => _renderDaySection(day, allPois, t)).join('')}
+        </div>
+        <div class="viagens-map-section">
+          <div class="viagens-map-label" id="viagens-map-label"></div>
+          <div id="viagens-map" class="viagens-map-container"></div>
+        </div>`}`;
 }
 
-function _renderPoiCard(p) {
-  const kb = _matchKB(p.name);
-  const cycleData   = JSON.stringify({cityId:p.cityId, poiId:p.id, priority:p.priority});
-  const delData     = JSON.stringify({cityId:p.cityId, poiId:p.id});
-  const checkinData = JSON.stringify({cityId:p.cityId, poiId:p.id, current:p.checkin_time});
+function _renderDaySection(day, allPois, trip) {
+  const d          = new Date(day + 'T12:00:00');
+  const blocks     = _getTimeBlocks(trip).filter(b => b.date === day);
+  const isFirst    = day === trip.legs[0]?.date;
+  const isLast     = day === trip.legs[trip.legs.length-1]?.date;
+  const activeCity = trip.cities.find(c => c.arrival <= day && day <= c.departure) || trip.cities[0];
+  const hotel      = activeCity?.hotel;
+  const hotelCoords = hotel?.coords;
+  const dayNotes   = activeCity?.day_notes?.[day] || '';
+
+  // All assigned POIs for this day sorted by slot then order
+  const slotOrder = {manha:0, tarde:1, noite:2};
+  const dayAllPois = allPois
+    .filter(p => p.assigned_day === day)
+    .sort((a,b) => {
+      const sd = (slotOrder[a.assigned_slot]??0) - (slotOrder[b.assigned_slot]??0);
+      return sd !== 0 ? sd : (a.assigned_order??99) - (b.assigned_order??99);
+    });
+
+  // ORS hotel↔first/last POI
+  const firstGeo = dayAllPois.find(p => p.coords);
+  const lastGeo  = [...dayAllPois].reverse().find(p => p.coords);
+  const _tt = key => key && _travelTimes[key] ? `~${_travelTimes[key]}min 🚶` : '';
+  const startOrs = (hotelCoords && !isFirst && firstGeo)
+    ? `${hotelCoords.lat},${hotelCoords.lon},${firstGeo.coords.lat},${firstGeo.coords.lon}` : null;
+  const endOrs = (hotelCoords && !isLast && lastGeo)
+    ? `${lastGeo.coords.lat},${lastGeo.coords.lon},${hotelCoords.lat},${hotelCoords.lon}` : null;
+
   return `
-    <div class="poi-card ${p.done?'poi-done':''}">
+    <div class="itin-day" data-day="${day}">
+      <div class="itin-day-header" data-map-day="${day}">
+        <span class="itin-day-title">${DAYS_PT[d.getDay()]}, ${d.getDate()} ${MONTHS_PT[d.getMonth()]}</span>
+        ${isFirst ? '<span class="day-badge arrival">Chegada</span>' : isLast ? '<span class="day-badge departure">Partida</span>' : ''}
+        <span class="day-map-hint">mapa ▾</span>
+      </div>
+
+      <textarea class="day-notes-input" placeholder="Notas do dia…"
+        data-day-note="${day}" data-city-id="${activeCity?.id||''}">${esc(dayNotes)}</textarea>
+
+      ${blocks.length > 0 ? `
+        <div class="itin-blocks">
+          ${blocks.map(b => `
+            <div class="itinerary-block">
+              <span class="block-icon">${b.type==='flight'?'✈️':'🏨'}</span>
+              <span class="block-label">${esc(b.label)}</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+      ${hotelCoords && !isFirst ? `
+        <div class="hotel-anchor-block">🏨 ${esc(hotel.name||'Hotel')}
+          ${startOrs ? `<span class="travel-time-pill" data-traveltime="${esc(startOrs)}">${_tt(startOrs)}</span>` : ''}
+        </div>` : ''}
+
+      <div class="itin-slots">
+        ${SLOTS.map(slot => {
+          const pois = allPois
+            .filter(p => p.assigned_day === day && p.assigned_slot === slot.id)
+            .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
+          return _renderBucket(day, slot, pois);
+        }).join('')}
+      </div>
+
+      ${hotelCoords && !isLast ? `
+        <div class="hotel-anchor-block hotel-anchor-return">
+          ${endOrs ? `<span class="travel-time-pill" data-traveltime="${esc(endOrs)}">${_tt(endOrs)}</span>` : ''}
+          🏨 ${esc(hotel.name||'Hotel')} · regresso
+        </div>` : ''}
+    </div>`;
+}
+
+function _renderBucket(day, slot, pois) {
+  return `
+    <div class="itin-bucket">
+      <div class="itin-bucket-label">
+        <span class="itin-slot-name">${slot.label}</span>
+        <span class="itin-slot-time">${slot.subtitle}</span>
+      </div>
+      <div class="itin-slot-pois drop-zone" data-drop-day="${day}" data-drop-slot="${slot.id}">
+        ${pois.length === 0
+          ? `<div class="slot-drop-hint">Arrasta aqui</div>`
+          : pois.map((p, idx) => {
+              const next = pois[idx + 1];
+              const ttKey = (p.coords && next?.coords)
+                ? `${p.coords.lat},${p.coords.lon},${next.coords.lat},${next.coords.lon}` : null;
+              const cached = ttKey && _travelTimes[ttKey];
+              return `
+                ${_renderPoiCard(p, 'bucket')}
+                ${ttKey ? `
+                  <div class="travel-time-pill between-pois" data-traveltime="${esc(ttKey)}">
+                    ${cached ? `<span>~${cached}min 🚶</span>` : ''}
+                    <a class="maps-link"
+                       href="https://www.google.com/maps/dir/?api=1&origin=${p.coords.lat},${p.coords.lon}&destination=${next.coords.lat},${next.coords.lon}&travelmode=transit"
+                       target="_blank" rel="noopener">Como chegar →</a>
+                  </div>` : ''}`;
+            }).join('')}
+      </div>
+    </div>`;
+}
+
+function _renderPoiCard(p, context='backlog') {
+  const kb        = _matchKB(p.name);
+  const dragData  = JSON.stringify({poiId:p.id, cityId:p.cityId, sourceDay:p.assigned_day||null, sourceSlot:p.assigned_slot||null});
+  const cycleData = JSON.stringify({cityId:p.cityId, poiId:p.id, priority:p.priority});
+  const delData   = JSON.stringify({cityId:p.cityId, poiId:p.id});
+  const inBucket  = context === 'bucket';
+
+  return `
+    <div class="poi-card ${p.done?'poi-done':''} ${p.locked?'poi-locked':''}"
+         draggable="true" data-drag='${dragData}' data-poi-id="${p.id}">
+      <div class="poi-drag-handle" title="Arrastar">⠿</div>
       <div class="poi-priority-dot ${p.priority}"></div>
       <span class="poi-type-icon">${TYPE_ICONS[p.type]||'📍'}</span>
-      <div class="poi-name">${esc(p.name)}</div>
-      ${kb ? `<span class="poi-free-badge" title="${esc(kb.free)}">🎟 grátis</span>` : ''}
-      <div class="poi-meta">${p.duration_h}h</div>
-      <button class="poi-priority-label ${p.priority}" data-cycle='${cycleData}'>${esc(PRIORITY_LABELS[p.priority])}</button>
-      <button class="poi-checkin-btn ${p.checkin_time?'checked':''}" data-checkin='${checkinData}'>${p.checkin_time?'✓':''}</button>
-      <button class="poi-delete-btn" data-del-poi='${delData}'>✕</button>
+      <div class="poi-body">
+        <div class="poi-name-row">
+          ${p.locked ? '<span class="poi-lock" title="Fixo">🔒</span>' : ''}
+          <span class="poi-name">${esc(p.name)}</span>
+          ${kb ? `<span class="poi-free-badge" title="${esc(kb.free)}">🎟</span>` : ''}
+        </div>
+        <div class="poi-meta-row">
+          ${p.planned_time ? `<span class="poi-planned-time">⏰ ${esc(p.planned_time)}</span>` : ''}
+          <span class="poi-duration">${p.duration_h}h</span>
+          ${p.url ? `<a class="poi-url-link" href="${esc(p.url)}" target="_blank" rel="noopener">🔗 info</a>` : ''}
+        </div>
+        ${p.checkin_time ? `<div class="poi-times">
+          <span class="poi-time-tag in">✓ ${_fmtTime(p.checkin_time)}</span>
+          ${p.checkout_time ? `<span class="poi-time-tag out">↗ ${_fmtTime(p.checkout_time)}</span>` : ''}
+        </div>` : ''}
+      </div>
+      <div class="poi-actions">
+        <button class="poi-priority-btn ${p.priority}" data-cycle='${cycleData}'
+          title="${esc(PRIORITY_LABELS[p.priority])}">${esc(PRIORITY_LABELS[p.priority])}</button>
+        ${inBucket && !p.locked && !p.checkin_time
+          ? `<button class="poi-checkin-btn" data-checkin='${JSON.stringify({cityId:p.cityId,poiId:p.id})}'>Cheguei</button>` : ''}
+        ${inBucket && p.checkin_time && !p.checkout_time
+          ? `<button class="poi-checkout-btn" data-checkout='${JSON.stringify({cityId:p.cityId,poiId:p.id})}'>Saí</button>` : ''}
+        <button class="poi-delete-btn" data-del-poi='${delData}'>✕</button>
+      </div>
     </div>`;
 }
 
@@ -1315,8 +1547,24 @@ function _openPoiModal(refresh) {
       </div>
     </div>
     <div class="modal-field">
+      <label class="modal-label">URL (site oficial, horários, etc.)</label>
+      <input class="modal-input" id="purl" type="url" placeholder="https://…" />
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Hora planeada</label>
+        <input class="modal-input" id="ptime" type="time" placeholder="10:30" />
+      </div>
+      <div class="modal-field" style="justify-content:flex-end;padding-top:1.5rem">
+        <label class="modal-checkbox-label">
+          <input type="checkbox" id="plocked" />
+          <span>Fixo (não arrastar)</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-field">
       <label class="modal-label">Notas</label>
-      <input class="modal-input" id="pnotes" placeholder="Dicas, links, observações…" />
+      <input class="modal-input" id="pnotes" placeholder="Dicas, observações…" />
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
@@ -1365,6 +1613,9 @@ function _openPoiModal(refresh) {
       duration_h:    parseFloat(overlay.querySelector('#pd').value) || 1,
       opening_hours: kb ? kb.opening : overlay.querySelector('#ph').value.trim(),
       notes:         overlay.querySelector('#pnotes').value.trim(),
+      url:           overlay.querySelector('#purl').value.trim(),
+      planned_time:  overlay.querySelector('#ptime').value.trim(),
+      locked:        overlay.querySelector('#plocked').checked,
       coords,
     });
 
@@ -1505,12 +1756,13 @@ function _updateMapMarkers() {
   const city  = _trip.cities.find(c => c.arrival <= _mapDay && _mapDay <= c.departure) || _trip.cities[0];
   const hotel = city?.hotel;
   const allPois = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
-  const schedule = _computeAutoRoute(_trip);
-  const dayData  = schedule[_mapDay] || {};
-  const dayPois  = ['manha','tarde','noite']
-    .flatMap(s => (dayData[s]||[]))
-    .map(item => allPois.find(p => p.id === item.poiId))
-    .filter(p => p?.coords);
+  const slotOrder = {manha:0, tarde:1, noite:2};
+  const dayPois = allPois
+    .filter(p => p.assigned_day === _mapDay && p.coords)
+    .sort((a,b) => {
+      const sd = (slotOrder[a.assigned_slot]??0) - (slotOrder[b.assigned_slot]??0);
+      return sd !== 0 ? sd : (a.assigned_order??99) - (b.assigned_order??99);
+    });
 
   const bounds      = [];
   const routePts    = [];
