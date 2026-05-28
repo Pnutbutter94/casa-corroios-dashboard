@@ -1041,19 +1041,35 @@ def bb_delete_season():
 @app.route('/api/blockbuster/library')
 def bb_library():
     jf_h = {'X-Emby-Token': BB_JF_TOKEN}
-    def _fetch(item_type):
-        data = _bb_req(
-            f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
-            f'?IncludeItemTypes={item_type}&Recursive=true'
-            f'&SortBy=SortName&SortOrder=Ascending&Limit=50&Fields=OriginalTitle',
-            headers=jf_h)
-        return [{'id': i['Id'],
-                 'title': i.get('Name', ''),
-                 'originalTitle': i.get('OriginalTitle') or i.get('Name', ''),
-                 'year': i.get('ProductionYear', '')}
-                for i in data.get('Items', [])]
     try:
-        return jsonify({'movies': _fetch('Movie'), 'series': _fetch('Series')})
+        # Build sets of IDs that actually have files — ghosts are excluded
+        son_series  = _bb_req(f'{BB_SON_URL}/api/v3/series?apikey={BB_SON_KEY}')
+        tvdb_w_files = {str(s['tvdbId']) for s in son_series
+                        if s.get('statistics', {}).get('episodeFileCount', 0) > 0}
+        rad_movies  = _bb_req(f'{BB_RAD_URL}/api/v3/movie?apikey={BB_RAD_KEY}')
+        tmdb_w_files = {str(m['tmdbId']) for m in rad_movies if m.get('hasFile')}
+
+        def _fetch_jf(item_type):
+            data = _bb_req(
+                f'{BB_JF_URL}/Users/{BB_JF_USER}/Items'
+                f'?IncludeItemTypes={item_type}&Recursive=true'
+                f'&SortBy=SortName&SortOrder=Ascending&Limit=50'
+                f'&Fields=OriginalTitle,ProviderIds',
+                headers=jf_h)
+            return data.get('Items', [])
+
+        def _jf_item(i):
+            return {'id': i['Id'],
+                    'title': i.get('Name', ''),
+                    'originalTitle': i.get('OriginalTitle') or i.get('Name', ''),
+                    'year': i.get('ProductionYear', '')}
+
+        movies = [_jf_item(i) for i in _fetch_jf('Movie')
+                  if str((i.get('ProviderIds') or {}).get('Tmdb', '')) in tmdb_w_files]
+        series = [_jf_item(i) for i in _fetch_jf('Series')
+                  if str((i.get('ProviderIds') or {}).get('Tvdb', '')) in tvdb_w_files]
+
+        return jsonify({'movies': movies, 'series': series})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
