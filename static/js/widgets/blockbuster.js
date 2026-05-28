@@ -88,6 +88,7 @@ function _diskHTML() {
         <span class="bb-disk-used">${usedGb} GB / ${quotaGb} GB</span>
         <span class="bb-disk-legend"><i class="bb-dot bb-ds-movies"></i>Filmes&ensp;<i class="bb-dot bb-ds-tv"></i>Séries</span>
     </div>`;
+}
 
 function _queueHTML() {
     if (!bb.queue.length) return '<div class="bb-empty">Nenhum download em curso</div>';
