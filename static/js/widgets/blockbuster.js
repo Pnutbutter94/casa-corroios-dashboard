@@ -76,14 +76,18 @@ function _diskHTML() {
     if (!bb.disk) return '<div class="bb-empty">Sem dados</div>';
     const { usedGb, quotaGb, moviesGb, tvGb } = bb.disk;
     const pct = Math.min(100, Math.round(usedGb / quotaGb * 100));
-    const cls = pct > 90 ? 'bad' : pct > 75 ? 'warn' : 'good';
+    const warnCls = pct > 90 ? 'bad' : pct > 75 ? 'warn' : '';
+    const moviesPct = +(moviesGb / quotaGb * 100).toFixed(1);
+    const tvPct     = +(tvGb     / quotaGb * 100).toFixed(1);
     return `
-    <div class="bb-disk-bar-wrap"><div class="bb-disk-bar ${cls}" style="width:${pct}%"></div></div>
+    <div class="bb-disk-bar-wrap ${warnCls}">
+        <div class="bb-disk-seg bb-ds-movies" style="width:${moviesPct}%">${moviesPct > 9 ? moviesGb + ' GB' : ''}</div>
+        <div class="bb-disk-seg bb-ds-tv"     style="width:${tvPct}%">${tvPct > 9 ? tvGb + ' GB' : ''}</div>
+    </div>
     <div class="bb-disk-stats">
         <span class="bb-disk-used">${usedGb} GB / ${quotaGb} GB</span>
-        <span class="bb-disk-detail">Filmes ${moviesGb} GB · Séries ${tvGb} GB</span>
+        <span class="bb-disk-legend"><i class="bb-dot bb-ds-movies"></i>Filmes&ensp;<i class="bb-dot bb-ds-tv"></i>Séries</span>
     </div>`;
-}
 
 function _queueHTML() {
     if (!bb.queue.length) return '<div class="bb-empty">Nenhum download em curso</div>';

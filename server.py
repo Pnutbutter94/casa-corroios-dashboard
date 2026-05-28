@@ -1270,6 +1270,95 @@ def bb_subtitles_search():
         return jsonify({'error': str(e)}), 502
 
 
+def _bb_lang_to_profile(lang_name):
+    ln = (lang_name or '').lower()
+    if ln == 'portuguese':
+        return None  # native speakers — no subs needed
+    if ln == 'spanish':
+        return 2     # PT-PT (+ EN fallback)
+    return 1         # EN subs for English and all other languages
+
+
+def _bb_set_subtitle_profile(item_type, item_id, lang_name):
+    """Set Bazarr language profile for a series or movie and trigger subtitle search."""
+    profile_id = _bb_lang_to_profile(lang_name)
+    profile_str = str(profile_id) if profile_id is not None else 'null'
+    if item_type == 'series':
+        body = urllib.parse.urlencode({'seriesid': item_id, 'profileid': profile_str}).encode()
+        urllib.request.urlopen(
+            urllib.request.Request(f'{BB_BAZ_URL}/api/series?apikey={BB_BAZ_KEY}',
+                                   data=body,
+                                   headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                   method='POST'), timeout=10)
+        if profile_id is not None:
+            body2 = urllib.parse.urlencode({'seriesid': item_id, 'action': 'search-missing'}).encode()
+            urllib.request.urlopen(
+                urllib.request.Request(f'{BB_BAZ_URL}/api/series?apikey={BB_BAZ_KEY}',
+                                       data=body2,
+                                       headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                       method='PATCH'), timeout=30)
+    else:
+        body = urllib.parse.urlencode({'radarrid': item_id, 'profileid': profile_str}).encode()
+        urllib.request.urlopen(
+            urllib.request.Request(f'{BB_BAZ_URL}/api/movies?apikey={BB_BAZ_KEY}',
+                                   data=body,
+                                   headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                   method='POST'), timeout=10)
+        if profile_id is not None:
+            body2 = urllib.parse.urlencode({'radarrid': item_id, 'action': 'search-missing'}).encode()
+            urllib.request.urlopen(
+                urllib.request.Request(f'{BB_BAZ_URL}/api/movies?apikey={BB_BAZ_KEY}',
+                                       data=body2,
+                                       headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                       method='PATCH'), timeout=30)
+
+
+@app.route('/api/blockbuster/webhook/sonarr', methods=['POST'])
+def bb_webhook_sonarr():
+    raw = request.get_json(force=True, silent=True) or {}
+    event_type = raw.get('eventType', '')
+    if event_type == 'Test':
+        return jsonify({'ok': True})
+    if event_type not in ('Download', 'EpisodeFileImported'):
+        return jsonify({'ok': True, 'skipped': event_type})
+    series_id = (raw.get('series') or {}).get('id')
+    if not series_id:
+        return jsonify({'ok': True, 'skipped': 'no series id'})
+    try:
+        series = _bb_req(f'{BB_SON_URL}/api/v3/series/{series_id}?apikey={BB_SON_KEY}')
+        lang = (series.get('originalLanguage') or {}).get('name', 'English')
+        _bb_set_subtitle_profile('series', series_id, lang)
+        return jsonify({'ok': True, 'series': series.get('title'), 'lang': lang})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/blockbuster/webhook/radarr', methods=['POST'])
+def bb_webhook_radarr():
+    raw = request.get_json(force=True, silent=True) or {}
+    event_type = raw.get('eventType', '')
+    if event_type == 'Test':
+        return jsonify({'ok': True})
+    if event_type not in ('Download', 'MovieFileImported'):
+        return jsonify({'ok': True, 'skipped': event_type})
+    movie = raw.get('movie') or {}
+    radarr_id = movie.get('id')
+    if not radarr_id:
+        return jsonify({'ok': True, 'skipped': 'no movie id'})
+    lang = (movie.get('originalLanguage') or {}).get('name')
+    if not lang:
+        try:
+            m = _bb_req(f'{BB_RAD_URL}/api/v3/movie/{radarr_id}?apikey={BB_RAD_KEY}')
+            lang = (m.get('originalLanguage') or {}).get('name', 'English')
+        except Exception:
+            lang = 'English'
+    try:
+        _bb_set_subtitle_profile('movie', radarr_id, lang)
+        return jsonify({'ok': True, 'movie': movie.get('title'), 'lang': lang})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 # ── GEO ───────────────────────────────────────────────────────────────────────
 
 @app.route('/api/geo/geocode')

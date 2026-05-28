@@ -314,17 +314,34 @@
 /* ── Disk ───────────────────────────────────────────────── */
 .bb-disk { padding: 4px 0; }
 .bb-disk-bar-wrap {
-    height: 12px;
+    height: 20px;
     background: #13133a;
     border-radius: 6px;
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+    display: flex;
+    border: 1px solid transparent;
+    transition: border-color 0.3s;
 }
-.bb-disk-bar { height: 100%; border-radius: 6px; transition: width 0.5s; }
-.bb-disk-bar.good { background: var(--good); }
-.bb-disk-bar.warn { background: var(--warn); }
-.bb-disk-bar.bad  { background: var(--bad); }
-.bb-disk-stats    { display: flex; justify-content: space-between; font-size: 14px; color: #606090; }
+.bb-disk-bar-wrap.warn { border-color: var(--warn); }
+.bb-disk-bar-wrap.bad  { border-color: var(--bad); }
+.bb-disk-seg {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    overflow: hidden;
+    white-space: nowrap;
+    transition: width 0.5s;
+}
+.bb-ds-movies { background: #5b6abf; }
+.bb-ds-tv     { background: #2a9d82; }
+.bb-disk-stats  { display: flex; justify-content: space-between; font-size: 14px; color: #606090; }
+.bb-disk-legend { display: flex; align-items: center; gap: 4px; }
+.bb-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; font-style: normal; }
 
 /* ── Clean up ───────────────────────────────────────────── */
 .bb-clean { display: flex; flex-direction: column; gap: 8px; }
