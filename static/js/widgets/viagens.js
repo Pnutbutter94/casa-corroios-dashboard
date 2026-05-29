@@ -283,6 +283,24 @@ export function bindViagens(card, refresh) {
     });
   });
 
+  // enrich POI opening hours from URL
+  card.querySelectorAll('[data-enrich]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { cityId, poiId } = JSON.parse(btn.dataset.enrich);
+      btn.textContent = '⟳ …';
+      btn.disabled = true;
+      const r = await _api(
+        `/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}/enrich`, 'POST');
+      if (r.found) {
+        _trip = await _api(`/api/trips/${_trip.id}`);
+        refresh();
+      } else {
+        btn.textContent = '✕ não encontrado';
+        setTimeout(() => { btn.textContent = '⟳ horários'; btn.disabled = false; }, 3000);
+      }
+    });
+  });
+
   // post-visit note
   card.querySelectorAll('[data-post-note]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1327,6 +1345,7 @@ function _renderPoiCard(p, context='backlog') {
           ${p.planned_time ? `<span class="poi-planned-time">⏰ ${esc(p.planned_time)}</span>` : ''}
           <span class="poi-duration">${p.duration_h}h</span>
           ${p.url ? `<a class="poi-url-link" href="${esc(p.url)}" target="_blank" rel="noopener">🔗 info</a>` : ''}
+          ${p.url && !p.opening_hours ? `<button class="poi-enrich-btn" data-enrich='${JSON.stringify({cityId:p.cityId,poiId:p.id})}' title="Buscar horários na web">⟳ horários</button>` : ''}
         </div>
         ${p.checkin_time ? `<div class="poi-times">
           <span class="poi-time-tag in">✓ ${_fmtTime(p.checkin_time)}</span>

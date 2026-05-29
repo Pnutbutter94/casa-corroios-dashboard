@@ -1562,6 +1562,19 @@
   opacity: .8;
 }
 .poi-url-link:hover { opacity: 1; text-decoration: underline; }
+
+.poi-enrich-btn {
+  background: none;
+  border: none;
+  font-size: .72rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+  opacity: .8;
+}
+.poi-enrich-btn:hover { opacity: 1; color: var(--text); }
+.poi-enrich-btn:disabled { cursor: wait; }
+
 .poi-times {
   display: flex;
   gap: .4rem;

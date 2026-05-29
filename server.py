@@ -1881,13 +1881,55 @@ ALLOWED_TRIP_FIELDS    = {'name', 'status', 'countdown_to', 'budget_per_person',
 ALLOWED_EXPENSE_FIELDS = {'description', 'category', 'amount', 'date', 'split'}
 ALLOWED_POI_FIELDS     = {'done', 'priority', 'notes', 'duration_h', 'assigned_day',
                            'assigned_slot', 'assigned_order', 'checkin_time', 'checkout_time',
-                           'planned_time', 'locked', 'url', 'name', 'type', 'note_post_visit'}
+                           'planned_time', 'locked', 'url', 'name', 'type', 'note_post_visit',
+                           'opening_hours'}
 ALLOWED_LINK_FIELDS    = {'status', 'summary', 'classified_as'}
 
 VALID_SPLITS    = {'comum', 'pedro', 'ines'}
 VALID_PRIORITY  = {'must', 'want', 'backlog'}
 VALID_SLOTS     = {'manha', 'tarde', 'noite'}
 VALID_LINK_STATUS = {'pending', 'processed', 'discarded'}
+
+
+def _scrape_opening_hours(url):
+    try:
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (compatible; Viagens/1.0)',
+            'Accept': 'text/html,application/xhtml+xml',
+        })
+        with urllib.request.urlopen(req, timeout=6) as r:
+            html = r.read(300_000).decode('utf-8', errors='replace')
+    except Exception:
+        return None
+
+    # JSON-LD schema.org openingHours / openingHoursSpecification
+    for m in re.finditer(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', html, re.S | re.I):
+        try:
+            data = json.loads(m.group(1))
+            if isinstance(data, list):
+                data = data[0]
+            oh = data.get('openingHours') or data.get('openingHoursSpecification')
+            if oh:
+                if isinstance(oh, list):
+                    oh = ' · '.join(oh) if isinstance(oh[0], str) else None
+                if oh:
+                    return str(oh)[:200]
+        except Exception:
+            continue
+
+    # Microdata itemprop="openingHours" with content attribute
+    m = re.search(r'itemprop=["\']openingHours["\'][^>]*content=["\']([^"\']+)', html, re.I)
+    if m:
+        return m.group(1).strip()[:200]
+
+    # Microdata itemprop="openingHours" with inner text
+    m = re.search(r'itemprop=["\']openingHours["\'][^>]*>([^<]+)', html, re.I)
+    if m:
+        text = m.group(1).strip()
+        if text:
+            return text[:200]
+
+    return None
 
 
 def _trip_path(trip_id):
@@ -2118,6 +2160,28 @@ def poi_delete(trip_id, city_id, poi_id):
     city['pois'] = [p for p in city.get('pois', []) if p['id'] != poi_id]
     _save_trip(trip_id, t)
     return jsonify({'ok': True})
+
+
+@app.route('/api/trips/<trip_id>/cities/<city_id>/pois/<poi_id>/enrich', methods=['POST'])
+def poi_enrich(trip_id, city_id, poi_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    city = next((c for c in t.get('cities', []) if c['id'] == city_id), None)
+    if city is None:
+        return jsonify({'error': 'city not found'}), 404
+    poi = next((p for p in city.get('pois', []) if p['id'] == poi_id), None)
+    if poi is None:
+        return jsonify({'error': 'poi not found'}), 404
+    url = poi.get('url', '')
+    if not url:
+        return jsonify({'found': False, 'reason': 'no url'})
+    oh = _scrape_opening_hours(url)
+    if not oh:
+        return jsonify({'found': False})
+    poi['opening_hours'] = oh
+    _save_trip(trip_id, t)
+    return jsonify({'found': True, 'opening_hours': oh})
 
 
 @app.route('/api/trips/<trip_id>/legs', methods=['POST'])
