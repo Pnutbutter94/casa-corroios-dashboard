@@ -1406,13 +1406,20 @@ function _slotInfo(trip, day, slotObj, allPois) {
     if (!out.arrives_local) {
       return { blocked: true, reason: 'require-arrival', totalH: 0, usedH: 0, remainingH: 0 };
     }
-    const freeH = _timeToH(out.arrives_local) + 1.5; // +1.5h airport transfer + check-in
+    const b = out.buffers || {};
+    const freeH = _timeToH(out.arrives_local)
+      + (b.processing_min || 45) / 60
+      + (b.transfer_min   || 45) / 60
+      + (b.hotel_checkin_min || 20) / 60;
     startH = Math.max(startH, freeH);
   }
 
-  // Departure day, noite — cut off by airport buffer (2h before flight)
+  // Departure day, noite — cut off by airport buffer
   if (ret?.date && day === ret.date && ret.date !== out?.date && slotObj.id === 'noite') {
-    const cutH = _timeToH(ret.departs_local) - 2;
+    const b = ret.buffers || {};
+    const cutH = _timeToH(ret.departs_local)
+      - (b.transfer_min        || 45) / 60
+      - (b.checkin_buffer_min  || 120) / 60;
     endH = Math.min(endH, cutH);
   }
 
@@ -1440,18 +1447,28 @@ function _getTimeBlocks(trip) {
   if (out) {
     blocks.push({ date:out.date, slot:'manha', type:'flight',
       label:`✈️ Voo ${out.from}→${out.to} · parte ${out.departs_local}` });
-    const freeFrom = out.arrives_local ? _addH(out.arrives_local, 1.5) : null;
-    blocks.push({ date:out.date, slot:'tarde_partial', type:'checkin',
-      label: freeFrom
-        ? `🏨 Aeroporto → hotel · check-in · livre após as ${freeFrom}`
-        : `🏨 Aeroporto → hotel · check-in` });
+    if (out.arrives_local) {
+      const b = out.buffers || {};
+      const totalBufH = (b.processing_min||45)/60 + (b.transfer_min||45)/60 + (b.hotel_checkin_min||20)/60;
+      const freeFrom = _addH(out.arrives_local, totalBufH);
+      const est = b.estimated ? ' (estimado)' : '';
+      blocks.push({ date:out.date, slot:'tarde_partial', type:'checkin',
+        label:`🏨 Aeroporto → hotel · check-in · livre após as ${freeFrom}${est}` });
+    } else {
+      blocks.push({ date:out.date, slot:'tarde_partial', type:'checkin',
+        label:`🏨 Aeroporto → hotel · preenche hora de chegada para desbloquear a tarde` });
+    }
   }
   if (ret && ret.date !== out?.date) {
+    const b = ret.buffers || {};
     const retDepart = ret.departs_local || '';
-    const airportH  = retDepart ? _addH(retDepart, -2) : null; // 2h buffer to airport
+    const leaveH = retDepart
+      ? _addH(retDepart, -((b.transfer_min||45)/60 + (b.checkin_buffer_min||120)/60))
+      : null;
+    const est = b.estimated ? ' (estimado)' : '';
     blocks.push({ date:ret.date, slot:'noite', type:'flight',
-      label: airportH
-        ? `✈️ Voo ${ret.from}→${ret.to} · ${retDepart} · sair para aeroporto às ${airportH}`
+      label: leaveH
+        ? `✈️ Voo ${ret.from}→${ret.to} · ${retDepart} · sair do hotel às ${leaveH}${est}`
         : `✈️ Voo ${ret.from}→${ret.to} · ${retDepart}` });
   }
   return blocks;
@@ -1483,16 +1500,20 @@ function _computeAutoRoute(trip) {
   const firstDay = outLeg?.date;
   const lastDay  = retLeg?.date;
   if (firstDay && cap[firstDay]) {
-    cap[firstDay].manha = 0; // always blocked — at departure airport
+    cap[firstDay].manha = 0;
     if (!outLeg.arrives_local) {
-      cap[firstDay].tarde = 0; // arrival time unknown — block entirely
+      cap[firstDay].tarde = 0;
     } else {
-      const freeH = _timeToH(outLeg.arrives_local) + 1.5; // +1.5h transfer + check-in
+      const ob = outLeg.buffers || {};
+      const freeH = _timeToH(outLeg.arrives_local)
+        + (ob.processing_min||45)/60 + (ob.transfer_min||45)/60 + (ob.hotel_checkin_min||20)/60;
       cap[firstDay].tarde = freeH >= SLOTS[1].to ? 0 : Math.max(0, SLOTS[1].to - Math.max(SLOTS[1].from, freeH));
     }
   }
   if (lastDay && cap[lastDay] && lastDay !== firstDay) {
-    const cutH = _timeToH(retLeg.departs_local) - 2;
+    const rb = retLeg.buffers || {};
+    const cutH = _timeToH(retLeg.departs_local)
+      - (rb.transfer_min||45)/60 - (rb.checkin_buffer_min||120)/60;
     cap[lastDay].noite = Math.max(0, Math.min(SLOTS[2].to, cutH) - SLOTS[2].from);
   }
 

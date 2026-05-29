@@ -8,6 +8,7 @@ import time
 import datetime
 import uuid
 import re
+import math
 
 app = Flask(__name__)
 
@@ -1463,6 +1464,137 @@ def geo_traveltime():
 AERODATABOX_KEY   = os.environ.get('AERODATABOX_KEY', '')
 AVIATIONSTACK_KEY = os.environ.get('AVIATIONSTACK_KEY', '')
 
+# ── AIRPORT METADATA & BUFFER CALCULATION ─────────────────────────────────────
+# (lat, lon, country_code, continent)
+AIRPORT_META = {
+    # Portugal
+    'LIS': (38.7742, -9.1342, 'PT', 'EU'), 'OPO': (41.2481, -8.6814, 'PT', 'EU'),
+    'FAO': (37.0144, -7.9659, 'PT', 'EU'),
+    # Spain
+    'MAD': (40.4936, -3.5668, 'ES', 'EU'), 'BCN': (41.2971, 2.0785, 'ES', 'EU'),
+    'AGP': (36.6749, -4.4991, 'ES', 'EU'), 'SVQ': (37.4180, -5.8931, 'ES', 'EU'),
+    # France
+    'CDG': (49.0097, 2.5479, 'FR', 'EU'), 'ORY': (48.7233, 2.3794, 'FR', 'EU'),
+    'NCE': (43.6584, 7.2159, 'FR', 'EU'),
+    # UK (not Schengen)
+    'LHR': (51.4775, -0.4614, 'GB', 'EU'), 'LGW': (51.1537, -0.1821, 'GB', 'EU'),
+    'STN': (51.8850, 0.2350, 'GB', 'EU'), 'MAN': (53.3537, -2.2750, 'GB', 'EU'),
+    # Germany
+    'FRA': (50.0379, 8.5622, 'DE', 'EU'), 'MUC': (48.3538, 11.7861, 'DE', 'EU'),
+    'BER': (52.3667, 13.5033, 'DE', 'EU'),
+    # Netherlands
+    'AMS': (52.3086, 4.7639, 'NL', 'EU'),
+    # Italy
+    'FCO': (41.8003, 12.2389, 'IT', 'EU'), 'MXP': (45.6306, 8.7281, 'IT', 'EU'),
+    'NAP': (40.8860, 14.2908, 'IT', 'EU'), 'VCE': (45.5053, 12.3519, 'IT', 'EU'),
+    # Switzerland
+    'ZRH': (47.4647, 8.5492, 'CH', 'EU'), 'GVA': (46.2380, 6.1090, 'CH', 'EU'),
+    # Others EU/Schengen
+    'BRU': (50.9010, 4.4844, 'BE', 'EU'), 'VIE': (48.1103, 16.5697, 'AT', 'EU'),
+    'CPH': (55.6180, 12.6560, 'DK', 'EU'), 'ARN': (59.6519, 17.9186, 'SE', 'EU'),
+    'HEL': (60.3172, 24.9633, 'FI', 'EU'), 'OSL': (60.1939, 11.1004, 'NO', 'EU'),
+    'WAW': (52.1657, 20.9671, 'PL', 'EU'), 'PRG': (50.1008, 14.2600, 'CZ', 'EU'),
+    'BUD': (47.4298, 19.2611, 'HU', 'EU'), 'ATH': (37.9364, 23.9445, 'GR', 'EU'),
+    'DUB': (53.4213, -6.2700, 'IE', 'EU'),  # Ireland: not Schengen
+    # Turkey (not EU)
+    'IST': (41.2753, 28.7519, 'TR', 'AS'), 'SAW': (40.8986, 29.3092, 'TR', 'AS'),
+    # Americas
+    'JFK': (40.6413, -73.7781, 'US', 'NA'), 'EWR': (40.6895, -74.1745, 'US', 'NA'),
+    'LAX': (33.9425, -118.408, 'US', 'NA'), 'ORD': (41.9742, -87.9073, 'US', 'NA'),
+    'MIA': (25.7959, -80.2870, 'US', 'NA'), 'BOS': (42.3656, -71.0096, 'US', 'NA'),
+    'SFO': (37.6213, -122.379, 'US', 'NA'), 'YYZ': (43.6777, -79.6248, 'CA', 'NA'),
+    'MEX': (19.4363, -99.0721, 'MX', 'NA'), 'CUN': (21.0365, -86.8771, 'MX', 'NA'),
+    'GRU': (-23.435, -46.473,  'BR', 'SA'), 'GIG': (-22.810, -43.251,  'BR', 'SA'),
+    'EZE': (-34.822, -58.536,  'AR', 'SA'), 'BOG': (4.7016, -74.1469,  'CO', 'SA'),
+    # Asia
+    'NRT': (35.7647, 140.386,  'JP', 'AS'), 'HND': (35.5533, 139.781,  'JP', 'AS'),
+    'KIX': (34.4347, 135.244,  'JP', 'AS'), 'ICN': (37.4602, 126.441,  'KR', 'AS'),
+    'PEK': (40.0799, 116.603,  'CN', 'AS'), 'PVG': (31.1443, 121.808,  'CN', 'AS'),
+    'HKG': (22.3080, 113.919,  'HK', 'AS'), 'SIN': (1.3644, 103.992,   'SG', 'AS'),
+    'BKK': (13.6811, 100.748,  'TH', 'AS'), 'KUL': (2.7456, 101.710,   'MY', 'AS'),
+    'DXB': (25.2532, 55.3657,  'AE', 'AS'), 'DOH': (25.2609, 51.6138,  'QA', 'AS'),
+    'AUH': (24.4330, 54.6511,  'AE', 'AS'), 'DEL': (28.5562, 77.1000,  'IN', 'AS'),
+    'BOM': (19.0896, 72.8656,  'IN', 'AS'),
+    # Oceania
+    'SYD': (-33.940, 151.175,  'AU', 'OC'), 'MEL': (-37.669, 144.841,  'AU', 'OC'),
+    # Africa
+    'JNB': (-26.139, 28.246,   'ZA', 'AF'), 'CAI': (30.122, 31.406,    'EG', 'AF'),
+    'CMN': (33.368, -7.590,    'MA', 'AF'),
+}
+
+SCHENGEN = {
+    'AT','BE','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IT','LV','LI',
+    'LT','LU','MT','NL','NO','PL','PT','SK','SI','ES','SE','CH',
+}
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _calc_leg_buffers(from_iata, to_iata, hotel_coords=None, direction='arrival'):
+    """Return time buffers for a leg. direction: 'arrival' or 'departure'."""
+    from_m = AIRPORT_META.get((from_iata or '').upper())
+    to_m   = AIRPORT_META.get((to_iata   or '').upper())
+    apt_m  = to_m if direction == 'arrival' else from_m
+
+    # Airport processing (customs/immigration/baggage)
+    if from_m and to_m:
+        fc, tc = from_m[2], to_m[2]
+        fco, tco = from_m[3], to_m[3]
+        if fc in SCHENGEN and tc in SCHENGEN:
+            processing_min, checkin_buffer_min = 15, 90    # EU internal
+        elif fco == tco:
+            processing_min, checkin_buffer_min = 45, 120   # same continent, non-Schengen
+        else:
+            processing_min, checkin_buffer_min = 75, 180   # intercontinental
+    else:
+        processing_min, checkin_buffer_min = 60, 120
+
+    # Ground transfer: haversine + speed model (public transit estimate)
+    transfer_min = 45  # safe fallback
+    if apt_m and hotel_coords and isinstance(hotel_coords, dict):
+        try:
+            dist = _haversine_km(apt_m[0], apt_m[1], hotel_coords['lat'], hotel_coords['lon'])
+            speed = 30 if dist < 20 else (45 if dist < 50 else 60)  # km/h
+            transfer_min = max(15, int(dist / speed * 60) + 10)
+        except Exception:
+            pass
+
+    return {
+        'processing_min':      processing_min,
+        'transfer_min':        transfer_min,
+        'hotel_checkin_min':   20,
+        'checkin_buffer_min':  checkin_buffer_min,
+        'estimated':           True,
+        'from_iata':           (from_iata or '').upper(),
+        'to_iata':             (to_iata   or '').upper(),
+    }
+
+
+def _hotel_coords_for_leg(trip, leg):
+    """Return hotel coords for the city active on the leg's date."""
+    day = leg.get('date', '')
+    city = next((c for c in trip.get('cities', []) if c.get('arrival', '') <= day <= c.get('departure', '')), None)
+    if not city:
+        city = (trip.get('cities') or [{}])[0]
+    return (city or {}).get('hotel', {}).get('coords')
+
+
+def _ensure_leg_buffers(trip):
+    """Compute and store buffers on every leg that doesn't have them yet."""
+    changed = False
+    for leg in trip.get('legs', []):
+        if not leg.get('buffers'):
+            hc = _hotel_coords_for_leg(trip, leg)
+            leg['buffers'] = _calc_leg_buffers(leg.get('from'), leg.get('to'), hc)
+            changed = True
+    return changed
+
+
 AIRLINE_IATA = {
     'easyjet': 'U2', 'ryanair': 'FR', 'tap': 'TP', 'tap portugal': 'TP',
     'iberia': 'IB', 'vueling': 'VY', 'lufthansa': 'LH', 'british airways': 'BA',
@@ -1636,6 +1768,7 @@ def leg_status(trip_id, leg_id):
                 def _belt(a):
                     bc = a.get('baggageClaim', {})
                     return bc.get('belt') if isinstance(bc, dict) else (bc or None)
+                sched_arr_iso = _lt(arr, 'scheduledTime') or ''
                 updates = {
                     'status':         data.get('status', 'Unknown'),
                     'delay_minutes':  int(dep.get('delay') or 0),
@@ -1648,6 +1781,16 @@ def leg_status(trip_id, leg_id):
                     'actual_arrives': _lt(arr, 'revisedTime') or _lt(arr, 'scheduledTime'),
                     'status_updated': datetime.datetime.utcnow().isoformat(),
                 }
+                # Auto-populate arrives_local from scheduled time (HH:MM) if not set
+                if sched_arr_iso and not leg.get('arrives_local'):
+                    t_part = sched_arr_iso[11:16] if len(sched_arr_iso) >= 16 else ''
+                    if t_part:
+                        leg['arrives_local'] = t_part
+                        updates['arrives_local'] = t_part
+                # Refresh buffers with actual hotel coords
+                hc = _hotel_coords_for_leg(t, leg)
+                leg['buffers'] = _calc_leg_buffers(leg.get('from'), leg.get('to'), hc)
+                updates['buffers'] = leg['buffers']
                 leg.update(updates)
                 _save_trip(trip_id, t)
                 return jsonify(updates)
@@ -1790,6 +1933,8 @@ def trip_get(trip_id):
     t = _load_trip(trip_id)
     if t is None:
         return jsonify({'error': 'not found'}), 404
+    if _ensure_leg_buffers(t):
+        _save_trip(trip_id, t)
     return jsonify(t)
 
 
@@ -1942,20 +2087,24 @@ def leg_add(trip_id):
     date = str(body.get('date', ''))[:10]
     if date and not DATE_RE.match(date):
         date = ''
+    from_iata = str(body.get('from', ''))[:10].upper()
+    to_iata   = str(body.get('to', ''))[:10].upper()
     leg = {
-        'id':           f'leg-{uuid.uuid4().hex[:8]}',
-        'date':         date,
-        'from':         str(body.get('from', ''))[:10].upper(),
-        'to':           str(body.get('to', ''))[:10].upper(),
-        'airline':      str(body.get('airline', ''))[:100],
+        'id':            f'leg-{uuid.uuid4().hex[:8]}',
+        'date':          date,
+        'from':          from_iata,
+        'to':            to_iata,
+        'airline':       str(body.get('airline', ''))[:100],
         'departs_local': str(body.get('departs_local', ''))[:5],
         'arrives_local': str(body.get('arrives_local', ''))[:5],
-        'confirmed':    bool(body.get('confirmed', False)),
-        'flight':       None,
-        'status':       None,
+        'confirmed':     bool(body.get('confirmed', False)),
+        'flight':        None,
+        'status':        None,
         'delay_minutes': 0,
     }
     t.setdefault('legs', []).append(leg)
+    hc = _hotel_coords_for_leg(t, leg)
+    leg['buffers'] = _calc_leg_buffers(from_iata, to_iata, hc)
     _save_trip(trip_id, t)
     return jsonify(leg), 201
 
