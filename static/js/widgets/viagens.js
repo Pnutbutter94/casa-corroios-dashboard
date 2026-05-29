@@ -220,13 +220,24 @@ export function bindViagens(card, refresh) {
     });
   });
 
-  // delete POI
+  // delete POI (backlog only)
   card.querySelectorAll('[data-del-poi]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const { cityId, poiId } = JSON.parse(btn.dataset.delPoi);
       await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'DELETE');
       _trip = await _api(`/api/trips/${_trip.id}`);
       _nearby = [];
+      refresh();
+    });
+  });
+
+  // unschedule POI (bucket ✕ → move back to backlog, don't delete)
+  card.querySelectorAll('[data-unschedule-poi]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { cityId, poiId } = JSON.parse(btn.dataset.unschedulePoi);
+      await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'PATCH',
+        { assigned_day: null, assigned_slot: null, assigned_order: null });
+      _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
     });
   });
@@ -1238,7 +1249,9 @@ function _renderPoiCard(p, context='backlog') {
           ? `<button class="poi-checkin-btn" data-checkin='${JSON.stringify({cityId:p.cityId,poiId:p.id})}'>Cheguei</button>` : ''}
         ${inBucket && p.checkin_time && !p.checkout_time
           ? `<button class="poi-checkout-btn" data-checkout='${JSON.stringify({cityId:p.cityId,poiId:p.id})}'>Saí</button>` : ''}
-        <button class="poi-delete-btn" data-del-poi='${delData}'>✕</button>
+        ${inBucket
+          ? `<button class="poi-delete-btn" data-unschedule-poi='${delData}' title="Mover para Backlog">✕</button>`
+          : `<button class="poi-delete-btn" data-del-poi='${delData}'>✕</button>`}
       </div>
     </div>`;
 }
