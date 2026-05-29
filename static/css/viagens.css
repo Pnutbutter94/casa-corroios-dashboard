@@ -1502,6 +1502,37 @@
 }
 .poi-time-tag.in  { background: color-mix(in srgb, #4c8 15%, transparent); color: #4c8; }
 .poi-time-tag.out { background: color-mix(in srgb, #f90 15%, transparent); color: #f90; }
+
+.poi-schedule-badge {
+  font-size: .68rem;
+  padding: .1rem .35rem;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.poi-schedule-badge.late  { background: color-mix(in srgb, #f90 15%, transparent); color: #f90; }
+.poi-schedule-badge.early { background: color-mix(in srgb, #4c8 15%, transparent); color: #4c8; }
+
+.poi-post-note {
+  font-size: .72rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: .1rem;
+  line-height: 1.3;
+}
+.poi-post-note-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: .72rem;
+  cursor: pointer;
+  padding: 0;
+  margin-top: .1rem;
+  opacity: .55;
+  transition: opacity .15s;
+}
+.poi-post-note-btn:hover { opacity: 1; color: var(--accent); }
+
 .poi-actions {
   display: flex;
   flex-direction: column;

@@ -253,14 +253,47 @@ export function bindViagens(card, refresh) {
     });
   });
 
-  // check-out (I'm out)
+  // check-out (I'm out) — records time, triggers day recalculation
   card.querySelectorAll('[data-checkout]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const { cityId, poiId } = JSON.parse(btn.dataset.checkout);
       await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'PATCH',
         { checkout_time: new Date().toISOString(), done: true });
       _trip = await _api(`/api/trips/${_trip.id}`);
+      await _recalculateFromCheckout(_trip, cityId, poiId);
+      _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
+    });
+  });
+
+  // post-visit note
+  card.querySelectorAll('[data-post-note]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { cityId, poiId } = JSON.parse(btn.dataset.postNote);
+      const overlay = _overlay(`
+        <div class="modal-title">Nota da visita <button class="modal-close" id="mc">✕</button></div>
+        <div class="modal-field">
+          <textarea class="modal-input" id="pn-text"
+            placeholder="O que achaste? Vale a pena voltar?"
+            style="resize:vertical;min-height:80px"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+          <button class="btn-modal-save" id="msave">Guardar</button>
+        </div>`);
+      const close = () => document.body.removeChild(overlay);
+      overlay.querySelector('#mc').addEventListener('click', close);
+      overlay.querySelector('#mcancel').addEventListener('click', close);
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      overlay.querySelector('#msave').addEventListener('click', async () => {
+        const note = overlay.querySelector('#pn-text').value.trim();
+        if (!note) { close(); return; }
+        await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'PATCH',
+          { note_post_visit: note });
+        _trip = await _api(`/api/trips/${_trip.id}`);
+        close();
+        refresh();
+      });
     });
   });
 
@@ -1240,7 +1273,21 @@ function _renderPoiCard(p, context='backlog') {
         ${p.checkin_time ? `<div class="poi-times">
           <span class="poi-time-tag in">✓ ${_fmtTime(p.checkin_time)}</span>
           ${p.checkout_time ? `<span class="poi-time-tag out">↗ ${_fmtTime(p.checkout_time)}</span>` : ''}
+          ${p.planned_time ? (() => {
+            const diff = Math.round((new Date(p.checkin_time).getHours()
+              + new Date(p.checkin_time).getMinutes()/60
+              - _timeToH(p.planned_time)) * 60);
+            if (Math.abs(diff) < 3) return '';
+            return diff > 0
+              ? `<span class="poi-schedule-badge late">${diff}min atrasado</span>`
+              : `<span class="poi-schedule-badge early">${Math.abs(diff)}min adiantado</span>`;
+          })() : ''}
         </div>` : ''}
+        ${p.checkout_time
+          ? (p.note_post_visit
+            ? `<div class="poi-post-note">"${esc(p.note_post_visit)}"</div>`
+            : `<button class="poi-post-note-btn" data-post-note='${JSON.stringify({cityId:p.cityId,poiId:p.id})}'>＋ nota</button>`)
+          : ''}
       </div>
       <div class="poi-actions">
         <button class="poi-priority-btn ${p.priority}" data-cycle='${cycleData}'
@@ -2034,4 +2081,55 @@ function _addH(t, addH) {
   const h = Math.floor(total) % 24;
   const m = Math.round((total % 1) * 60);
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+// After checkout: cascade planned_time for remaining POIs in the same day using ORS travel times
+async function _recalculateFromCheckout(trip, cityId, poiId) {
+  const allPois = trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId: c.id})));
+  const checkedOut = allPois.find(p => p.id === poiId);
+  if (!checkedOut?.assigned_day || !checkedOut.checkout_time) return;
+
+  const day = checkedOut.assigned_day;
+  const slotOrder = {manha: 0, tarde: 1, noite: 2};
+  const dayPois = allPois
+    .filter(p => p.assigned_day === day)
+    .sort((a, b) => {
+      const sd = (slotOrder[a.assigned_slot]??0) - (slotOrder[b.assigned_slot]??0);
+      return sd !== 0 ? sd : (a.assigned_order??99) - (b.assigned_order??99);
+    });
+
+  const idx = dayPois.findIndex(p => p.id === poiId);
+  if (idx === -1 || idx >= dayPois.length - 1) return;
+
+  const co = checkedOut.checkout_time ? new Date(checkedOut.checkout_time) : new Date();
+  let currentH = co.getHours() + co.getMinutes() / 60;
+  let prevPoi = checkedOut;
+
+  for (let i = idx + 1; i < dayPois.length; i++) {
+    const next = dayPois[i];
+    if (next.done) { prevPoi = next; currentH += next.duration_h || 1; continue; }
+
+    let travelH = 0;
+    if (prevPoi.coords && next.coords) {
+      const key = `${prevPoi.coords.lat},${prevPoi.coords.lon},${next.coords.lat},${next.coords.lon}`;
+      if (_travelTimes[key]) {
+        travelH = _travelTimes[key] / 60;
+      } else {
+        try {
+          const r = await fetch(
+            `/api/geo/traveltime?from_lat=${prevPoi.coords.lat}&from_lon=${prevPoi.coords.lon}&to_lat=${next.coords.lat}&to_lon=${next.coords.lon}`
+          ).then(r => r.json());
+          if (r.minutes) { _travelTimes[key] = r.minutes; travelH = r.minutes / 60; }
+        } catch (_) {}
+      }
+    }
+
+    const newPlanned = _addH('00:00', currentH + travelH);
+    if (newPlanned !== next.planned_time) {
+      await _api(`/api/trips/${trip.id}/cities/${next.cityId}/pois/${next.id}`, 'PATCH',
+        { planned_time: newPlanned });
+    }
+    currentH += travelH + (next.duration_h || 1);
+    prevPoi = next;
+  }
 }
