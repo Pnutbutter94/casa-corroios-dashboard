@@ -45,6 +45,7 @@ const FREE_ENTRY_KB = {
     type: 'museu', duration_h: 3,
     // day 0=Sun, 1=Mon…6=Sat; from/to in decimal hours
     free_windows: [{ days:[1,2,3,4,5,6], from:18, to:20 }, { days:[0], from:17, to:19 }],
+    closed_days: [],
     keywords: ['prado'],
   },
   reina_sofia: {
@@ -53,6 +54,7 @@ const FREE_ENTRY_KB = {
     free: 'Seg, Qua-Sáb 19:00-21:00 · Dom 12:30-14:30',
     type: 'museu', duration_h: 2.5,
     free_windows: [{ days:[1,3,4,5,6], from:19, to:21 }, { days:[0], from:12.5, to:14.5 }],
+    closed_days: [2],
     keywords: ['reina sofia', 'reina sofía'],
   },
   thyssen: {
@@ -61,6 +63,7 @@ const FREE_ENTRY_KB = {
     free: 'Segundas-feiras (coleção permanente)',
     type: 'museu', duration_h: 2,
     free_windows: [{ days:[1], from:10, to:19 }],
+    closed_days: [1],
     keywords: ['thyssen'],
   },
 };
@@ -111,7 +114,8 @@ async function _autoAssignUnscheduled() {
 export async function initViagens() {
   _trips = await _api('/api/trips');
   if (_trips.length > 0) {
-    _tripId = _trips[0].id;
+    const urlTripId = new URLSearchParams(location.search).get('trip');
+    _tripId = (_trips.find(t => t.id === urlTripId) ? urlTripId : null) || _trips[0].id;
     _trip   = await _api(`/api/trips/${_tripId}`);
     await _autoAssignUnscheduled();
   }
@@ -130,7 +134,10 @@ export function renderViagens() {
           ${esc(_trip.flag)} <span class="trip-sel-name">${esc(_trip.name)}</span>
           <span class="trip-sel-chevron">▾</span>
         </button>
-        <div class="viagens-countdown ${countdown.past?'past':''}">${esc(countdown.text)}</div>
+        <span class="trip-sel-right">
+          <div class="viagens-countdown ${countdown.past?'past':''}">${esc(countdown.text)}</div>
+          <button class="trip-share-btn" id="trip-share-btn" title="Partilhar viagem">🔗</button>
+        </span>
       </div>
 
       ${_selectorOpen ? _renderSelector() : ''}
@@ -156,6 +163,16 @@ export function bindViagens(card, refresh) {
   // trip selector toggle
   card.querySelector('#trip-sel-btn')?.addEventListener('click', () => {
     _selectorOpen = !_selectorOpen; refresh();
+  });
+
+  // share trip link (copies Tailscale URL with ?trip=<id>)
+  card.querySelector('#trip-share-btn')?.addEventListener('click', () => {
+    const url = `http://100.100.203.28:8080/?trip=${_tripId}`;
+    const btn = card.querySelector('#trip-share-btn');
+    navigator.clipboard.writeText(url).then(() => {
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = '🔗'; }, 2000);
+    }).catch(() => prompt('Link da viagem:', url));
   });
 
   // new trip
@@ -1291,6 +1308,7 @@ function _renderPoiCard(p, context='backlog') {
   const cycleData = JSON.stringify({cityId:p.cityId, poiId:p.id, priority:p.priority});
   const delData   = JSON.stringify({cityId:p.cityId, poiId:p.id});
   const inBucket  = context === 'bucket';
+  const conflict  = inBucket ? _conflictWarning(p) : null;
 
   return `
     <div class="poi-card ${p.done?'poi-done':''} ${p.locked?'poi-locked':''}"
@@ -1303,6 +1321,7 @@ function _renderPoiCard(p, context='backlog') {
           ${p.locked ? '<span class="poi-lock" title="Fixo">🔒</span>' : ''}
           <span class="poi-name">${esc(p.name)}</span>
           ${kb ? `<span class="poi-free-badge" title="${esc(kb.free)}">🎟</span>` : ''}
+          ${conflict ? `<span class="poi-conflict-warn" title="${esc(conflict)}">⚠️ ${esc(conflict)}</span>` : ''}
         </div>
         <div class="poi-meta-row">
           ${p.planned_time ? `<span class="poi-planned-time">⏰ ${esc(p.planned_time)}</span>` : ''}
@@ -2055,6 +2074,26 @@ function _updateMapMarkers() {
 function _matchKB(name) {
   const lower = name.toLowerCase();
   return Object.values(FREE_ENTRY_KB).find(kb => kb.keywords.some(k => lower.includes(k))) || null;
+}
+
+const _DOW_NAMES = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+// abbreviated PT day names → JS day-of-week (0=Sun)
+const _DOW_MAP = { dom:0, seg:1, ter:2, qua:3, qui:4, sex:5, sáb:6, sab:6 };
+
+function _conflictWarning(p) {
+  if (!p.assigned_day) return null;
+  const dow = new Date(p.assigned_day + 'T12:00:00').getDay();
+
+  const kb = _matchKB(p.name);
+  if (kb?.closed_days?.includes(dow)) return `Fechado ${_DOW_NAMES[dow]}`;
+
+  const oh = (p.opening_hours || '').toLowerCase();
+  if (!oh || !oh.includes('fechad')) return null;
+
+  for (const [abbr, day] of Object.entries(_DOW_MAP)) {
+    if (day === dow && oh.includes(abbr)) return `Fechado ${_DOW_NAMES[dow]}`;
+  }
+  return null;
 }
 
 function _overlay(html) {

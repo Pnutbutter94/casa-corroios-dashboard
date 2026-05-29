@@ -602,6 +602,25 @@
   margin-left: .15rem;
 }
 
+.trip-sel-right {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.trip-share-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .2rem .45rem;
+  cursor: pointer;
+  font-size: .9rem;
+  color: var(--text-dim);
+  transition: color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.trip-share-btn:hover { color: var(--text); border-color: var(--text-dim); }
+
 .trip-selector-panel {
   display: flex;
   flex-direction: column;
@@ -793,6 +812,16 @@
   white-space: nowrap;
 }
 .poi-free-badge.small { padding: .05rem .25rem; font-size: .65rem; }
+
+.poi-conflict-warn {
+  font-size: .7rem;
+  background: color-mix(in srgb, #e07030 12%, transparent);
+  color: #e07030;
+  border-radius: 999px;
+  padding: .1rem .4rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* ── MODAL KB HINT ───────────────────────────────────────────────────────── */
 
