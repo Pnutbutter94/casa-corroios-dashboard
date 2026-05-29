@@ -569,6 +569,20 @@
 }
 .btn-modal-save:hover { opacity: .85; }
 
+.btn-modal-secondary {
+  flex: 2;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: .6rem;
+  cursor: pointer;
+  font-size: .9rem;
+  transition: background .15s;
+}
+.btn-modal-secondary:hover { background: var(--surface3, #2a2a35); }
+.btn-modal-secondary:disabled { opacity: .5; cursor: wait; }
+
 /* ── TRIP SELECTOR BAR ───────────────────────────────────────────────────── */
 
 .trip-sel-bar {
@@ -1744,4 +1758,70 @@
   /* Modal: full width on phone */
   .viagens-modal { width: 95vw !important; max-height: 85vh; overflow-y: auto; }
   .modal-row { flex-direction: column; gap: .5rem; }
+}
+
+/* ── CLAUDE ASSISTANT ────────────────────────────────────────────────────── */
+
+.assistente-panel {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  padding: .5rem 0;
+}
+
+.assistente-hint {
+  font-size: .85rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.assistente-input-row {
+  display: flex;
+  gap: .5rem;
+  align-items: flex-end;
+}
+
+.assistente-textarea {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: .9rem;
+  padding: .5rem .75rem;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.assistente-textarea:focus { outline: none; border-color: var(--accent); }
+
+.assistente-send-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1.1rem;
+  padding: .5rem .75rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+.assistente-send-btn:hover { opacity: .85; }
+.assistente-send-btn:disabled { opacity: .5; cursor: wait; }
+
+.assistente-loading {
+  font-size: .85rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.assistente-response {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  font-size: .9rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

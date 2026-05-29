@@ -1891,6 +1891,131 @@ VALID_SLOTS     = {'manha', 'tarde', 'noite'}
 VALID_LINK_STATUS = {'pending', 'processed', 'discarded'}
 
 
+JARVIS_VAULT = '/app/jarvis-vault'
+CLAUDE_RELAY  = 'http://127.0.0.1:8765/query'
+
+_MONTHS_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+_DAYS_PT   = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']  # weekday() 0=Mon
+
+
+def _fmt_date_pt(s):
+    try:
+        import datetime as _d
+        d = _d.date.fromisoformat(s)
+        return f"{d.day} {_MONTHS_PT[d.month - 1]}"
+    except Exception:
+        return s or '?'
+
+
+def _trip_to_markdown(t):
+    import datetime as _dt
+    cities  = t.get('cities', [])
+    nights  = 0
+    for c in cities:
+        try:
+            nights += (_dt.date.fromisoformat(c['departure']) - _dt.date.fromisoformat(c['arrival'])).days
+        except Exception:
+            pass
+
+    CAT_PT  = {'voos':'Voos','alojamento':'Alojamento','alimentacao':'Alimentação',
+               'actividades':'Actividades','transporte':'Transporte',
+               'compras':'Compras','outros':'Outros'}
+    SPLIT_PT = {'comum':'Comum','pedro':'Pedro','ines':'Inês'}
+
+    legs = t.get('legs', [])
+    leg_lines = '\n'.join(
+        f"- ✈️ {l['from']} → {l['to']} · {_fmt_date_pt(l.get('date',''))} · {l.get('airline','')}"
+        f"{' ' + l['flight'] if l.get('flight') else ''}"
+        for l in legs
+    ) or '— (sem voos registados)'
+
+    city_lines = '\n'.join(
+        f"- **{c['name']}** · {_fmt_date_pt(c.get('arrival',''))} → {_fmt_date_pt(c.get('departure',''))}"
+        f" · {c.get('hotel',{}).get('name','') or 'alojamento a definir'}"
+        for c in cities
+    ) or '— (sem alojamento)'
+
+    all_pois = [{**p, 'cityName': c['name']} for c in cities for p in c.get('pois', [])]
+    poi_done = [
+        f"- ✓ **{p['name']}** ({p.get('type','')})"
+        for p in all_pois if p.get('done')
+    ]
+    poi_skip = [
+        f"- ○ {p['name']} ({p.get('type','')}) — não visitado"
+        for p in all_pois if not p.get('done') and p.get('priority') != 'backlog'
+    ]
+    poi_lines = '\n'.join(poi_done + poi_skip) or '— (sem POIs)'
+
+    exps  = t.get('expenses', [])
+    pedro = sum(e['amount'] if e.get('split') == 'pedro' else e['amount'] / 2 if e.get('split') == 'comum' else 0 for e in exps)
+    ines  = sum(e['amount'] if e.get('split') == 'ines'  else e['amount'] / 2 if e.get('split') == 'comum' else 0 for e in exps)
+    if exps:
+        rows = '\n'.join(
+            f"| {e.get('description','—')} | {CAT_PT.get(e.get('category',''),'—')} | €{e['amount']:.2f} | {SPLIT_PT.get(e.get('split',''),'—')} |"
+            for e in exps
+        )
+        exp_block = f"| Descrição | Categoria | Valor | Split |\n|---|---|---|---|\n{rows}\n\n**Total:** €{pedro+ines:.2f} · Pedro €{pedro:.2f} · Inês €{ines:.2f}"
+    else:
+        exp_block = '— (sem despesas)'
+
+    import datetime as _dt2
+    today = _dt2.date.today().strftime('%d/%m/%Y')
+    city_names = ', '.join(c['name'] for c in cities)
+    nights_label = f"{nights} noite{'s' if nights != 1 else ''}"
+
+    return (
+        f"# {t['name']}\n"
+        f"{_fmt_date_pt(t.get('countdown_to',''))} · {nights_label} · {city_names}\n\n"
+        f"## Voos\n{leg_lines}\n\n"
+        f"## Alojamento\n{city_lines}\n\n"
+        f"## POIs\n{poi_lines}\n\n"
+        f"## Despesas\n{exp_block}\n\n"
+        f"---\n*Exportado em {today}*"
+    )
+
+
+def _trip_context_for_claude(t):
+    import datetime as _dt
+    cities   = t.get('cities', [])
+    all_pois = [{**p} for c in cities for p in c.get('pois', [])]
+    start    = t.get('countdown_to', '')
+    end      = max((c.get('departure', '') for c in cities), default='')
+
+    day_lines = []
+    if start and end:
+        cur   = _dt.date.fromisoformat(start)
+        end_d = _dt.date.fromisoformat(end)
+        while cur <= end_d:
+            ds  = cur.isoformat()
+            lbl = f"{_DAYS_PT[cur.weekday()]} {cur.day} {_MONTHS_PT[cur.month-1]}"
+            slots = {}
+            for slot in ('manha', 'tarde', 'noite'):
+                names = [p['name'] for p in all_pois if p.get('assigned_day') == ds and p.get('assigned_slot') == slot]
+                slots[slot] = ', '.join(names) or '—'
+            day_lines.append(f"  {lbl}: {slots['manha']} | {slots['tarde']} | {slots['noite']}")
+            cur += _dt.timedelta(days=1)
+
+    backlog = [p['name'] for p in all_pois if not p.get('assigned_day') and p.get('priority') != 'backlog']
+    exps   = t.get('expenses', [])
+    pedro  = sum(e['amount'] if e.get('split') == 'pedro' else e['amount'] / 2 if e.get('split') == 'comum' else 0 for e in exps)
+    ines   = sum(e['amount'] if e.get('split') == 'ines'  else e['amount'] / 2 if e.get('split') == 'comum' else 0 for e in exps)
+    hotels = '; '.join(f"{c['name']}: {c.get('hotel',{}).get('name','?')}" for c in cities)
+
+    parts = [
+        f"Viagem: {t['name']}",
+        f"Período: {_fmt_date_pt(start)} → {_fmt_date_pt(end)}",
+        f"Hotéis: {hotels}",
+        "Itinerário (Manhã | Tarde | Noite):",
+        *day_lines,
+    ]
+    if backlog:
+        parts.append(f"Backlog a agendar: {', '.join(backlog[:12])}")
+    parts.append(f"Orçamento: €{t.get('budget_per_person',0)}/pessoa · gasto Pedro €{pedro:.0f} · Inês €{ines:.0f}")
+    parts.append("Responde em português (pt-PT). Sê conciso e prático.")
+
+    return '\n'.join(parts)
+
+
 def _scrape_opening_hours(url):
     try:
         req = urllib.request.Request(url, headers={
@@ -2182,6 +2307,46 @@ def poi_enrich(trip_id, city_id, poi_id):
     poi['opening_hours'] = oh
     _save_trip(trip_id, t)
     return jsonify({'found': True, 'opening_hours': oh})
+
+
+@app.route('/api/trips/<trip_id>/jarvis-save', methods=['POST'])
+def trip_jarvis_save(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    slug = re.sub(r'[^a-z0-9]+', '-', t['name'].lower()).strip('-') or trip_id
+    md   = _trip_to_markdown(t)
+    folder = os.path.join(JARVIS_VAULT, 'Viagens')
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, f'{slug}.md')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(md)
+    return jsonify({'ok': True, 'path': f'Viagens/{slug}.md'})
+
+
+@app.route('/api/trips/<trip_id>/claude', methods=['POST'])
+def trip_claude(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body  = request.get_json(silent=True) or {}
+    query = str(body.get('query', '')).strip()[:500]
+    if not query:
+        return jsonify({'error': 'query required'}), 400
+    context = _trip_context_for_claude(t)
+    prompt  = f"{context}\n\nPergunta: {query}"
+    try:
+        req = urllib.request.Request(
+            CLAUDE_RELAY,
+            data=json.dumps({'prompt': prompt}).encode(),
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=55) as r:
+            result = json.loads(r.read())
+        return jsonify({'response': result.get('response', '')})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
 
 
 @app.route('/api/trips/<trip_id>/legs', methods=['POST'])

@@ -11,6 +11,9 @@ let _nearby = [];             // nearby suggestions for last added POI
 let _selectorOpen = false;
 let _pollInterval = null;
 let _pollTripId   = null;
+let _claudeQuery    = '';
+let _claudeResponse = null;   // null | {text, loading}
+let _claudePending  = false;
 let _travelTimes  = {};  // cache: "lat,lon-lat,lon" → minutes
 let _map          = null;
 let _markersLayer = null;
@@ -144,17 +147,16 @@ export function renderViagens() {
 
       <!-- SUB-NAV -->
       <div class="viagens-subnav">
-        ${['resumo','despesas','itinerario','links'].map(v => `
-          <button class="viagens-subnav-btn ${_view===v?'active':''}" data-view="${v}">
-            ${v==='resumo'?'Resumo':v==='despesas'?'Despesas':v==='itinerario'?'Itinerário':'Links'}
-          </button>`).join('')}
+        ${[['resumo','Resumo'],['despesas','Despesas'],['itinerario','Itinerário'],['links','Links'],['assistente','Claude']].map(([v,l]) => `
+          <button class="viagens-subnav-btn ${_view===v?'active':''}" data-view="${v}">${l}</button>`).join('')}
       </div>
 
       <div id="viagens-view-container">
-        ${_view==='resumo'     ? _renderResumo()     : ''}
-        ${_view==='despesas'   ? _renderDespesas()   : ''}
-        ${_view==='itinerario' ? _renderItinerario() : ''}
-        ${_view==='links'      ? _renderLinks()      : ''}
+        ${_view==='resumo'     ? _renderResumo()      : ''}
+        ${_view==='despesas'   ? _renderDespesas()    : ''}
+        ${_view==='itinerario' ? _renderItinerario()  : ''}
+        ${_view==='links'      ? _renderLinks()       : ''}
+        ${_view==='assistente' ? _renderAssistente()  : ''}
       </div>
     </div>`;
 }
@@ -281,6 +283,26 @@ export function bindViagens(card, refresh) {
       _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
     });
+  });
+
+  // Claude assistant
+  const claudeTextarea = card.querySelector('#claude-query');
+  if (claudeTextarea) {
+    claudeTextarea.addEventListener('input', e => { _claudeQuery = e.target.value; });
+    claudeTextarea.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); card.querySelector('#claude-send')?.click(); }
+    });
+  }
+  card.querySelector('#claude-send')?.addEventListener('click', async () => {
+    const q = _claudeQuery.trim();
+    if (!q || _claudePending) return;
+    _claudePending = true;
+    _claudeResponse = null;
+    refresh();
+    const r = await _api(`/api/trips/${_trip.id}/claude`, 'POST', { query: q });
+    _claudePending = false;
+    _claudeResponse = r.response || r.error || 'Sem resposta.';
+    refresh();
   });
 
   // enrich POI opening hours from URL
@@ -926,6 +948,7 @@ ${expBlock}
     <textarea class="modal-textarea" id="md-out" readonly>${esc(md)}</textarea>
     <div class="modal-actions">
       <button class="btn-modal-cancel" id="mcancel">Fechar</button>
+      <button class="btn-modal-secondary" id="mjsave">🗂 Guardar no Jarvis</button>
       <button class="btn-modal-save"   id="msave">📋 Copiar</button>
     </div>`);
 
@@ -944,6 +967,37 @@ ${expBlock}
       overlay.querySelector('#md-out').select();
     }
   });
+
+  overlay.querySelector('#mjsave').addEventListener('click', async () => {
+    const btn = overlay.querySelector('#mjsave');
+    btn.textContent = '⟳ A guardar…';
+    btn.disabled = true;
+    const r = await _api(`/api/trips/${_trip.id}/jarvis-save`, 'POST');
+    if (r.ok) {
+      btn.textContent = `✓ ${r.path}`;
+    } else {
+      btn.textContent = '✕ Erro';
+      setTimeout(() => { btn.textContent = '🗂 Guardar no Jarvis'; btn.disabled = false; }, 3000);
+    }
+  });
+}
+
+// ── CLAUDE ASSISTANT ──────────────────────────────────────────────────────
+function _renderAssistente() {
+  const resp = _claudeResponse;
+  return `
+    <div class="assistente-panel">
+      <p class="assistente-hint">Faz uma pergunta sobre esta viagem — sugestões, horários, logística.</p>
+      <div class="assistente-input-row">
+        <textarea class="assistente-textarea" id="claude-query" rows="2"
+          placeholder="ex: O que devo fazer sábado à tarde? / Onde jantar perto do Prado?">${esc(_claudeQuery)}</textarea>
+        <button class="assistente-send-btn" id="claude-send" ${_claudePending ? 'disabled' : ''}>
+          ${_claudePending ? '⟳' : '↑'}
+        </button>
+      </div>
+      ${_claudePending ? `<div class="assistente-loading">A pensar…</div>` : ''}
+      ${resp ? `<div class="assistente-response">${esc(resp)}</div>` : ''}
+    </div>`;
 }
 
 // ── SELECTOR ───────────────────────────────────────────────────────────────
