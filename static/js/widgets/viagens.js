@@ -297,6 +297,19 @@ export function bindViagens(card, refresh) {
     });
   });
 
+  // add backlog suggestion to slot
+  card.querySelectorAll('[data-suggest-poi]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { poiId, cityId, day, slot } = JSON.parse(btn.dataset.suggestPoi);
+      const all = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
+      const order = all.filter(p => p.assigned_day === day && p.assigned_slot === slot).length;
+      await _api(`/api/trips/${_trip.id}/cities/${cityId}/pois/${poiId}`, 'PATCH',
+        { assigned_day: day, assigned_slot: slot, assigned_order: order });
+      _trip = await _api(`/api/trips/${_trip.id}`);
+      refresh();
+    });
+  });
+
   // day notes — save on blur (no refresh to avoid losing focus)
   card.querySelectorAll('[data-day-note]').forEach(textarea => {
     textarea.addEventListener('blur', async () => {
@@ -405,8 +418,20 @@ export function bindViagens(card, refresh) {
       _insertTarget = null;
 
       if (toBacklog) {
-        await _api(`/api/trips/${_trip.id}/cities/${savedDrag.cityId}/pois/${savedDrag.poiId}`, 'PATCH',
-          { assigned_day: null, assigned_slot: null, assigned_order: null });
+        // Reorder within backlog preserving insertion point
+        const currentBacklog = _allPoisFlat
+          .filter(p => !p.assigned_day && p.id !== savedDrag.poiId)
+          .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
+        let insertIdx = currentBacklog.length;
+        if (savedTarget) {
+          const ref = currentBacklog.findIndex(p => p.id === savedTarget.poiId);
+          if (ref !== -1) insertIdx = savedTarget.before ? ref : ref + 1;
+        }
+        currentBacklog.splice(insertIdx, 0, { id: savedDrag.poiId, cityId: savedDrag.cityId });
+        for (const [i, p] of currentBacklog.entries()) {
+          await _api(`/api/trips/${_trip.id}/cities/${p.cityId}/pois/${p.id}`, 'PATCH',
+            { assigned_day: null, assigned_slot: null, assigned_order: i });
+        }
       } else if (targetDay && targetSlot) {
         _trip = await _api(`/api/trips/${_trip.id}`);
         const all = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
@@ -1189,7 +1214,9 @@ function _renderDaySection(day, allPois, trip) {
             .filter(p => p.assigned_day === day && p.assigned_slot === slot.id)
             .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
           const info = _slotInfo(trip, day, slot, allPois);
-          return _renderBucket(day, slot, pois, info);
+          const suggestions = (!info.blocked && info.remainingH >= 1)
+            ? _gapSuggestions(allPois, pois, info.remainingH) : [];
+          return _renderBucket(day, slot, pois, info, suggestions);
         }).join('')}
       </div>
 
@@ -1201,7 +1228,7 @@ function _renderDaySection(day, allPois, trip) {
     </div>`;
 }
 
-function _renderBucket(day, slot, pois, info={}) {
+function _renderBucket(day, slot, pois, info={}, suggestions=[]) {
   const { blocked, reason, totalH, remainingH } = info;
   const fmtH = h => {
     const whole = Math.floor(h), mins = Math.round((h - whole) * 60);
@@ -1242,6 +1269,18 @@ function _renderBucket(day, slot, pois, info={}) {
                        target="_blank" rel="noopener">Como chegar →</a>
                   </div>` : ''}`;
             }).join('')}
+        ${suggestions.length > 0 ? `
+          <div class="slot-suggestions">
+            <span class="slot-suggestions-label">Do backlog</span>
+            ${suggestions.map(p => `
+              <div class="slot-suggestion">
+                <span class="slot-suggestion-icon">${TYPE_ICONS[p.type]||'📍'}</span>
+                <span class="slot-suggestion-name">${esc(p.name)}</span>
+                <span class="slot-suggestion-dur">${p.duration_h}h</span>
+                <button class="slot-suggest-btn"
+                  data-suggest-poi='${JSON.stringify({poiId:p.id,cityId:p.cityId,day,slot:slot.id})}'>＋</button>
+              </div>`).join('')}
+          </div>` : ''}
       </div>
     </div>`;
 }
@@ -2081,6 +2120,30 @@ function _addH(t, addH) {
   const h = Math.floor(total) % 24;
   const m = Math.round((total % 1) * 60);
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+// Euclidean distance between two POIs (lat/lon degrees — good enough for sorting)
+function _dist(a, b) {
+  if (!a?.coords || !b?.coords) return Infinity;
+  const dlat = a.coords.lat - b.coords.lat;
+  const dlon = a.coords.lon - b.coords.lon;
+  return Math.sqrt(dlat*dlat + dlon*dlon);
+}
+
+// Return up to `limit` backlog POIs that fit in remainingH, sorted by priority then proximity
+function _gapSuggestions(allPois, slotPois, remainingH, limit=2) {
+  const PRIO = {must:0, want:1, backlog:2};
+  const candidates = allPois.filter(p => !p.assigned_day && !p.done && (p.duration_h||1) <= remainingH);
+  if (!candidates.length) return [];
+  const anchor = [...slotPois].reverse().find(p => p.coords) || null;
+  return candidates
+    .sort((a, b) => {
+      const pd = (PRIO[a.priority]??1) - (PRIO[b.priority]??1);
+      if (pd !== 0) return pd;
+      if (anchor) return _dist(anchor, a) - _dist(anchor, b);
+      return (a.assigned_order??99) - (b.assigned_order??99);
+    })
+    .slice(0, limit);
 }
 
 // After checkout: cascade planned_time for remaining POIs in the same day using ORS travel times
