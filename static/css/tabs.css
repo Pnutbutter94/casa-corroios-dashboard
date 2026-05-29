@@ -61,6 +61,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (max-width: 700px) {
+  .tab-btn {
+    flex: 0 0 auto;   /* don't shrink — let bar scroll instead */
+    padding: 12px 10px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+}
+
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);

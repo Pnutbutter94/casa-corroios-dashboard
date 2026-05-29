@@ -1652,8 +1652,28 @@ def detect_flight(trip_id, leg_id):
     leg = next((l for l in t.get('legs', []) if l['id'] == leg_id), None)
     if not leg: return jsonify({'error': 'leg not found'}), 404
 
-    if leg.get('flight'):
+    if leg.get('flight') and leg.get('arrives_local'):
         return jsonify({'flight': leg['flight'], 'cached': True})
+    # Flight known but arrives_local missing — try to fetch it via status endpoint
+    if leg.get('flight') and not leg.get('arrives_local') and AERODATABOX_KEY:
+        try:
+            date_str = leg.get('date', datetime.date.today().isoformat())
+            data = _adb_get(f'/flights/number/{urllib.parse.quote(leg["flight"])}/{date_str}')
+            if isinstance(data, list): data = data[0] if data else {}
+            if data and 'error' not in data:
+                arr = data.get('arrival', {})
+                def _lt2(obj, key):
+                    v = obj.get(key, {})
+                    return (v.get('local') or v.get('utc')) if isinstance(v, dict) else (v or None)
+                sched = _lt2(arr, 'scheduledTime') or ''
+                if sched and len(sched) >= 16:
+                    leg['arrives_local'] = sched[11:16]
+                    hc = _hotel_coords_for_leg(t, leg)
+                    leg['buffers'] = _calc_leg_buffers(leg.get('from'), leg.get('to'), hc)
+                    _save_trip(trip_id, t)
+                    return jsonify({'flight': leg['flight'], 'arrives_local': leg['arrives_local'], 'source': 'aerodatabox-status'})
+        except Exception:
+            pass
 
     airline_name = (leg.get('airline') or '').lower()
     airline_iata = AIRLINE_IATA.get(airline_name, '')
@@ -1693,12 +1713,21 @@ def detect_flight(trip_id, leg_id):
                              and (not dest_iata or f.get('movement', {}).get('airport', {}).get('iata', '').upper() == dest_iata)), None)
             if best:
                 raw_num = best.get('number', '')
-                # number is already "U2 7653" — strip spaces and return as-is
                 iata_fn = raw_num.replace(' ', '').upper()
                 if iata_fn:
                     leg['flight'] = iata_fn
+                    # Save scheduled arrival time (HH:MM) while we have it
+                    mov = best.get('movement', {})
+                    sched_arr = (mov.get('scheduledTime') or {}).get('local', '')
+                    if sched_arr and not leg.get('arrives_local'):
+                        t_part = sched_arr[11:16] if len(sched_arr) >= 16 else ''
+                        if t_part:
+                            leg['arrives_local'] = t_part
+                    # Refresh buffers now that we may have arrives_local
+                    hc = _hotel_coords_for_leg(t, leg)
+                    leg['buffers'] = _calc_leg_buffers(leg.get('from'), leg.get('to'), hc)
                     _save_trip(trip_id, t)
-                    return jsonify({'flight': leg['flight'], 'source': 'aerodatabox'})
+                    return jsonify({'flight': leg['flight'], 'arrives_local': leg.get('arrives_local'), 'source': 'aerodatabox'})
         except Exception:
             pass
 

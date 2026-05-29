@@ -190,6 +190,11 @@ export function bindViagens(card, refresh) {
     btn.addEventListener('click', () => { _view = btn.dataset.view; refresh(); });
   });
 
+  // tappable slot warnings → switch subnav
+  card.querySelectorAll('[data-switch-tab]').forEach(el => {
+    el.addEventListener('click', () => { _view = el.dataset.switchTab; refresh(); });
+  });
+
   // despesas
   card.querySelector('#btn-add-expense')?.addEventListener('click', () => _openExpenseModal(refresh));
   card.querySelectorAll('[data-del-exp]').forEach(btn => {
@@ -1056,7 +1061,6 @@ function _renderItinerario() {
       <div class="backlog-title">
         Backlog
         <span class="backlog-count">${backlog.length}</span>
-        <span class="backlog-hint">Arrasta para um dia · prioridade: Imprescindível → Quero ir → Backlog</span>
       </div>
       <div class="backlog-list drop-zone" data-drop-backlog>
         ${backlog.length === 0
@@ -1115,8 +1119,11 @@ function _renderDaySection(day, allPois, trip) {
         <span class="day-map-hint">mapa ▾</span>
       </div>
 
-      <textarea class="day-notes-input" placeholder="Notas do dia…"
-        data-day-note="${day}" data-city-id="${activeCity?.id||''}">${esc(dayNotes)}</textarea>
+      <div class="day-notes-wrap">
+        <span class="day-notes-icon">✏️</span>
+        <textarea class="day-notes-input" placeholder="Notas do dia…"
+          data-day-note="${day}" data-city-id="${activeCity?.id||''}">${esc(dayNotes)}</textarea>
+      </div>
 
       ${blocks.length > 0 ? `
         <div class="itin-blocks">
@@ -1171,9 +1178,9 @@ function _renderBucket(day, slot, pois, info={}) {
       </div>
       <div class="itin-slot-pois ${blocked?'':'drop-zone'}" ${blocked?'':`data-drop-day="${day}" data-drop-slot="${slot.id}" data-remaining="${remainingH??99}"`}>
         ${blocked && reason === 'require-arrival'
-          ? `<div class="slot-blocked-hint">Preenche a hora de chegada do voo para desbloquear esta tarde.<br><small>Edita o voo no separador Resumo.</small></div>`
+          ? `<button class="slot-unlock-btn" data-switch-tab="resumo">Preencher hora de chegada →</button>`
           : blocked
-          ? `<div class="slot-blocked-hint">Período ocupado com voo ou deslocação.</div>`
+          ? ''
           : pois.length === 0
           ? `<div class="slot-drop-hint">Arrasta aqui</div>`
           : pois.map((p, idx) => {
