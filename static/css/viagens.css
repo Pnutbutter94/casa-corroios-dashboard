@@ -1376,11 +1376,32 @@
   color: var(--text-dim);
   margin-left: auto;
 }
+.slot-need-arrival {
+  color: #f90 !important;
+  cursor: pointer;
+}
 .slot-blocked-hint {
   font-size: .75rem;
   color: var(--text-dim);
   padding: .4rem .5rem;
   font-style: italic;
+  line-height: 1.5;
+}
+.slot-capacity {
+  font-size: .68rem;
+  color: #4c8;
+  margin-left: auto;
+  font-weight: 600;
+}
+.slot-capacity.slot-cap-low { color: #f90; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60%  { transform: translateX(-4px); }
+  40%,80%  { transform: translateX(4px); }
+}
+.drop-zone-full {
+  animation: shake .3s ease;
+  background: color-mix(in srgb, #f44 12%, transparent) !important;
 }
 .slot-drop-hint {
   font-size: .75rem;

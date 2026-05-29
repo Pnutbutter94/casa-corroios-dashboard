@@ -267,7 +267,7 @@ export function bindViagens(card, refresh) {
       .forEach(el => el.classList.remove('poi-dragging','drop-zone-active','poi-insert-before','poi-insert-after'));
   };
 
-  const _blocked = _getBlockedSlots(_trip);
+  const _allPoisFlat = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
 
   // Draggable POI cards — only dragstart/dragend (no dragover on cards: avoids stopPropagation bug)
   card.querySelectorAll('[data-drag]').forEach(el => {
@@ -332,9 +332,22 @@ export function bindViagens(card, refresh) {
       const targetSlot = zone.dataset.dropSlot || null;
       const toBacklog  = zone.hasAttribute('data-drop-backlog');
 
-      // Guard: reject drops onto blocked slots
-      if (targetDay && targetSlot && _blocked.has(`${targetDay}:${targetSlot}`)) {
-        _drag = null; _insertTarget = null; return;
+      // Guard: reject drops onto blocked slots or over-capacity slots
+      if (targetDay && targetSlot) {
+        const slotObj = SLOTS.find(s => s.id === targetSlot);
+        const info = _slotInfo(_trip, targetDay, slotObj, _allPoisFlat);
+        if (info.blocked) { _drag = null; _insertTarget = null; return; }
+        // Capacity check: get the POI being dragged
+        const draggedPoi = _allPoisFlat.find(p => p.id === _drag.poiId);
+        const poiDur = draggedPoi?.duration_h || 1;
+        // Don't count the dragged POI's own duration if it's already in this slot
+        const alreadyHere = draggedPoi?.assigned_day === targetDay && draggedPoi?.assigned_slot === targetSlot;
+        const effectiveRemaining = alreadyHere ? info.remainingH + poiDur : info.remainingH;
+        if (effectiveRemaining < poiDur) {
+          zone.classList.add('drop-zone-full');
+          setTimeout(() => zone.classList.remove('drop-zone-full'), 600);
+          _drag = null; _insertTarget = null; return;
+        }
       }
 
       const savedDrag = _drag;
@@ -1124,8 +1137,8 @@ function _renderDaySection(day, allPois, trip) {
           const pois = allPois
             .filter(p => p.assigned_day === day && p.assigned_slot === slot.id)
             .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
-          const isBlocked = _getBlockedSlots(trip).has(`${day}:${slot.id}`);
-          return _renderBucket(day, slot, pois, isBlocked);
+          const info = _slotInfo(trip, day, slot, allPois);
+          return _renderBucket(day, slot, pois, info);
         }).join('')}
       </div>
 
@@ -1137,17 +1150,30 @@ function _renderDaySection(day, allPois, trip) {
     </div>`;
 }
 
-function _renderBucket(day, slot, pois, isBlocked=false) {
+function _renderBucket(day, slot, pois, info={}) {
+  const { blocked, reason, totalH, remainingH } = info;
+  const fmtH = h => {
+    const whole = Math.floor(h), mins = Math.round((h - whole) * 60);
+    return mins > 0 ? `${whole}h${String(mins).padStart(2,'0')}` : `${whole}h`;
+  };
+  const capacityLabel = !blocked && totalH > 0
+    ? `<span class="slot-capacity ${remainingH < 1 ? 'slot-cap-low' : ''}">${fmtH(remainingH)} livre</span>`
+    : '';
+
   return `
-    <div class="itin-bucket ${isBlocked?'itin-bucket-blocked':''}">
+    <div class="itin-bucket ${blocked?'itin-bucket-blocked':''}">
       <div class="itin-bucket-label">
         <span class="itin-slot-name">${slot.label}</span>
         <span class="itin-slot-time">${slot.subtitle}</span>
-        ${isBlocked ? '<span class="slot-blocked-badge">Bloqueado ✈️</span>' : ''}
+        ${blocked && reason === 'in-transit'      ? '<span class="slot-blocked-badge">✈️ Em trânsito</span>' : ''}
+        ${blocked && reason === 'require-arrival' ? '<span class="slot-blocked-badge slot-need-arrival">⚠️ Falta hora de chegada</span>' : ''}
+        ${capacityLabel}
       </div>
-      <div class="itin-slot-pois ${isBlocked?'':'drop-zone'}" ${isBlocked?'':`data-drop-day="${day}" data-drop-slot="${slot.id}"`}>
-        ${isBlocked
-          ? `<div class="slot-blocked-hint">Voo ou deslocação neste período</div>`
+      <div class="itin-slot-pois ${blocked?'':'drop-zone'}" ${blocked?'':`data-drop-day="${day}" data-drop-slot="${slot.id}" data-remaining="${remainingH??99}"`}>
+        ${blocked && reason === 'require-arrival'
+          ? `<div class="slot-blocked-hint">Preenche a hora de chegada do voo para desbloquear esta tarde.<br><small>Edita o voo no separador Resumo.</small></div>`
+          : blocked
+          ? `<div class="slot-blocked-hint">Período ocupado com voo ou deslocação.</div>`
           : pois.length === 0
           ? `<div class="slot-drop-hint">Arrasta aqui</div>`
           : pois.map((p, idx) => {
@@ -1359,21 +1385,50 @@ function _getTripDays(trip) {
   return days;
 }
 
-function _getBlockedSlots(trip) {
-  const blocked = new Set();
-  const legs = trip.legs || [];
-  const out  = legs[0];
-  const ret  = legs[legs.length - 1];
-  if (out?.date) {
-    blocked.add(`${out.date}:manha`); // always blocked — at airport or in transit
-    const arrH = out.arrives_local ? _timeToH(out.arrives_local) + 1.5 : 15;
-    if (arrH >= 20) blocked.add(`${out.date}:tarde`);
+// Returns {blocked, reason, totalH, usedH, remainingH} for a day+slot.
+// blocked  = true → hard block (no drops, greyed out)
+// reason   = 'in-transit' | 'require-arrival' | null
+// remainingH = hours still available after assigned POIs
+function _slotInfo(trip, day, slotObj, allPois) {
+  const legs  = trip.legs || [];
+  const out   = legs[0];
+  const ret   = legs[legs.length - 1];
+  let startH  = slotObj.from;
+  let endH    = slotObj.to;
+
+  // Arrival day, manhã — always hard blocked (at airport / in transit)
+  if (day === out?.date && slotObj.id === 'manha') {
+    return { blocked: true, reason: 'in-transit', totalH: 0, usedH: 0, remainingH: 0 };
   }
-  if (ret?.date && ret.date !== out?.date) {
-    const depH = _timeToH(ret.departs_local);
-    if (depH - 2 <= 21) blocked.add(`${ret.date}:noite`); // need to leave before 21h
+
+  // Arrival day, tarde — blocked until we know arrival time
+  if (day === out?.date && slotObj.id === 'tarde') {
+    if (!out.arrives_local) {
+      return { blocked: true, reason: 'require-arrival', totalH: 0, usedH: 0, remainingH: 0 };
+    }
+    const freeH = _timeToH(out.arrives_local) + 1.5; // +1.5h airport transfer + check-in
+    startH = Math.max(startH, freeH);
   }
-  return blocked;
+
+  // Departure day, noite — cut off by airport buffer (2h before flight)
+  if (ret?.date && day === ret.date && ret.date !== out?.date && slotObj.id === 'noite') {
+    const cutH = _timeToH(ret.departs_local) - 2;
+    endH = Math.min(endH, cutH);
+  }
+
+  const totalH = Math.max(0, endH - startH);
+
+  // Hard block if effectively no time (< 1h)
+  if (totalH < 1) {
+    return { blocked: true, reason: 'in-transit', totalH, usedH: 0, remainingH: 0 };
+  }
+
+  const usedH = (allPois || [])
+    .filter(p => p.assigned_day === day && p.assigned_slot === slotObj.id)
+    .reduce((s, p) => s + (p.duration_h || 1), 0);
+
+  const remainingH = Math.max(0, totalH - usedH);
+  return { blocked: false, reason: null, totalH, usedH, remainingH };
 }
 
 function _getTimeBlocks(trip) {
@@ -1411,29 +1466,34 @@ function _computeAutoRoute(trip) {
   const confirmed = allPois.filter(p => p.assigned_day);
   const toAssign  = allPois.filter(p => !p.assigned_day && p.priority !== 'backlog');
 
-  // Build capacity map
+  // Build capacity map using slot durations
+  const _slotDur = s => s.to - s.from;
   const cap = {};
   days.forEach(day => {
-    cap[day] = { manha: SLOTS[0].cap, tarde: SLOTS[1].cap, noite: SLOTS[2].cap };
+    cap[day] = {
+      manha: _slotDur(SLOTS[0]),
+      tarde: _slotDur(SLOTS[1]),
+      noite: _slotDur(SLOTS[2]),
+    };
   });
 
   // Apply flight/travel blocks using actual leg times
-  const outLeg  = trip.legs[0];
-  const retLeg  = trip.legs[trip.legs.length - 1];
+  const outLeg   = trip.legs[0];
+  const retLeg   = trip.legs[trip.legs.length - 1];
   const firstDay = outLeg?.date;
   const lastDay  = retLeg?.date;
   if (firstDay && cap[firstDay]) {
-    // morning blocked by outbound flight; free time = arrival + 1.5h transfer/check-in
-    const freeH = _timeToH(outLeg.arrives_local) + 1.5;
-    cap[firstDay].manha = 0;
-    cap[firstDay].tarde = freeH >= 19 ? 0 : Math.max(0, 19 - Math.max(13, freeH));
-    if (freeH > 19) cap[firstDay].noite = Math.max(0, 22 - freeH);
+    cap[firstDay].manha = 0; // always blocked — at departure airport
+    if (!outLeg.arrives_local) {
+      cap[firstDay].tarde = 0; // arrival time unknown — block entirely
+    } else {
+      const freeH = _timeToH(outLeg.arrives_local) + 1.5; // +1.5h transfer + check-in
+      cap[firstDay].tarde = freeH >= SLOTS[1].to ? 0 : Math.max(0, SLOTS[1].to - Math.max(SLOTS[1].from, freeH));
+    }
   }
   if (lastDay && cap[lastDay] && lastDay !== firstDay) {
-    // return flight: block from 2h before departure
-    const blockFromH = _timeToH(retLeg.departs_local) - 2;
-    if (blockFromH <= 19) cap[lastDay].noite = 0;
-    else cap[lastDay].noite = Math.max(0, blockFromH - 19);
+    const cutH = _timeToH(retLeg.departs_local) - 2;
+    cap[lastDay].noite = Math.max(0, Math.min(SLOTS[2].to, cutH) - SLOTS[2].from);
   }
 
   // Deduct capacity for confirmed POIs
