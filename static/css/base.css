@@ -33,10 +33,11 @@
 
 :root {
   --bg: #0f0f13;
-  --surface: #16161d;
-  --surface2: #1e1e28;
-  --border: #2a2a38;
+  --surface: #1d1d28;
+  --surface2: #282840;
+  --border: #3e3e58;
   --text: #e8e8f0;
+  --text-dim: #7a7a9a;
   --muted: #8a8aa0;
   --accent: #f0c060;
   --accent2: #60a0f0;
@@ -157,4 +158,4 @@ body::before {
   transition: opacity 3s ease;
   z-index: 9999;
 }
-#dimmer.active { opacity: 0.65; }
+#dimmer.active { opacity: 0; } /* brightness controlled manually on tablet */
