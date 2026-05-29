@@ -1597,10 +1597,11 @@ def _hotel_coords_for_leg(trip, leg):
 
 
 def _ensure_leg_buffers(trip):
-    """Compute and store buffers on every leg that doesn't have them yet."""
+    """Compute/refresh buffers on every leg. Always recalculates estimated ones."""
     changed = False
     for leg in trip.get('legs', []):
-        if not leg.get('buffers'):
+        b = leg.get('buffers', {})
+        if not b or b.get('estimated', True):  # recalculate if missing or still estimated
             hc = _hotel_coords_for_leg(trip, leg)
             leg['buffers'] = _calc_leg_buffers(leg.get('from'), leg.get('to'), hc)
             changed = True
