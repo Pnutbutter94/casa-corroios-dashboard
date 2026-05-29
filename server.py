@@ -1535,11 +1535,23 @@ def _haversine_km(lat1, lon1, lat2, lon2):
     return R * 2 * math.asin(math.sqrt(a))
 
 
-def _calc_leg_buffers(from_iata, to_iata, hotel_coords=None, direction='arrival'):
-    """Return time buffers for a leg. direction: 'arrival' or 'departure'."""
+def _calc_leg_buffers(from_iata, to_iata, hotel_coords=None, direction='auto'):
+    """Return time buffers for a leg.
+    direction: 'auto' picks the airport closer to the hotel (correct for both
+    outbound and return legs without needing to know which is which).
+    """
     from_m = AIRPORT_META.get((from_iata or '').upper())
     to_m   = AIRPORT_META.get((to_iata   or '').upper())
-    apt_m  = to_m if direction == 'arrival' else from_m
+    # Auto-select the airport nearest the hotel — the relevant one for ground transfer
+    if direction == 'auto' and hotel_coords and isinstance(hotel_coords, dict):
+        try:
+            d_from = _haversine_km(from_m[0], from_m[1], hotel_coords['lat'], hotel_coords['lon']) if from_m else 9999
+            d_to   = _haversine_km(to_m[0],   to_m[1],   hotel_coords['lat'], hotel_coords['lon']) if to_m   else 9999
+            apt_m  = from_m if d_from <= d_to else to_m
+        except Exception:
+            apt_m  = to_m
+    else:
+        apt_m = to_m if direction != 'departure' else from_m
 
     # Airport processing (customs/immigration/baggage)
     if from_m and to_m:
