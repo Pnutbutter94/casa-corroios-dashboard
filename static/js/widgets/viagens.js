@@ -81,11 +81,39 @@ async function _api(path, method='GET', body=null) {
 }
 
 // ── PUBLIC ─────────────────────────────────────────────────────────────────
+async function _autoAssignUnscheduled() {
+  if (!_trip) return;
+  const allPois = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
+  const toAssign = allPois.filter(p => !p.assigned_day && p.priority !== 'backlog');
+  if (!toAssign.length) return;
+
+  const schedule = _computeAutoRoute(_trip);
+  const days     = _getTripDays(_trip);
+  const batched  = [];
+
+  days.forEach(day => {
+    ['manha','tarde','noite'].forEach(slot => {
+      (schedule[day]?.[slot] || []).forEach((item, idx) => {
+        if (toAssign.find(p => p.id === item.poiId)) {
+          batched.push({ id: item.poiId, cityId: item.cityId, day, slot, order: idx });
+        }
+      });
+    });
+  });
+
+  for (const a of batched) {
+    await _api(`/api/trips/${_trip.id}/cities/${a.cityId}/pois/${a.id}`, 'PATCH',
+      { assigned_day: a.day, assigned_slot: a.slot, assigned_order: a.order });
+  }
+  if (batched.length) _trip = await _api(`/api/trips/${_trip.id}`);
+}
+
 export async function initViagens() {
   _trips = await _api('/api/trips');
   if (_trips.length > 0) {
     _tripId = _trips[0].id;
     _trip   = await _api(`/api/trips/${_tripId}`);
+    await _autoAssignUnscheduled();
   }
 }
 
@@ -235,56 +263,66 @@ export function bindViagens(card, refresh) {
 
   // ── DRAG AND DROP ────────────────────────────────────────────────────────
   const _clearDragUI = () => {
-    card.querySelectorAll('.poi-dragging, .drop-zone-active, .poi-insert-before, .poi-insert-after')
+    card.querySelectorAll('.poi-dragging,.drop-zone-active,.poi-insert-before,.poi-insert-after')
       .forEach(el => el.classList.remove('poi-dragging','drop-zone-active','poi-insert-before','poi-insert-after'));
   };
 
-  // Draggable POI cards
+  const _blocked = _getBlockedSlots(_trip);
+
+  // Draggable POI cards — only dragstart/dragend (no dragover on cards: avoids stopPropagation bug)
   card.querySelectorAll('[data-drag]').forEach(el => {
     el.addEventListener('dragstart', e => {
       _drag = JSON.parse(el.dataset.drag);
       _insertTarget = null;
       el.classList.add('poi-dragging');
       e.dataTransfer.effectAllowed = 'move';
-      e.stopPropagation();
     });
     el.addEventListener('dragend', () => {
       _drag = null;
       _insertTarget = null;
       _clearDragUI();
     });
-
-    // Within-bucket: insertion indicator when dragging over another card
-    el.addEventListener('dragover', e => {
-      if (!_drag || el.dataset.drag === JSON.stringify(_drag)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      el.classList.remove('poi-insert-before','poi-insert-after');
-      const rect = el.getBoundingClientRect();
-      if (e.clientY < rect.top + rect.height / 2) {
-        el.classList.add('poi-insert-before');
-        _insertTarget = { poiId: el.dataset.poiId, before: true };
-      } else {
-        el.classList.add('poi-insert-after');
-        _insertTarget = { poiId: el.dataset.poiId, before: false };
-      }
-    });
-    el.addEventListener('dragleave', () => {
-      el.classList.remove('poi-insert-before','poi-insert-after');
-    });
   });
 
-  // Drop zones (slot buckets + backlog)
+  // Drop zones — handle dragover WITH insertion detection by scanning child cards
   card.querySelectorAll('.drop-zone').forEach(zone => {
     zone.addEventListener('dragover', e => {
       if (!_drag) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       zone.classList.add('drop-zone-active');
+
+      // Compute insert position from child POI cards
+      card.querySelectorAll('.poi-insert-before,.poi-insert-after')
+        .forEach(el => el.classList.remove('poi-insert-before','poi-insert-after'));
+      _insertTarget = null;
+      const poiCards = Array.from(zone.querySelectorAll('[data-poi-id]'))
+        .filter(pc => pc.dataset.poiId !== _drag?.poiId);
+      let matched = false;
+      for (const pc of poiCards) {
+        const rect = pc.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+          pc.classList.add('poi-insert-before');
+          _insertTarget = { poiId: pc.dataset.poiId, before: true };
+          matched = true;
+          break;
+        }
+        pc.classList.remove('poi-insert-before');
+        pc.classList.add('poi-insert-after');
+        _insertTarget = { poiId: pc.dataset.poiId, before: false };
+        matched = true;
+      }
+      if (!matched) _insertTarget = null;
     });
+
     zone.addEventListener('dragleave', e => {
-      if (!zone.contains(e.relatedTarget)) zone.classList.remove('drop-zone-active');
+      if (!zone.contains(e.relatedTarget)) {
+        zone.classList.remove('drop-zone-active');
+        card.querySelectorAll('.poi-insert-before,.poi-insert-after')
+          .forEach(el => el.classList.remove('poi-insert-before','poi-insert-after'));
+      }
     });
+
     zone.addEventListener('drop', async e => {
       e.preventDefault();
       if (!_drag) return;
@@ -294,23 +332,32 @@ export function bindViagens(card, refresh) {
       const targetSlot = zone.dataset.dropSlot || null;
       const toBacklog  = zone.hasAttribute('data-drop-backlog');
 
+      // Guard: reject drops onto blocked slots
+      if (targetDay && targetSlot && _blocked.has(`${targetDay}:${targetSlot}`)) {
+        _drag = null; _insertTarget = null; return;
+      }
+
+      const savedDrag = _drag;
+      const savedTarget = _insertTarget;
+      _drag = null;
+      _insertTarget = null;
+
       if (toBacklog) {
-        await _api(`/api/trips/${_trip.id}/cities/${_drag.cityId}/pois/${_drag.poiId}`, 'PATCH',
+        await _api(`/api/trips/${_trip.id}/cities/${savedDrag.cityId}/pois/${savedDrag.poiId}`, 'PATCH',
           { assigned_day: null, assigned_slot: null, assigned_order: null });
       } else if (targetDay && targetSlot) {
-        // Re-fetch to avoid stale state then compute new order
         _trip = await _api(`/api/trips/${_trip.id}`);
         const all = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
         const bucket = all
-          .filter(p => p.assigned_day === targetDay && p.assigned_slot === targetSlot && p.id !== _drag.poiId)
+          .filter(p => p.assigned_day === targetDay && p.assigned_slot === targetSlot && p.id !== savedDrag.poiId)
           .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
 
-        let insertIdx = bucket.length; // default: append
-        if (_insertTarget) {
-          const ref = bucket.findIndex(p => p.id === _insertTarget.poiId);
-          if (ref !== -1) insertIdx = _insertTarget.before ? ref : ref + 1;
+        let insertIdx = bucket.length;
+        if (savedTarget) {
+          const ref = bucket.findIndex(p => p.id === savedTarget.poiId);
+          if (ref !== -1) insertIdx = savedTarget.before ? ref : ref + 1;
         }
-        bucket.splice(insertIdx, 0, { id: _drag.poiId, cityId: _drag.cityId });
+        bucket.splice(insertIdx, 0, { id: savedDrag.poiId, cityId: savedDrag.cityId });
 
         await _api(`/api/trips/${_trip.id}/reorder`, 'POST', {
           pois: bucket.map((p, i) => ({
@@ -320,8 +367,6 @@ export function bindViagens(card, refresh) {
         });
       }
 
-      _drag = null;
-      _insertTarget = null;
       _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
     });
@@ -1079,7 +1124,8 @@ function _renderDaySection(day, allPois, trip) {
           const pois = allPois
             .filter(p => p.assigned_day === day && p.assigned_slot === slot.id)
             .sort((a,b) => (a.assigned_order??99) - (b.assigned_order??99));
-          return _renderBucket(day, slot, pois);
+          const isBlocked = _getBlockedSlots(trip).has(`${day}:${slot.id}`);
+          return _renderBucket(day, slot, pois, isBlocked);
         }).join('')}
       </div>
 
@@ -1091,15 +1137,18 @@ function _renderDaySection(day, allPois, trip) {
     </div>`;
 }
 
-function _renderBucket(day, slot, pois) {
+function _renderBucket(day, slot, pois, isBlocked=false) {
   return `
-    <div class="itin-bucket">
+    <div class="itin-bucket ${isBlocked?'itin-bucket-blocked':''}">
       <div class="itin-bucket-label">
         <span class="itin-slot-name">${slot.label}</span>
         <span class="itin-slot-time">${slot.subtitle}</span>
+        ${isBlocked ? '<span class="slot-blocked-badge">Bloqueado ✈️</span>' : ''}
       </div>
-      <div class="itin-slot-pois drop-zone" data-drop-day="${day}" data-drop-slot="${slot.id}">
-        ${pois.length === 0
+      <div class="itin-slot-pois ${isBlocked?'':'drop-zone'}" ${isBlocked?'':`data-drop-day="${day}" data-drop-slot="${slot.id}"`}>
+        ${isBlocked
+          ? `<div class="slot-blocked-hint">Voo ou deslocação neste período</div>`
+          : pois.length === 0
           ? `<div class="slot-drop-hint">Arrasta aqui</div>`
           : pois.map((p, idx) => {
               const next = pois[idx + 1];
@@ -1308,6 +1357,23 @@ function _getTripDays(trip) {
   for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1))
     days.push(d.toISOString().slice(0,10));
   return days;
+}
+
+function _getBlockedSlots(trip) {
+  const blocked = new Set();
+  const legs = trip.legs || [];
+  const out  = legs[0];
+  const ret  = legs[legs.length - 1];
+  if (out?.date) {
+    blocked.add(`${out.date}:manha`); // always blocked — at airport or in transit
+    const arrH = out.arrives_local ? _timeToH(out.arrives_local) + 1.5 : 15;
+    if (arrH >= 20) blocked.add(`${out.date}:tarde`);
+  }
+  if (ret?.date && ret.date !== out?.date) {
+    const depH = _timeToH(ret.departs_local);
+    if (depH - 2 <= 21) blocked.add(`${ret.date}:noite`); // need to leave before 21h
+  }
+  return blocked;
 }
 
 function _getTimeBlocks(trip) {
@@ -1620,6 +1686,7 @@ function _openPoiModal(refresh) {
     });
 
     _trip = await _api(`/api/trips/${_trip.id}`);
+    await _autoAssignUnscheduled();
 
     // Fetch nearby if we have coords
     if (coords) {
