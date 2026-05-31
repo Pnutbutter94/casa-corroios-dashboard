@@ -1974,6 +1974,35 @@ def _trip_to_markdown(t):
     )
 
 
+def _parse_poi_suggestions(text):
+    import re as _re
+    m = _re.search(r'\[SUGESTOES_POI\](.*?)\[/SUGESTOES_POI\]', text, _re.S)
+    if not m:
+        return []
+    suggestions = []
+    for line in m.group(1).strip().splitlines():
+        parts = [p.strip() for p in line.split('|')]
+        if len(parts) < 2:
+            continue
+        name = parts[0]
+        category = parts[1] if len(parts) > 1 else ''
+        description = parts[2] if len(parts) > 2 else ''
+        coords = parts[3] if len(parts) > 3 else '0,0'
+        try:
+            lat, lon = [float(x.strip()) for x in coords.split(',')]
+        except (ValueError, AttributeError):
+            lat, lon = 0.0, 0.0
+        if name:
+            suggestions.append({'name': name, 'category': category,
+                                 'description': description, 'lat': lat, 'lon': lon})
+    return suggestions
+
+
+def _strip_poi_block(text):
+    import re as _re
+    return _re.sub(r'\s*\[SUGESTOES_POI\].*?\[/SUGESTOES_POI\]', '', text, flags=_re.S).strip()
+
+
 def _trip_context_for_claude(t):
     import datetime as _dt
     cities   = t.get('cities', [])
@@ -2353,8 +2382,9 @@ def trip_claude(trip_id):
         with urllib.request.urlopen(req, timeout=55) as r:
             result = json.loads(r.read())
         raw = result.get('response', '')
-        print(f"[B103-step1] raw claude response: {repr(raw)}", flush=True)
-        return jsonify({'response': raw})
+        suggestions = _parse_poi_suggestions(raw)
+        clean = _strip_poi_block(raw)
+        return jsonify({'response': clean, 'suggestions': suggestions})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
