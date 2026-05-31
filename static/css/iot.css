@@ -13,7 +13,11 @@
     padding: 14px 16px;
 }
 
-.iot-sensor-card.unavail { opacity: 0.45; }
+.iot-sensor-card.unavail {
+    opacity: 0.4;
+    border-style: dashed;
+    border-color: var(--border);
+}
 
 .iot-sensor-room {
     font-size: 11px;
@@ -50,6 +54,18 @@
 .iot-sensor-unavail {
     font-size: 12px;
     color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.iot-offline-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    display: inline-block;
 }
 
 .iot-hum-good { color: var(--good); }

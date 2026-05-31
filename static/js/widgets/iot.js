@@ -89,7 +89,7 @@ export function renderIot() {
                 <span class="iot-sensor-sep"></span>
                 <span class="iot-sensor-val iot-hum-${_humClass(hum)}">${parseFloat(hum).toFixed(0)}%</span>
             </div>
-            ` : '<div class="iot-sensor-unavail">sem sinal</div>'}
+            ` : '<div class="iot-sensor-unavail"><span class="iot-offline-dot"></span>sem sinal</div>'}
         </div>`;
     }).join('');
 
