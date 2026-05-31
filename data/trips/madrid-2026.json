@@ -42,7 +42,19 @@
         "confirmed": true,
         "nights": 2
       },
-      "pois": []
+      "pois": [
+        {
+          "id": "poi-debod",
+          "name": "Templo de Debod",
+          "type": "monumento",
+          "priority": "must",
+          "duration_h": 1,
+          "url": "https://www.madrid.es/portales/munimadrid/es/Inicio/Cultura-ocio-y-deporte/Cultura-y-ocio/Templo-de-Debod?vgnextfmt=default&vgnextoid=46caa0d03aa8b010VgnVCM100000d90ca8c0RCRD&vgnextchannel=c937f073808fe410VgnVCM2000000c205a0aRCRD",
+          "opening_hours": "Ter-Sex 10:00-14:00 e 18:00-20:00 · Sáb-Dom 10:00-20:00 · fechado Seg",
+          "lat": 40.4238,
+          "lon": -3.7181
+        }
+      ]
     }
   ],
   "expenses": [

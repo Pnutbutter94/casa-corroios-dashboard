@@ -69,6 +69,15 @@ const FREE_ENTRY_KB = {
     closed_days: [1],
     keywords: ['thyssen'],
   },
+  debod: {
+    official_name: 'Templo de Debod',
+    opening: 'Ter-Sex 10:00-14:00 e 18:00-20:00 · Sáb-Dom 10:00-20:00 · fechado Seg',
+    free: 'Entrada gratuita',
+    type: 'monumento', duration_h: 1,
+    free_windows: [],
+    closed_days: [1],
+    keywords: ['debod', 'templo de debod'],
+  },
 };
 
 // Slot definitions
@@ -996,7 +1005,7 @@ function _renderAssistente() {
         </button>
       </div>
       ${_claudePending ? `<div class="assistente-loading">A pensar…</div>` : ''}
-      ${resp ? `<div class="assistente-response">${esc(resp)}</div>` : ''}
+      ${resp ? `<div class="assistente-response">${_mdToHtml(resp)}</div>` : ''}
     </div>`;
 }
 
@@ -2147,6 +2156,13 @@ function _updateMapMarkers() {
 function _matchKB(name) {
   const lower = name.toLowerCase();
   return Object.values(FREE_ENTRY_KB).find(kb => kb.keywords.some(k => lower.includes(k))) || null;
+}
+
+function _mdToHtml(text) {
+  let s = esc(text);
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
 }
 
 const _DOW_NAMES = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
