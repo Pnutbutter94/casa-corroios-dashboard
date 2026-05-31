@@ -11,9 +11,10 @@ let _nearby = [];             // nearby suggestions for last added POI
 let _selectorOpen = false;
 let _pollInterval = null;
 let _pollTripId   = null;
-let _claudeQuery    = '';
-let _claudeResponse = null;   // null | {text, loading}
-let _claudePending  = false;
+let _claudeQuery       = '';
+let _claudeResponse    = null;
+let _claudePending     = false;
+let _claudeSuggestions = [];
 let _travelTimes  = {};  // cache: "lat,lon-lat,lon" → minutes
 let _map          = null;
 let _markersLayer = null;
@@ -307,10 +308,17 @@ export function bindViagens(card, refresh) {
     if (!q || _claudePending) return;
     _claudePending = true;
     _claudeResponse = null;
+    _claudeSuggestions = [];
     refresh();
     const r = await _api(`/api/trips/${_trip.id}/claude`, 'POST', { query: q });
     _claudePending = false;
     _claudeResponse = r.response || r.error || 'Sem resposta.';
+    _claudeSuggestions = r.suggestions || [];
+    refresh();
+  });
+
+  card.querySelector('#claude-dismiss')?.addEventListener('click', () => {
+    _claudeSuggestions = [];
     refresh();
   });
 
@@ -992,8 +1000,28 @@ ${expBlock}
 }
 
 // ── CLAUDE ASSISTANT ──────────────────────────────────────────────────────
+function _renderPoiSuggestions() {
+  if (!_claudeSuggestions.length) return '';
+  const cards = _claudeSuggestions.map((s, i) => `
+    <div class="suggestion-card">
+      <div class="suggestion-card-info">
+        <span class="suggestion-name">${esc(s.name)}</span>
+        <span class="suggestion-category">${esc(s.category)}</span>
+        ${s.description ? `<span class="suggestion-desc">${esc(s.description)}</span>` : ''}
+      </div>
+      <button class="suggestion-add-btn" data-add-suggestion="${esc(JSON.stringify(s))}" title="Adicionar ao backlog">＋</button>
+    </div>`).join('');
+  return `
+    <div class="assistente-suggestions">
+      <div class="assistente-suggestions-header">
+        <span class="assistente-suggestions-title">Sugestões (${_claudeSuggestions.length})</span>
+        <button class="assistente-dismiss" id="claude-dismiss">✕</button>
+      </div>
+      ${cards}
+    </div>`;
+}
+
 function _renderAssistente() {
-  const resp = _claudeResponse;
   return `
     <div class="assistente-panel">
       <p class="assistente-hint">Faz uma pergunta sobre esta viagem — sugestões, horários, logística.</p>
@@ -1005,7 +1033,8 @@ function _renderAssistente() {
         </button>
       </div>
       ${_claudePending ? `<div class="assistente-loading">A pensar…</div>` : ''}
-      ${resp ? `<div class="assistente-response">${_mdToHtml(resp)}</div>` : ''}
+      ${_claudeResponse ? `<div class="assistente-response">${_mdToHtml(_claudeResponse)}</div>` : ''}
+      ${_renderPoiSuggestions()}
     </div>`;
 }
 
