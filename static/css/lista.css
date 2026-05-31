@@ -1,9 +1,10 @@
 /* ── LISTA DE COMPRAS ─────────────────────────────────────── */
 .lista-empty {
   text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  padding: 24px 0;
+  color: var(--text-dim, var(--muted));
+  font-size: 15px;
+  padding: 72px 24px;
+  line-height: 1.7;
 }
 
 .lista-danger-btn {

@@ -99,14 +99,14 @@ function hasInInventory(pid) { return refeic.data.inventory.some(it => it.produc
 
 function mealLabel(ds, slot) {
   const meal = refeic.data.planner[ds]?.[slot];
-  if (!meal || meal.type === 'empty') return `<span class="meal-slot-content empty">—</span>`;
+  if (!meal || meal.type === 'empty') return `<span class="meal-slot-content empty">＋</span>`;
   if (meal.type === 'external')  return `<span class="meal-slot-content">🍽️ Fora</span>`;
   if (meal.type === 'readyMeal') return `<span class="meal-slot-content">📦 ${esc(meal.note) || 'Pré-feito'}</span>`;
   if (meal.type === 'recipe' && meal.recipeId) {
     const r = refeic.data.recipes.find(x => x.id === meal.recipeId);
     return `<span class="meal-slot-content">${r ? r.name : meal.recipeId}</span>`;
   }
-  return meal.note ? `<span class="meal-slot-content">${esc(meal.note)}</span>` : `<span class="meal-slot-content empty">—</span>`;
+  return meal.note ? `<span class="meal-slot-content">${esc(meal.note)}</span>` : `<span class="meal-slot-content empty">＋</span>`;
 }
 
 function renderPlano() {
