@@ -210,6 +210,9 @@ export function bindViagens(card, refresh) {
       _trip   = await _api(`/api/trips/${_tripId}`);
       _selectorOpen = false;
       _nearby = [];
+      _claudeResponse = null;
+      _claudeSuggestions = [];
+      _claudeQuery = '';
       refresh();
     });
   });
@@ -320,6 +323,30 @@ export function bindViagens(card, refresh) {
   card.querySelector('#claude-dismiss')?.addEventListener('click', () => {
     _claudeSuggestions = [];
     refresh();
+  });
+
+  card.querySelectorAll('[data-add-suggestion]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const s = JSON.parse(btn.dataset.addSuggestion);
+      const city = _trip.cities[0];
+      btn.disabled = true;
+      btn.textContent = '⟳';
+      let coords = (s.lat && s.lon && !(s.lat === 0 && s.lon === 0))
+        ? { lat: s.lat, lon: s.lon } : null;
+      if (!coords) {
+        const geo = await fetch(`/api/geo/geocode?q=${encodeURIComponent(s.name + ' ' + _trip.name)}`)
+          .then(r => r.json()).catch(() => null);
+        if (geo?.found) coords = { lat: geo.lat, lon: geo.lon };
+      }
+      await _api(`/api/trips/${_trip.id}/pois`, 'POST', {
+        city_id: city.id, name: s.name, type: s.category,
+        notes: s.description, duration_h: 1.5, coords,
+      });
+      _trip = await _api(`/api/trips/${_trip.id}`);
+      _claudeSuggestions = _claudeSuggestions.filter(x => x.name !== s.name);
+      btn.textContent = '✓';
+      refresh();
+    });
   });
 
   // enrich POI opening hours from URL
