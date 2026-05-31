@@ -2012,6 +2012,14 @@ def _trip_context_for_claude(t):
         parts.append(f"Backlog a agendar: {', '.join(backlog[:12])}")
     parts.append(f"Orçamento: €{t.get('budget_per_person',0)}/pessoa · gasto Pedro €{pedro:.0f} · Inês €{ines:.0f}")
     parts.append("Responde em português (pt-PT). Sê conciso e prático.")
+    parts.append(
+        "Quando sugeres locais específicos para visitar, comer ou explorar, inclui no FINAL da resposta:\n"
+        "[SUGESTOES_POI]\n"
+        "Nome do local | categoria (ex: restaurante, museu, miradouro, bar) | descrição curta | latitude,longitude\n"
+        "[/SUGESTOES_POI]\n"
+        "Inclui o bloco apenas quando tens sugestões concretas de lugares. "
+        "Se não souberes as coordenadas exatas, usa 0,0."
+    )
 
     return '\n'.join(parts)
 
@@ -2344,7 +2352,9 @@ def trip_claude(trip_id):
         )
         with urllib.request.urlopen(req, timeout=55) as r:
             result = json.loads(r.read())
-        return jsonify({'response': result.get('response', '')})
+        raw = result.get('response', '')
+        print(f"[B103-step1] raw claude response: {repr(raw)}", flush=True)
+        return jsonify({'response': raw})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
