@@ -1,5 +1,7 @@
 import { esc } from '../utils/esc.js';
 
+let _trendFilter = '2A';
+
 export async function fetchEnergy() {
   const r = await fetch('/api/energy/costs');
   if (!r.ok) throw new Error('Erro ao carregar dados de energia');
@@ -35,8 +37,12 @@ function _eredesCard(er) {
         <span class="eredes-card-title">Casa — Contador E-REDES</span>
         ${lastTs}
         <label class="eredes-upload-btn" title="Importar Excel E-REDES">
-          Actualizar
+          Actualizar E-REDES
           <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
+        </label>
+        <label class="eredes-fatura-btn" title="Importar fatura PDF">
+          Importar Fatura
+          <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
         </label>
       </div>
       <div class="eredes-card-body">
@@ -70,8 +76,12 @@ function _noEredesCard() {
       <div class="eredes-card-header">
         <span class="eredes-card-title">Casa — Contador E-REDES</span>
         <label class="eredes-upload-btn" title="Importar Excel E-REDES">
-          Importar dados
+          Importar E-REDES
           <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
+        </label>
+        <label class="eredes-fatura-btn" title="Importar fatura PDF">
+          Importar Fatura
+          <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
         </label>
       </div>
       <p class="eredes-empty-msg">Sem dados. Exporta o Excel em balcaodigital.e-redes.pt e importa aqui.</p>
@@ -85,10 +95,23 @@ function _supplierPills(suppliers) {
     .join('');
 }
 
+function _filteredMonths(analysis) {
+  if (!analysis || !analysis.monthly) return [];
+  const all = analysis.monthly.filter(m => m.bill_eur || m.kwh);
+  if (_trendFilter === 'Tudo') return all;
+  const months = _trendFilter === '6M' ? 6 : _trendFilter === '1A' ? 12 : 24;
+  const cutoff = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - months);
+    return d.toISOString().slice(0, 7);
+  })();
+  return all.filter(r => r.month >= cutoff);
+}
+
 function _trendChart(analysis) {
   if (!analysis || !analysis.monthly) return '';
 
-  const rows = analysis.monthly.filter(m => m.bill_eur || m.kwh);
+  const rows = _filteredMonths(analysis);
   if (!rows.length) return '';
 
   const maxKwh  = Math.max(...rows.map(r => r.kwh  || 0), 1);
@@ -119,9 +142,12 @@ function _trendChart(analysis) {
       ? `<span class="trend-potencia">${r.potencia_kva} kVA</span>`
       : '';
     const supplierPills = _supplierPills(r.suppliers);
+    const confirmedBadge = r.confirmed
+      ? `<span class="trend-confirmed-badge" title="Dados confirmados da fatura">✓</span>`
+      : '';
     return `
       <div class="trend-row${partial ? ' trend-row-partial' : ''}">
-        <span class="trend-month">${_monthLabel(r.month)}</span>
+        <span class="trend-month">${_monthLabel(r.month)}${confirmedBadge}</span>
         <div class="trend-bars">
           ${kwhBar}
           <div class="trend-bar trend-bar-cost" style="width:${costPct}%"></div>
@@ -130,13 +156,21 @@ function _trendChart(analysis) {
       </div>`;
   }).join('');
 
+  const filters = ['6M', '1A', '2A', 'Tudo'];
+  const filterHtml = filters.map(f =>
+    `<button class="trend-filter-chip${f === _trendFilter ? ' active' : ''}" data-filter="${esc(f)}">${esc(f)}</button>`
+  ).join('');
+
   return `
     <div class="trend-card">
       <div class="trend-header">
         <span class="trend-title">Histórico — Faturas de Luz</span>
-        <div class="trend-legend">
-          <span class="trend-legend-kwh">■ kWh</span>
-          <span class="trend-legend-cost">■ €</span>
+        <div class="trend-header-right">
+          <div class="trend-filters">${filterHtml}</div>
+          <div class="trend-legend">
+            <span class="trend-legend-kwh">■ kWh</span>
+            <span class="trend-legend-cost">■ €</span>
+          </div>
         </div>
       </div>
       <div class="trend-list">${rowsHtml}</div>
@@ -161,6 +195,112 @@ function _wireUpload(el, onSuccess) {
     } catch (e) {
       alert('Erro ao importar: ' + e.message);
       btn.textContent = 'Actualizar';
+    }
+  });
+}
+
+function _field(label, name, value, type = 'text') {
+  const val = value != null ? esc(String(value)) : '';
+  const filled = value != null ? ' class="fatura-field-filled"' : '';
+  return `
+    <div class="fatura-field">
+      <label class="fatura-label">${esc(label)}</label>
+      <input${filled} type="${type}" name="${name}" value="${val}" class="fatura-input" placeholder="—">
+    </div>`;
+}
+
+function _showFaturaModal(parsed, pdfFile, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'fatura-overlay';
+  overlay.innerHTML = `
+    <div class="fatura-modal">
+      <div class="fatura-modal-header">
+        <span class="fatura-modal-title">Fatura importada — confirmar dados</span>
+        <button class="fatura-modal-close" type="button">✕</button>
+      </div>
+      <div class="fatura-modal-body">
+        <div class="fatura-grid">
+          ${_field('Fornecedor', 'fornecedor', parsed.fornecedor)}
+          ${_field('Número fatura', 'numero_fatura', parsed.numero_fatura)}
+          ${_field('Período início', 'periodo_inicio', parsed.periodo_inicio, 'date')}
+          ${_field('Período fim', 'periodo_fim', parsed.periodo_fim, 'date')}
+          ${_field('Potência contratada (kVA)', 'potencia_contratada_kva', parsed.potencia_contratada_kva, 'number')}
+          ${_field('Preço potência (€/dia)', 'preco_dia_potencia_eur', parsed.preco_dia_potencia_eur, 'number')}
+          ${_field('Preço eletricidade (€/kWh)', 'preco_kwh', parsed.preco_kwh, 'number')}
+          ${_field('Quantidade consumida (kWh)', 'kwh_consumidos', parsed.kwh_consumidos, 'number')}
+          ${_field('Valor total fatura (€)', 'valor_total_eur', parsed.valor_total_eur, 'number')}
+          ${_field('Data vencimento', 'data_vencimento', parsed.data_vencimento, 'date')}
+          ${_field('IVA (%)', 'iva_pct', parsed.iva_pct, 'number')}
+          ${_field('IVA (€)', 'iva_eur', parsed.iva_eur, 'number')}
+        </div>
+        <p class="fatura-hint">Campos preenchidos automaticamente. Verifica e corrige antes de confirmar.</p>
+      </div>
+      <div class="fatura-modal-footer">
+        <button class="fatura-cancel-btn" type="button">Cancelar</button>
+        <button class="fatura-confirm-btn" type="button">Confirmar e guardar</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.fatura-modal-close').onclick =
+  overlay.querySelector('.fatura-cancel-btn').onclick = () => overlay.remove();
+
+  overlay.querySelector('.fatura-confirm-btn').onclick = async () => {
+    const btn = overlay.querySelector('.fatura-confirm-btn');
+    btn.textContent = 'A guardar…';
+    btn.disabled = true;
+
+    const inputs = overlay.querySelectorAll('.fatura-input');
+    const data = {};
+    inputs.forEach(inp => {
+      const v = inp.value.trim();
+      if (!v) return;
+      const num = ['potencia_contratada_kva', 'preco_dia_potencia_eur', 'preco_kwh',
+                   'kwh_consumidos', 'valor_total_eur', 'iva_pct', 'iva_eur'];
+      data[inp.name] = num.includes(inp.name) ? parseFloat(v) : v;
+    });
+
+    const fd = new FormData();
+    fd.append('data', JSON.stringify(data));
+    if (pdfFile) fd.append('file', pdfFile);
+
+    try {
+      const r = await fetch('/api/energy/fatura-store', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Erro');
+      overlay.remove();
+      onConfirm();
+    } catch (e) {
+      btn.textContent = 'Confirmar e guardar';
+      btn.disabled = false;
+      alert('Erro ao guardar: ' + e.message);
+    }
+  };
+}
+
+function _wireFaturaUpload(el, onSuccess) {
+  const input = el.querySelector('.fatura-file-input');
+  if (!input) return;
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const btn = input.closest('label');
+    const origText = btn.childNodes[0].textContent.trim();
+    btn.childNodes[0].textContent = 'A processar… ';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch('/api/energy/fatura-parse', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Erro');
+      btn.childNodes[0].textContent = origText + ' ';
+      input.value = '';
+      _showFaturaModal(j, file, onSuccess);
+    } catch (e) {
+      alert('Erro ao ler PDF: ' + e.message);
+      btn.childNodes[0].textContent = origText + ' ';
+      input.value = '';
     }
   });
 }
@@ -242,6 +382,7 @@ export function renderEnergia(data, el, onEredesUpload) {
   `;
 
   _wireUpload(el, (msg) => { if (onEredesUpload) onEredesUpload(msg); });
+  _wireFaturaUpload(el, () => onEredesUpload && onEredesUpload('fatura guardada'));
   _wireAnalysis(el);
 }
 
@@ -249,6 +390,15 @@ export function renderTrend(analysis, el) {
   const placeholder = el.querySelector('#energia-trend-placeholder');
   if (!placeholder) return;
   placeholder.innerHTML = _trendChart(analysis);
+  placeholder.querySelectorAll('.trend-filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _trendFilter = btn.dataset.filter;
+      placeholder.innerHTML = _trendChart(analysis);
+      placeholder.querySelectorAll('.trend-filter-chip').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === _trendFilter);
+      });
+    });
+  });
 }
 
 export async function fetchDailyHistory(days = 30) {

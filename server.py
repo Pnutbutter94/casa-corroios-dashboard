@@ -513,6 +513,54 @@ def eredes_upload():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/energy/fatura-parse', methods=['POST'])
+def fatura_parse():
+    if 'file' not in request.files:
+        return jsonify({'error': 'no file'}), 400
+    data = request.files['file'].read()
+    boundary = b'----boundary'
+    body = (b'--' + boundary + b'\r\nContent-Disposition: form-data; name="file"; filename="fatura.pdf"\r\n'
+            b'Content-Type: application/pdf\r\n\r\n'
+            + data + b'\r\n--' + boundary + b'--\r\n')
+    try:
+        req = urllib.request.Request(
+            f'{ENERGIA_API_URL}/fatura/parse',
+            data=body,
+            headers={'Content-Type': 'multipart/form-data; boundary=----boundary'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return jsonify(json.loads(r.read()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/energy/fatura-store', methods=['POST'])
+def fatura_store():
+    data_str = request.form.get('data')
+    if not data_str:
+        return jsonify({'error': 'no data'}), 400
+    pdf_data = request.files['file'].read() if 'file' in request.files else b''
+    boundary = b'----faturaboundary'
+    body = (b'--' + boundary + b'\r\nContent-Disposition: form-data; name="data"\r\n\r\n'
+            + data_str.encode() + b'\r\n')
+    if pdf_data:
+        body += (b'--' + boundary + b'\r\nContent-Disposition: form-data; name="file"; filename="fatura.pdf"\r\n'
+                 b'Content-Type: application/pdf\r\n\r\n' + pdf_data + b'\r\n')
+    body += b'--' + boundary + b'--\r\n'
+    try:
+        req = urllib.request.Request(
+            f'{ENERGIA_API_URL}/fatura/store',
+            data=body,
+            headers={'Content-Type': 'multipart/form-data; boundary=----faturaboundary'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return jsonify(json.loads(r.read()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/energy/costs')
 def energy_costs():
     try:
