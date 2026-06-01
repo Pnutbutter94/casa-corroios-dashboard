@@ -22,7 +22,6 @@ INV_FILE   = os.path.join(BASE_DIR, 'cache', 'inventory.json')
 PLAN_FILE  = os.path.join(BASE_DIR, 'cache', 'planner.json')
 SHOP_FILE  = os.path.join(BASE_DIR, 'cache', 'shopping.json')
 RATINGS_FILE = os.path.join(DATA_DIR, 'ratings.json')
-EREDES_FILE  = os.path.join(DATA_DIR, 'energia_eredes.json')
 CACHE_TTL  = 15 * 60  # 15 minutes
 
 ALLOWED_INV_FIELDS     = {'name', 'quantity', 'unit', 'location', 'quantityKnown', 'productId'}
@@ -616,25 +615,27 @@ def energy_costs():
 
         eredes_out = None
         try:
-            with open(EREDES_FILE) as ef:
-                er = json.load(ef)
             today_str = now.date().isoformat()
             yest_str  = (now.date() - datetime.timedelta(days=1)).isoformat()
             month_str = today_str[:7]
-            today_kwh = round(er['daily'].get(today_str, 0.0), 3)
-            yest_kwh  = round(er['daily'].get(yest_str, 0.0), 3)
-            eredes_out = {
-                'today_kwh':     today_kwh,
-                'today_cost':    round(today_kwh * TARIFF_EUR_KWH, 2),
-                'yesterday_kwh': yest_kwh,
-                'yesterday_cost':round(yest_kwh * TARIFF_EUR_KWH, 2),
-                'month_kwh':     round(er['monthly'].get(month_str, 0.0), 2),
-                'month_cost':    round(er['monthly'].get(month_str, 0.0) * TARIFF_EUR_KWH, 2),
-                'last_w':        er.get('last_w', 0.0),
-                'last_ts':       er.get('last_ts', ''),
-                'updated':       er.get('updated', ''),
-            }
-        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            with urllib.request.urlopen(f'{ENERGIA_API_URL}/daily?days=35', timeout=3) as r:
+                daily_rows = json.loads(r.read())
+            daily_map = {row['date']: (row['kwh'] or 0.0) for row in daily_rows}
+            today_kwh = round(daily_map.get(today_str, 0.0), 3)
+            yest_kwh  = round(daily_map.get(yest_str, 0.0), 3)
+            month_kwh = round(sum(v for d, v in daily_map.items() if d.startswith(month_str)), 2)
+            if any(v > 0 for v in daily_map.values()):
+                eredes_out = {
+                    'today_kwh':      today_kwh,
+                    'today_cost':     round(today_kwh * TARIFF_EUR_KWH, 2),
+                    'yesterday_kwh':  yest_kwh,
+                    'yesterday_cost': round(yest_kwh * TARIFF_EUR_KWH, 2),
+                    'month_kwh':      month_kwh,
+                    'month_cost':     round(month_kwh * TARIFF_EUR_KWH, 2),
+                    'last_w':         0.0,
+                    'last_ts':        '',
+                }
+        except Exception:
             pass
 
         contract = None
