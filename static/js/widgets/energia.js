@@ -245,8 +245,8 @@ function _showFaturaModal(parsed, pdfFile, onConfirm) {
           ${_field('Quantidade consumida (kWh)', 'kwh_consumidos', parsed.kwh_consumidos, 'number')}
           ${_field('Valor total fatura (€)', 'valor_total_eur', parsed.valor_total_eur, 'number')}
           ${_field('Data vencimento', 'data_vencimento', parsed.data_vencimento, 'date')}
-          ${_field('IVA (%)', 'iva_pct', parsed.iva_pct, 'number')}
-          ${_field('IVA (€)', 'iva_eur', parsed.iva_eur, 'number')}
+          ${_field('IVA 6% (€)', 'iva_6_eur', parsed.iva_6_eur, 'number')}
+          ${_field('IVA 23% (€)', 'iva_23_eur', parsed.iva_23_eur, 'number')}
         </div>
         <p class="fatura-hint">Campos preenchidos automaticamente. Verifica e corrige antes de confirmar.</p>
       </div>
@@ -272,7 +272,7 @@ function _showFaturaModal(parsed, pdfFile, onConfirm) {
       const v = inp.value.trim();
       if (!v) return;
       const num = ['potencia_contratada_kva', 'preco_dia_potencia_eur', 'preco_kwh',
-                   'kwh_consumidos', 'valor_total_eur', 'iva_pct', 'iva_eur'];
+                   'kwh_consumidos', 'valor_total_eur', 'iva_6_eur', 'iva_23_eur'];
       data[inp.name] = num.includes(inp.name) ? parseFloat(v) : v;
     });
 
