@@ -203,10 +203,7 @@ export function renderBlockbuster() {
         <span class="bb-banner-text">BLOCKBUSTER</span>
     </div>
 
-    <div class="card-label">Em Exibição</div>
-    ${_catalogueHTML()}
-
-    <div class="card-label bb-gap">Pesquisar</div>
+    <div class="card-label">Pesquisar</div>
     <div class="bb-search-wrap">
         <div class="bb-search-row">
             <input class="bb-search-input" type="text" placeholder="Filme ou série..." id="bb-search-input" autocomplete="off">
@@ -223,6 +220,9 @@ export function renderBlockbuster() {
 
     <div class="card-label bb-gap">Disco</div>
     <div class="bb-disk">${_diskHTML()}</div>
+
+    <div class="card-label bb-gap">Em Exibição</div>
+    ${_catalogueHTML()}
 
     <div class="card-label bb-gap">Para limpar</div>
     <div class="bb-clean">${_watchedHTML()}</div>
