@@ -406,7 +406,7 @@ ENERGY_ENTITIES = {
 }
 TARIFF_EUR_KWH   = 0.2228  # ERSE 2026 simple tariff incl. taxes
 ENERGIA_API_URL  = 'http://192.168.1.100:8090'
-FATURAS_FILE     = '/opt/casaserver/data/energia/faturas.json'
+FATURAS_FILE     = os.path.join(DATA_DIR, 'faturas.json')
 SERVER_WATTS   = 18.0    # HP i5-4210U average idle draw (estimated)
 
 
