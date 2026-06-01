@@ -21,7 +21,7 @@ import {
 import {
   bb, initBlockbuster, renderBlockbuster, bindBlockbuster,
 } from './widgets/blockbuster.js';
-import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, fetchDailyHistory, fetchProfile, renderDailyCharts } from './widgets/energia.js';
+import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend } from './widgets/energia.js';
 import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
 
 let weatherData       = null;
@@ -141,9 +141,6 @@ function initTabs() {
           fetchEnergy()
             .then(d => renderEnergia(d, el, refreshEnergia))
             .then(() => fetchAnalysis().then(a => renderTrend(a, el)).catch(() => {}))
-            .then(() => Promise.all([fetchDailyHistory(30), fetchProfile()])
-              .then(([daily, profile]) => renderDailyCharts(daily, profile, el))
-              .catch(() => {}))
             .catch(() => renderEnergia(null, el));
         refreshEnergia();
         setInterval(() => { if (activeTab === 'energia') refreshEnergia(); }, 60_000);

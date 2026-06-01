@@ -165,6 +165,21 @@ function _wireUpload(el, onSuccess) {
   });
 }
 
+function _wireAnalysis(el) {
+  const btn = el.querySelector('#energia-analysis-btn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    btn.textContent = 'A carregar…';
+    btn.disabled = true;
+    const [daily, profile] = await Promise.all([
+      fetchDailyHistory(30).catch(() => null),
+      fetchProfile().catch(() => null),
+    ]);
+    renderDailyCharts(daily, profile, el);
+    btn.remove();
+  });
+}
+
 export function renderEnergia(data, el, onEredesUpload) {
   if (!data || data.error) {
     el.innerHTML = `<p class="energia-error">Sem dados de energia disponíveis.</p>`;
@@ -223,9 +238,11 @@ export function renderEnergia(data, el, onEredesUpload) {
     </div>
     <div id="energia-trend-placeholder"></div>
     <div id="energia-daily-placeholder"></div>
+    <button id="energia-analysis-btn" class="energia-analysis-btn">Ver análise detalhada ▾</button>
   `;
 
   _wireUpload(el, (msg) => { if (onEredesUpload) onEredesUpload(msg); });
+  _wireAnalysis(el);
 }
 
 export function renderTrend(analysis, el) {
