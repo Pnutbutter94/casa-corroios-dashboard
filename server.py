@@ -2679,6 +2679,16 @@ def _parse_ical(text):
 
 @app.route('/api/calendar')
 def api_calendar():
+    # Apps Script endpoint returns JSON directly (all subscribed calendars)
+    script_url = os.environ.get('GCAL_APPS_SCRIPT_URL', '')
+    if script_url:
+        try:
+            req = urllib.request.Request(script_url, headers={'User-Agent': 'casa-dashboard/1.0'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return jsonify(json.loads(resp.read().decode('utf-8')))
+        except Exception as exc:
+            return jsonify({'today': [], 'tomorrow_count': 0, 'error': str(exc)})
+    # Fallback: single iCal feed
     url = os.environ.get('GCAL_ICAL_URL', '')
     if not url:
         return jsonify({'today': [], 'tomorrow_count': 0})
