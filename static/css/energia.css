@@ -132,8 +132,10 @@
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  margin-bottom: 0.7rem;
   flex-wrap: wrap;
+}
+.eredes-card-empty .eredes-card-header {
+  margin-bottom: 0.5rem;
 }
 .eredes-card-title {
   font-size: 0.85rem;

@@ -47,9 +47,9 @@ function _faturasCard(contract, fatura_count, eredes) {
       <div class="eredes-card eredes-card-empty faturas-card">
         <div class="eredes-card-header">
           <span class="eredes-card-title">Faturas de Luz</span>
+          ${faturaBtn}
           ${eredesMeta}
           ${eredesBtn}
-          ${faturaBtn}
         </div>
         <p class="eredes-empty-msg">Nenhuma fatura importada ainda. Importa o PDF que recebes por email.</p>
       </div>`;
@@ -62,10 +62,10 @@ function _faturasCard(contract, fatura_count, eredes) {
     <div class="eredes-card faturas-card">
       <div class="eredes-card-header">
         <span class="eredes-card-title">Faturas de Luz</span>
-        ${eredesMeta}
         ${countMeta}
-        ${eredesBtn}
         ${faturaBtn}
+        ${eredesMeta}
+        ${eredesBtn}
       </div>
     </div>`;
 }
@@ -389,14 +389,11 @@ export function renderTrend(analysis, el) {
   const placeholder = el.querySelector('#energia-trend-placeholder');
   if (!placeholder) return;
   placeholder.innerHTML = _trendChart(analysis);
-  placeholder.querySelectorAll('.trend-filter-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _trendFilter = btn.dataset.filter;
-      placeholder.innerHTML = _trendChart(analysis);
-      placeholder.querySelectorAll('.trend-filter-chip').forEach(b => {
-        b.classList.toggle('active', b.dataset.filter === _trendFilter);
-      });
-    });
+  placeholder.addEventListener('click', e => {
+    const btn = e.target.closest('.trend-filter-chip');
+    if (!btn) return;
+    _trendFilter = btn.dataset.filter;
+    placeholder.innerHTML = _trendChart(analysis);
   });
 }
 
