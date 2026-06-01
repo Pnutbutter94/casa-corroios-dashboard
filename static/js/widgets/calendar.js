@@ -13,10 +13,16 @@ export async function initCalendar() {
     }
 }
 
+function _calClass(calendar) {
+    if (calendar === 'Momôs - Datas Especiais') return 'cal-dot--special';
+    return 'cal-dot--event';
+}
+
 function _render({ today, tomorrow_count }) {
     const rows = today.map(ev => `
         <div class="cal-event">
-            <span class="cal-time">${ev.allDay ? 'Dia inteiro' : esc(ev.time)}</span>
+            <span class="cal-time${ev.allDay ? ' cal-allday' : ''}">${ev.allDay ? 'Dia inteiro' : esc(ev.time)}</span>
+            <span class="cal-dot ${_calClass(ev.calendar)}"></span>
             <span class="cal-title">${esc(ev.title)}</span>
         </div>`).join('');
 

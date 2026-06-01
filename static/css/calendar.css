@@ -20,6 +20,19 @@
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
+.cal-allday {
+    color: var(--muted, #666);
+}
+
+.cal-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    align-self: center;
+}
+.cal-dot--event   { background: #7ba7d4; }
+.cal-dot--special { background: #e8924a; }
 
 .cal-title {
     font-size: 0.95rem;
