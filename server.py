@@ -645,13 +645,20 @@ def energy_costs():
                 faturas = json.load(ff)
             fatura_count = len(faturas)
             if faturas:
-                latest = max(faturas, key=lambda x: x.get('imported_at', ''))
+                latest = max(faturas, key=lambda x: x.get('periodo_fim', ''))
+                fim_str = latest.get('periodo_fim', '')
+                try:
+                    fim_date = datetime.date.fromisoformat(fim_str[:10])
+                    stale = (datetime.date.today() - fim_date).days > 365
+                except (ValueError, TypeError):
+                    stale = True
                 contract = {
                     'fornecedor':         latest.get('fornecedor', ''),
                     'potencia_kva':       latest.get('potencia_contratada_kva'),
                     'preco_dia_potencia': latest.get('preco_dia_potencia_eur'),
                     'preco_kwh':          latest.get('preco_kwh') or TARIFF_EUR_KWH,
-                    'periodo_fim':        latest.get('periodo_fim', ''),
+                    'periodo_fim':        fim_str,
+                    'stale':              stale,
                 }
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             pass

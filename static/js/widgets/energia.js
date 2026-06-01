@@ -1,6 +1,8 @@
 import { esc } from '../utils/esc.js';
 
-let _trendFilter = '2A';
+let _trendFilter = '1M';
+
+export function resetTrendFilter() { _trendFilter = '1M'; }
 
 export async function fetchEnergy() {
   const r = await fetch('/api/energy/costs');
@@ -21,83 +23,49 @@ function _monthLabel(m) {
   return `${MONTH_PT[parseInt(mo) - 1]} ${y.slice(2)}`;
 }
 
-function _eredesCard(er) {
-  const hasToday = er.today_kwh > 0;
-  const kwh   = hasToday ? er.today_kwh  : er.yesterday_kwh;
-  const cost  = hasToday ? er.today_cost : er.yesterday_cost;
-  const label = hasToday ? 'hoje'        : 'ontem';
-  const lastW = er.last_w > 0 ? `${er.last_w.toFixed(0)} W` : '—';
-  const lastTs = er.last_ts
-    ? `<span class="eredes-updated">última leitura: ${esc(er.last_ts)}</span>`
-    : '';
 
-  return `
-    <div class="eredes-card">
-      <div class="eredes-card-header">
-        <span class="eredes-card-title">Casa — Contador E-REDES</span>
-        ${lastTs}
-        <button class="eredes-upload-btn">Actualizar E-REDES</button>
-        <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
-      </div>
-      <div class="eredes-card-body">
-        <div class="energia-stat">
-          <span class="energia-val">${lastW}</span>
-          <span class="energia-sub">últ. medição</span>
-        </div>
-        <div class="energia-stat">
-          <span class="energia-val">${kwh.toFixed(2)} kWh</span>
-          <span class="energia-sub">${label}</span>
-        </div>
-        <div class="energia-stat">
-          <span class="energia-val energia-cost">${cost.toFixed(2)} €</span>
-          <span class="energia-sub">custo ${label}</span>
-        </div>
-        <div class="energia-stat">
-          <span class="energia-val">${er.month_kwh.toFixed(1)} kWh</span>
-          <span class="energia-sub">este mês</span>
-        </div>
-        <div class="energia-stat">
-          <span class="energia-val energia-cost">${er.month_cost.toFixed(2)} €</span>
-          <span class="energia-sub">custo mês</span>
-        </div>
-      </div>
-    </div>`;
-}
-
-function _noEredesCard() {
-  return `
-    <div class="eredes-card eredes-card-empty">
-      <div class="eredes-card-header">
-        <span class="eredes-card-title">Contador E-REDES</span>
-        <button class="eredes-upload-btn">Importar E-REDES</button>
-        <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
-      </div>
-      <p class="eredes-empty-msg">Sem dados de consumo diário. Exporta o Excel em balcaodigital.e-redes.pt e importa aqui.</p>
-    </div>`;
-}
-
-function _faturasCard(contract, fatura_count) {
-  const btn = `<button class="eredes-fatura-btn">Importar Fatura</button>
+function _faturasCard(contract, fatura_count, eredes) {
+  const eredesBtn = `<button class="eredes-upload-btn">E-REDES</button>
+        <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">`;
+  const faturaBtn = `<button class="eredes-fatura-btn">Importar Fatura</button>
         <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">`;
+
+  // compact E-REDES live stats folded into this card
+  let eredesMeta = '';
+  if (eredes) {
+    const parts = [];
+    if (eredes.last_w > 0) parts.push(`${eredes.last_w.toFixed(0)} W`);
+    const kwh = eredes.today_kwh > 0 ? eredes.today_kwh : eredes.yesterday_kwh;
+    const lbl = eredes.today_kwh > 0 ? 'hoje' : 'ontem';
+    if (kwh > 0) parts.push(`${kwh.toFixed(1)} kWh ${lbl}`);
+    if (eredes.month_kwh > 0) parts.push(`${eredes.month_kwh.toFixed(1)} kWh mês`);
+    if (parts.length) eredesMeta = `<span class="eredes-updated">${parts.join(' · ')}</span>`;
+  }
+
   if (!contract) {
     return `
       <div class="eredes-card eredes-card-empty faturas-card">
         <div class="eredes-card-header">
           <span class="eredes-card-title">Faturas de Luz</span>
-          ${btn}
+          ${eredesMeta}
+          ${eredesBtn}
+          ${faturaBtn}
         </div>
         <p class="eredes-empty-msg">Nenhuma fatura importada ainda. Importa o PDF que recebes por email.</p>
       </div>`;
   }
-  const period = contract.periodo_fim
+  const period = (contract.periodo_fim && !contract.stale)
     ? `até ${esc(contract.periodo_fim.slice(0, 7))}`
     : '';
+  const countMeta = `<span class="eredes-updated">${fatura_count} faturas${period ? ` ${period}` : ''}</span>`;
   return `
     <div class="eredes-card faturas-card">
       <div class="eredes-card-header">
         <span class="eredes-card-title">Faturas de Luz</span>
-        <span class="eredes-updated">${fatura_count} fatura${fatura_count !== 1 ? 's' : ''} importada${fatura_count !== 1 ? 's' : ''} ${period}</span>
-        ${btn}
+        ${eredesMeta}
+        ${countMeta}
+        ${eredesBtn}
+        ${faturaBtn}
       </div>
     </div>`;
 }
@@ -116,7 +84,7 @@ function _filteredMonths(analysis) {
   if (_trendFilter === 'Tudo') {
     rows = all;
   } else {
-    const months = _trendFilter === '6M' ? 6 : _trendFilter === '1A' ? 12 : 24;
+    const months = _trendFilter === '1M' ? 1 : _trendFilter === '6M' ? 6 : _trendFilter === '1A' ? 12 : 24;
     const cutoff = (() => {
       const d = new Date();
       d.setMonth(d.getMonth() - months);
@@ -175,7 +143,7 @@ function _trendChart(analysis) {
       </div>`;
   }).join('');
 
-  const filters = ['6M', '1A', '2A', 'Tudo'];
+  const filters = ['1M', '6M', '1A', '2A', 'Tudo'];
   const filterHtml = filters.map(f =>
     `<button class="trend-filter-chip${f === _trendFilter ? ' active' : ''}" data-filter="${esc(f)}">${esc(f)}</button>`
   ).join('');
@@ -198,12 +166,12 @@ function _trendChart(analysis) {
 
 function _wireUpload(el, onSuccess) {
   const input = el.querySelector('.eredes-file-input');
-  if (!input) return;
-  el.querySelector('.eredes-upload-btn')?.addEventListener('click', () => input.click());
+  const btn   = el.querySelector('.eredes-upload-btn');
+  if (!input || !btn) return;
+  btn.addEventListener('click', () => input.click());
   input.addEventListener('change', async () => {
     const file = input.files[0];
     if (!file) return;
-    const btn = input.closest('label');
     btn.textContent = 'A processar…';
     try {
       const fd = new FormData();
@@ -214,7 +182,7 @@ function _wireUpload(el, onSuccess) {
       onSuccess(`${j.days ?? '?'} dias importados`);
     } catch (e) {
       alert('Erro ao importar: ' + e.message);
-      btn.textContent = 'Actualizar';
+      btn.textContent = 'E-REDES';
     }
   });
 }
@@ -342,7 +310,7 @@ function _wireAnalysis(el) {
 }
 
 function _contractBar(contract) {
-  if (!contract) return '';
+  if (!contract || contract.stale) return '';
   const parts = [];
   if (contract.fornecedor) parts.push(`<span class="contract-supplier">${esc(contract.fornecedor)}</span>`);
   if (contract.potencia_kva) parts.push(`<span>${esc(String(contract.potencia_kva))} kVA</span>`);
@@ -358,8 +326,7 @@ export function renderEnergia(data, el, onEredesUpload) {
   }
 
   const { devices, totals, rate_per_kwh, eredes, contract, fatura_count } = data;
-  const eredesHtml = eredes ? _eredesCard(eredes) : _noEredesCard();
-  const faturasHtml = _faturasCard(contract || null, fatura_count || 0);
+  const faturasHtml = _faturasCard(contract || null, fatura_count || 0, eredes || null);
 
   const rows = devices.map(d => `
     <div class="energia-row${d.estimated ? ' energia-estimated' : ''}">
@@ -394,7 +361,6 @@ export function renderEnergia(data, el, onEredesUpload) {
       <h2 class="energia-title">Consumo &amp; Custos</h2>
     </div>
     ${_contractBar(contract || null)}
-    ${eredesHtml}
     ${faturasHtml}
     <div class="energia-list">${rows}</div>
     <div class="energia-totals">

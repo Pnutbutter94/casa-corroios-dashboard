@@ -21,7 +21,7 @@ import {
 import {
   bb, initBlockbuster, renderBlockbuster, bindBlockbuster,
 } from './widgets/blockbuster.js';
-import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend } from './widgets/energia.js';
+import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, resetTrendFilter } from './widgets/energia.js';
 import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
 
 let weatherData       = null;
@@ -136,12 +136,15 @@ function initTabs() {
         refreshBlockbuster();
       } else if (activeTab === 'energia' && !energiaInitialised) {
         energiaInitialised = true;
+        resetTrendFilter();
         const el = document.getElementById('energia-card');
-        refreshEnergia = () =>
-          fetchEnergy()
-            .then(d => renderEnergia(d, el, refreshEnergia))
-            .then(() => fetchAnalysis().then(a => renderTrend(a, el)).catch(() => {}))
-            .catch(() => renderEnergia(null, el));
+        refreshEnergia = async () => {
+          try {
+            const [d, a] = await Promise.all([fetchEnergy(), fetchAnalysis()]);
+            renderEnergia(d, el, refreshEnergia);
+            renderTrend(a, el);
+          } catch { renderEnergia(null, el); }
+        };
         refreshEnergia();
         setInterval(() => { if (activeTab === 'energia') refreshEnergia(); }, 60_000);
       } else if (activeTab === 'viagens' && !viagensInitialised) {
