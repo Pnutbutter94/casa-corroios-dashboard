@@ -152,6 +152,8 @@
   padding: 0.35rem 0.9rem;
   cursor: pointer;
   white-space: nowrap;
+  background: none;
+  -webkit-appearance: none;
 }
 .eredes-upload-btn {
   color: #f0b429;

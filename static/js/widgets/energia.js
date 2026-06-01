@@ -36,10 +36,8 @@ function _eredesCard(er) {
       <div class="eredes-card-header">
         <span class="eredes-card-title">Casa — Contador E-REDES</span>
         ${lastTs}
-        <label class="eredes-upload-btn" title="Importar Excel E-REDES">
-          Actualizar E-REDES
-          <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
-        </label>
+        <button class="eredes-upload-btn">Actualizar E-REDES</button>
+        <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
       </div>
       <div class="eredes-card-body">
         <div class="energia-stat">
@@ -71,25 +69,22 @@ function _noEredesCard() {
     <div class="eredes-card eredes-card-empty">
       <div class="eredes-card-header">
         <span class="eredes-card-title">Contador E-REDES</span>
-        <label class="eredes-upload-btn" title="Importar Excel E-REDES">
-          Importar E-REDES
-          <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
-        </label>
+        <button class="eredes-upload-btn">Importar E-REDES</button>
+        <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
       </div>
       <p class="eredes-empty-msg">Sem dados de consumo diário. Exporta o Excel em balcaodigital.e-redes.pt e importa aqui.</p>
     </div>`;
 }
 
 function _faturasCard(contract, fatura_count) {
+  const btn = `<button class="eredes-fatura-btn">Importar Fatura</button>
+        <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">`;
   if (!contract) {
     return `
       <div class="eredes-card eredes-card-empty faturas-card">
         <div class="eredes-card-header">
           <span class="eredes-card-title">Faturas de Luz</span>
-          <label class="eredes-fatura-btn" title="Importar fatura PDF">
-            Importar Fatura
-            <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
-          </label>
+          ${btn}
         </div>
         <p class="eredes-empty-msg">Nenhuma fatura importada ainda. Importa o PDF que recebes por email.</p>
       </div>`;
@@ -102,10 +97,7 @@ function _faturasCard(contract, fatura_count) {
       <div class="eredes-card-header">
         <span class="eredes-card-title">Faturas de Luz</span>
         <span class="eredes-updated">${fatura_count} fatura${fatura_count !== 1 ? 's' : ''} importada${fatura_count !== 1 ? 's' : ''} ${period}</span>
-        <label class="eredes-fatura-btn" title="Importar fatura PDF">
-          Importar Fatura
-          <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
-        </label>
+        ${btn}
       </div>
     </div>`;
 }
@@ -202,6 +194,7 @@ function _trendChart(analysis) {
 function _wireUpload(el, onSuccess) {
   const input = el.querySelector('.eredes-file-input');
   if (!input) return;
+  el.querySelector('.eredes-upload-btn')?.addEventListener('click', () => input.click());
   input.addEventListener('change', async () => {
     const file = input.files[0];
     if (!file) return;
@@ -304,24 +297,25 @@ function _showFaturaModal(parsed, pdfFile, onConfirm) {
 function _wireFaturaUpload(el, onSuccess) {
   const input = el.querySelector('.fatura-file-input');
   if (!input) return;
+  const btn = el.querySelector('.eredes-fatura-btn');
+  btn?.addEventListener('click', () => input.click());
   input.addEventListener('change', async () => {
     const file = input.files[0];
     if (!file) return;
-    const btn = input.closest('label');
-    const origText = btn.childNodes[0].textContent.trim();
-    btn.childNodes[0].textContent = 'A processar… ';
+    const origText = btn ? btn.textContent.trim() : '';
+    if (btn) btn.textContent = 'A processar…';
     try {
       const fd = new FormData();
       fd.append('file', file);
       const r = await fetch('/api/energy/fatura-parse', { method: 'POST', body: fd });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Erro');
-      btn.childNodes[0].textContent = origText + ' ';
+      if (btn) btn.textContent = origText;
       input.value = '';
       _showFaturaModal(j, file, onSuccess);
     } catch (e) {
       alert('Erro ao ler PDF: ' + e.message);
-      btn.childNodes[0].textContent = origText + ' ';
+      if (btn) btn.textContent = origText;
       input.value = '';
     }
   });
