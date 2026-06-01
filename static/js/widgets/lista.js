@@ -161,6 +161,15 @@ export function bindLista(container, onRefresh) {
     genBtn.disabled = true;
     genBtn.textContent = '⏳ A gerar…';
     await _ensureRefeicData();
+    const hasPlanned = Object.values(refeic.data.planner || {}).some(day =>
+      Object.values(day).some(m => m && m.type && m.type !== 'empty')
+    );
+    if (!hasPlanned) {
+      genBtn.disabled = false;
+      genBtn.textContent = 'Plano vazio';
+      setTimeout(() => { genBtn.textContent = '🔄 Gerar da semana'; }, 2000);
+      return;
+    }
     const generated = _generateFromPlan();
     genBtn.disabled = false;
     if (generated.length === 0) {
@@ -307,7 +316,12 @@ function _openShopAddModal(onRefresh) {
 
   _addEl.querySelector('#shop-add-save').addEventListener('click', async () => {
     const name = input.value.trim();
-    if (!name) return;
+    if (!name) {
+      input.style.outline = '2px solid var(--danger, #e74c3c)';
+      input.focus();
+      setTimeout(() => { input.style.outline = ''; }, 2000);
+      return;
+    }
     const qty = parseFloat(qtyInp.value);
     const p   = selectedProduct || products.find(x => x.name.toLowerCase() === name.toLowerCase());
     const item = {

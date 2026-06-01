@@ -246,7 +246,22 @@ export function bindPlannerEvents(coloredCounts, whiteCounts, plannerMode, onMai
   });
 
   const resetBtn = document.getElementById('reset-btn');
-  if (resetBtn) resetBtn.addEventListener('click', onReset);
+  if (resetBtn) resetBtn.addEventListener('click', () => {
+    if (!resetBtn.dataset.confirmPending) {
+      resetBtn.dataset.confirmPending = '1';
+      resetBtn.textContent = 'Confirmar reset?';
+      setTimeout(() => {
+        if (resetBtn.dataset.confirmPending) {
+          delete resetBtn.dataset.confirmPending;
+          resetBtn.textContent = '🔄 Nova lavagem';
+        }
+      }, 4000);
+      return;
+    }
+    delete resetBtn.dataset.confirmPending;
+    resetBtn.textContent = '🔄 Nova lavagem';
+    onReset();
+  });
 }
 
 export async function fetchMaintenance() {

@@ -515,8 +515,8 @@ function _renderMovieDetail(detail, jfId, title, year) {
     delBtn.addEventListener('click', async () => {
         if (!delBtn.dataset.confirmPending) {
             delBtn.dataset.confirmPending = '1';
-            delBtn.textContent = 'Confirmar?';
-            setTimeout(() => { if (delBtn.dataset.confirmPending) { delete delBtn.dataset.confirmPending; delBtn.textContent = 'Apagar ficheiro'; } }, 3000);
+            delBtn.textContent = 'Confirmar? (toca de novo)';
+            setTimeout(() => { if (delBtn.dataset.confirmPending) { delete delBtn.dataset.confirmPending; delBtn.textContent = 'Apagar ficheiro'; } }, 5000);
             return;
         }
         delBtn.disabled = true;

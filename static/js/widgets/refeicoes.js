@@ -51,7 +51,7 @@ export async function initRefeicoes() {
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-function dateStr(d) { return d.toISOString().split('T')[0]; }
+function dateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 
 function weekDays() {
   const today = new Date();
@@ -337,6 +337,11 @@ function _bindMealModal(onRefreshCard) {
   const saveBtn = _mealEl.querySelector('#meal-save-btn');
   if (saveBtn) saveBtn.addEventListener('click', async () => {
     const { day, meal, type, recipe, note } = _mealState;
+    if (type === 'recipe' && !recipe) {
+      saveBtn.textContent = 'Escolhe uma receita';
+      setTimeout(() => { saveBtn.textContent = 'Guardar'; }, 2000);
+      return;
+    }
     const entry = (!type || type === 'empty')
       ? { type: 'empty' }
       : { type, recipeId: recipe || undefined, note: note || undefined };
