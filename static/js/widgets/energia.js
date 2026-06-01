@@ -216,11 +216,11 @@ function _wireUpload(el, onSuccess) {
 
 function _field(label, name, value, type = 'text') {
   const val = value != null ? esc(String(value)) : '';
-  const filled = value != null ? ' class="fatura-field-filled"' : '';
+  const cls = value != null ? 'fatura-input fatura-field-filled' : 'fatura-input';
   return `
     <div class="fatura-field">
       <label class="fatura-label">${esc(label)}</label>
-      <input${filled} type="${type}" name="${name}" value="${val}" class="fatura-input" placeholder="—">
+      <input type="${type}" name="${name}" value="${val}" class="${cls}" placeholder="—">
     </div>`;
 }
 
