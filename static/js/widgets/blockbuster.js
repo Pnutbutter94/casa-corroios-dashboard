@@ -79,10 +79,13 @@ function _diskHTML() {
     const warnCls = pct > 90 ? 'bad' : pct > 75 ? 'warn' : '';
     const moviesPct = +(moviesGb / quotaGb * 100).toFixed(1);
     const tvPct     = +(tvGb     / quotaGb * 100).toFixed(1);
+    const freePct   = Math.max(0, +(100 - moviesPct - tvPct).toFixed(1));
+    const freeGb    = +((quotaGb - usedGb)).toFixed(1);
     return `
     <div class="bb-disk-bar-wrap ${warnCls}">
         <div class="bb-disk-seg bb-ds-movies" style="width:${moviesPct}%">${moviesPct > 9 ? moviesGb + ' GB' : ''}</div>
         <div class="bb-disk-seg bb-ds-tv"     style="width:${tvPct}%">${tvPct > 9 ? tvGb + ' GB' : ''}</div>
+        <div class="bb-disk-seg bb-ds-free"   style="width:${freePct}%">${freePct > 12 ? freeGb + ' GB livre' : ''}</div>
     </div>
     <div class="bb-disk-stats">
         <span class="bb-disk-used">${usedGb} GB / ${quotaGb} GB</span>
@@ -214,7 +217,7 @@ export function renderBlockbuster() {
 
     <div class="bb-section-hdr bb-gap">
         <span class="card-label">A descarregar</span>
-        <button class="bb-refresh-btn" id="bb-queue-refresh">↻</button>
+        <button class="bb-refresh-btn" id="bb-queue-refresh">↻ Atualizar</button>
     </div>
     <div class="bb-queue" id="bb-queue-list">${_queueHTML()}</div>
 

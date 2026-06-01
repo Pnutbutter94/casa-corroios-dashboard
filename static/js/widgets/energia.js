@@ -429,11 +429,13 @@ const DOW_END = ['dom','seg','ter','qua','qui','sex','sáb']; // JS getDay: 0=Su
 
 function _dailyChart(rows) {
   if (!rows || !rows.length) return '';
+  const todayStr = new Date().toISOString().slice(0, 10);
   const maxKwh = Math.max(...rows.map(r => r.kwh || 0), 1);
   const barsHtml = rows.map(r => {
-    const d     = new Date(r.date + 'T12:00:00');
-    const label = `${d.getDate()} ${MONTH_PT[d.getMonth()]}`;
-    const isWkd = r.dow >= 5;
+    const d       = new Date(r.date + 'T12:00:00');
+    const label   = `${d.getDate()} ${MONTH_PT[d.getMonth()]}`;
+    const isWkd   = r.dow >= 5;
+    const isToday = r.date === todayStr;
     if (r.kwh === null) {
       return `<div class="dchart-row">
         <span class="dchart-label">${label}</span>
@@ -442,10 +444,11 @@ function _dailyChart(rows) {
       </div>`;
     }
     const pct = Math.max(2, Math.round(r.kwh / maxKwh * 100));
+    const parcialBadge = isToday ? ' <span class="dchart-parcial">(parcial)</span>' : '';
     return `<div class="dchart-row">
       <span class="dchart-label">${label}</span>
-      <div class="dchart-bar-wrap"><div class="dchart-bar${isWkd ? ' dchart-bar-wkd' : ''}" style="width:${pct}%"></div></div>
-      <span class="dchart-val">${r.kwh.toFixed(1)} kWh</span>
+      <div class="dchart-bar-wrap"><div class="dchart-bar${isWkd ? ' dchart-bar-wkd' : ''}${isToday ? ' dchart-bar-today' : ''}" style="width:${pct}%"></div></div>
+      <span class="dchart-val">${r.kwh.toFixed(1)} kWh${parcialBadge}</span>
     </div>`;
   }).join('');
 

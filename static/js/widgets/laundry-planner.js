@@ -141,7 +141,7 @@ function loadCard(load, idx, groupKey) {
 export function renderPlanOutput(coloredCounts, whiteCounts) {
   const hasAny = CLOTHES.some(c => (coloredCounts[c.id] || 0) + (whiteCounts[c.id] || 0) > 0);
   if (!hasAny) {
-    return `<div class="plan-empty">Seleciona a roupa acima · usa o modo ⚪ para peças brancas</div>`;
+    return `<div class="plan-empty">Seleciona a roupa acima · usa o modo ⚪ Brancos para peças brancas</div>`;
   }
 
   const { groups, hasWhite, hasColored } = computeAllLoads(coloredCounts, whiteCounts);
@@ -166,9 +166,10 @@ function maintDaysAgo(dateStr) {
 }
 
 function maintChip(icon, label, dateStr, limitDays, id) {
-  const days     = maintDaysAgo(dateStr);
-  const overdue  = days === null || days >= limitDays;
-  const cls      = overdue ? 'overdue' : 'ok';
+  const days    = maintDaysAgo(dateStr);
+  const overdue = days === null || days >= limitDays;
+  const warn    = !overdue && days >= Math.round(limitDays * 0.7);
+  const cls     = overdue ? 'overdue' : warn ? 'warn' : 'ok';
   const dateText = days === null ? 'Nunca feito'
     : days === 0 ? 'Hoje'
     : `há ${days} dia${days !== 1 ? 's' : ''}`;

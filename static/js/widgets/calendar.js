@@ -26,7 +26,7 @@ function _calClass(calendar) {
 function _eventsHTML(events) {
     if (!events || !events.length) return '<div class="cal-empty">Dia livre</div>';
     return events.map(ev => `
-        <div class="cal-event">
+        <div class="cal-event${ev.allDay ? ' cal-event--allday' : ''}">
             <span class="cal-time${ev.allDay ? ' cal-allday' : ''}">${ev.allDay ? 'Dia inteiro' : esc(ev.time)}</span>
             <span class="cal-dot ${_calClass(ev.calendar)}"></span>
             <span class="cal-title">${esc(ev.title)}</span>

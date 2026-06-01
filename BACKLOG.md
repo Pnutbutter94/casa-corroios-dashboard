@@ -31,38 +31,38 @@ Small tweaks and non-urgent items to revisit.
 ## Roundtable sweep — 2026-06-01 (low priority)
 
 ### Casa
-- [ ] **L1** "Dia inteiro" events in calendar show the all-day label in plain white — same weight as timed events. Could be visually lighter/muted to de-emphasise all-day entries vs timed ones.
+- [x] **L1** "Dia inteiro" events in calendar show the all-day label in plain white — same weight as timed events. Could be visually lighter/muted to de-emphasise all-day entries vs timed ones.
 
 ### Roupa
-- [ ] **L2** Anti-calcário "há 25 dias" shown in plain white with no colour coding. Should turn amber at ~21 days, red at ~30 days to signal maintenance needed.
-- [ ] **L3** "Seleciona a roupa acima · usa o modo ⚪ para peças brancas" hint text references the white-circle emoji but the button above says "Brancos" — minor inconsistency.
+- [x] **L2** Anti-calcário "há 25 dias" shown in plain white with no colour coding. Should turn amber at ~21 days, red at ~30 days to signal maintenance needed.
+- [x] **L3** "Seleciona a roupa acima · usa o modo ⚪ para peças brancas" hint text references the white-circle emoji but the button above says "Brancos" — minor inconsistency.
 
 ### IoT
-- [ ] **L4** "Plug Sala" shows a solid black circle icon — likely a fallback when the icon entity type is unknown. Should have a plug or socket emoji.
-- [ ] **L5** "sem sinal" sensors (Escritório, Cozinha) have no "last seen" timestamp. After a prolonged outage it's hard to know if this is expected or broken.
+- [x] **L4** "Plug Sala" shows a solid black circle icon — likely a fallback when the icon entity type is unknown. Should have a plug or socket emoji.
+- [x] **L5** "sem sinal" sensors (Escritório, Cozinha) have no "last seen" timestamp. After a prolonged outage it's hard to know if this is expected or broken.
 
 ### Refeições
-- [ ] **L6** Recipe detail modal: ingredient checkboxes have no label. Users don't know what checking them does (marks ingredient as in-stock). Add a small header: "Tenho em casa" above the checkbox column.
-- [ ] **L7** Recipe detail modal: no scroll indicator for long recipes. On small screens, steps may overflow with no affordance to scroll.
-- [ ] **L8** Receitas list: tapping a recipe is not obviously interactive — no hover/press state on desktop before click. Minor on a touch device.
+- [x] **L6** Recipe detail modal: ingredient checkboxes have no label. Users don't know what checking them does (marks ingredient as in-stock). Add a small header: "Tenho em casa" above the checkbox column.
+- [x] **L7** Recipe detail modal: no scroll indicator for long recipes. On small screens, steps may overflow with no affordance to scroll.
+- [x] **L8** Receitas list: tapping a recipe is not obviously interactive — no hover/press state on desktop before click. Minor on a touch device.
 
 ### Lista
-- [ ] **L9** Lista card doesn't fill available height when empty — large blank area below the empty-state message.
-- [ ] **L10** Unit selector in "Adicionar" modal ("un") has no affordance showing it cycles through units (g, ml, un, kg). No chevron or hint.
+- [x] **L9** Lista card doesn't fill available height when empty — large blank area below the empty-state message.
+- [x] **L10** Unit selector in "Adicionar" modal ("un") has no affordance showing it cycles through units (g, ml, un, kg). No chevron or hint.
 
 ### Blockbuster
-- [ ] **L11** Disk bar label "54 GB" floats in the middle of the free-space section — could be read as "series use 54 GB". Clarify with a "livre" suffix: "54 GB livre".
-- [ ] **L12** "A DESCARREGAR" refresh button (↻) has no label — icon-only. On the tablet it's a small tap target with no tooltip.
+- [x] **L11** Disk bar label "54 GB" floats in the middle of the free-space section — could be read as "series use 54 GB". Clarify with a "livre" suffix: "54 GB livre".
+- [x] **L12** "A DESCARREGAR" refresh button (↻) has no label — icon-only. On the tablet it's a small tap target with no tooltip.
 
 ### Energia
-- [ ] **L13** "1 jun" entry in daily chart shows 0.0 kWh for a day that isn't over. Either show today's partial data with a "(parcial)" badge, or exclude the current day from the chart.
-- [ ] **L14** "Ver dia específico" date picker is visually buried below the weekday chart. Could use a more prominent placement or a small CTA label.
+- [x] **L13** "1 jun" entry in daily chart shows 0.0 kWh for a day that isn't over. Either show today's partial data with a "(parcial)" badge, or exclude the current day from the chart.
+- [x] **L14** "Ver dia específico" date picker is visually buried below the weekday chart. Could use a more prominent placement or a small CTA label.
 
 ### Viagens
-- [ ] **L15** "Expected" badge on return flight is English — should be "Previsto" (pt-PT).
-- [ ] **L16** "7 POIs" stat in summary row uses an abbreviation unfamiliar to casual users. Consider "Lugares" or "Pontos de interesse".
-- [ ] **L17** Claude tab: no suggested questions shown when conversation is empty — large blank space. Add 2–3 quick-start chips (e.g. "O que fazer sábado à tarde?", "Onde jantar perto do Prado?") to encourage first interaction.
-- [ ] **L18** "Fechar viagem ↗" label is ambiguous — could mean close/archive or navigate away. Consider "Arquivar viagem" or add a tooltip.
+- [x] **L15** "Expected" badge on return flight is English — should be "Previsto" (pt-PT).
+- [x] **L16** "7 POIs" stat in summary row uses an abbreviation unfamiliar to casual users. Consider "Lugares" or "Pontos de interesse".
+- [x] **L17** Claude tab: no suggested questions shown when conversation is empty — large blank space. Add 2–3 quick-start chips (e.g. "O que fazer sábado à tarde?", "Onde jantar perto do Prado?") to encourage first interaction.
+- [x] **L18** "Fechar viagem ↗" label is ambiguous — could mean close/archive or navigate away. Consider "Arquivar viagem" or add a tooltip.
 
 ---
 

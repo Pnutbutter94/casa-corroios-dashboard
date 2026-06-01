@@ -243,6 +243,7 @@ function openRecipeDetail(r) {
       <div class="ref-modal">
         <div class="ref-modal-title">${esc(r.name)}</div>
         <div class="ref-section-label">Ingredientes</div>
+        <div class="recipe-ing-legend">Tenho em casa</div>
         <div class="recipe-detail-ing">${ings}</div>
         <div class="ref-section-label">Preparação</div>
         <div class="recipe-steps">${steps}</div>

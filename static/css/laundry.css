@@ -275,9 +275,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.maint-chip.warn {
+  border-color: rgba(240, 192, 64, 0.5);
+  background: rgba(240, 192, 64, 0.07);
+}
+
 .maint-chip.overdue {
-  border-color: rgba(240, 144, 64, 0.5);
-  background: rgba(240, 144, 64, 0.08);
+  border-color: rgba(232, 80, 80, 0.5);
+  background: rgba(232, 80, 80, 0.08);
 }
 
 .maint-chip.ok {
@@ -295,7 +300,8 @@
   margin: 2px 0 1px;
 }
 
-.maint-chip.overdue .maint-chip-label { color: var(--warn); }
+.maint-chip.warn    .maint-chip-label { color: var(--accent); }
+.maint-chip.overdue .maint-chip-label { color: var(--bad); }
 
 .maint-chip-date {
   font-size: 11px;

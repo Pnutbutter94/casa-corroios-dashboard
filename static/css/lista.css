@@ -1,4 +1,8 @@
 /* ── LISTA DE COMPRAS ─────────────────────────────────────── */
+#lista-card {
+  min-height: 60vh;
+}
+
 .lista-empty {
   text-align: center;
   color: var(--text-dim, var(--muted));

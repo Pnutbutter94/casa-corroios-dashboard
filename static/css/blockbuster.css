@@ -339,6 +339,7 @@
 }
 .bb-ds-movies { background: #5b6abf; }
 .bb-ds-tv     { background: #2a9d82; }
+.bb-ds-free   { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); }
 .bb-disk-stats  { display: flex; justify-content: space-between; font-size: 14px; color: #606090; }
 .bb-disk-legend { display: flex; align-items: center; gap: 4px; }
 .bb-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; font-style: normal; }

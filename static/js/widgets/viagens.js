@@ -298,6 +298,14 @@ export function bindViagens(card, refresh) {
     });
   });
 
+  // Quick-start chips
+  card.querySelectorAll('.assistente-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _claudeQuery = btn.dataset.chip;
+      card.querySelector('#claude-send')?.click();
+    });
+  });
+
   // Claude assistant
   const claudeTextarea = card.querySelector('#claude-query');
   if (claudeTextarea) {
@@ -1048,10 +1056,19 @@ function _renderPoiSuggestions() {
     </div>`;
 }
 
+const _CLAUDE_CHIPS = [
+  'O que fazer sábado à tarde?',
+  'Onde jantar perto do hotel?',
+  'Sugestões de museus gratuitos',
+];
+
 function _renderAssistente() {
+  const showChips = !_claudeQuery && !_claudeResponse && !_claudePending;
   return `
     <div class="assistente-panel">
       <p class="assistente-hint">Faz uma pergunta sobre esta viagem — sugestões, horários, logística.</p>
+      ${showChips ? `<div class="assistente-chips">${_CLAUDE_CHIPS.map(c =>
+        `<button class="assistente-chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       <div class="assistente-input-row">
         <textarea class="assistente-textarea" id="claude-query" rows="2"
           placeholder="ex: O que devo fazer sábado à tarde? / Onde jantar perto do Prado?">${esc(_claudeQuery)}</textarea>
@@ -1123,7 +1140,7 @@ function _renderResumo() {
       ${[
         [t.cities.length, `Cidade${t.cities.length!==1?'s':''}`],
         [nights,          `Noite${nights!==1?'s':''}`],
-        [totalPoi,        `POI${totalPoi!==1?'s':''}`],
+        [totalPoi,        `Lugar${totalPoi!==1?'es':''}`],
         [`€${(pedro+ines).toFixed(0)}`, 'Gasto total'],
       ].map(([v,l]) => `
         <div class="viagens-stat">
@@ -1139,7 +1156,7 @@ function _renderResumo() {
         ${_personBar('Inês',  ines,  t.budget_per_person)}
       </div>
     </div>
-    <button class="btn-fechar-viagem" id="btn-fechar-viagem">Fechar viagem ↗</button>`;
+    <button class="btn-fechar-viagem" id="btn-fechar-viagem">Arquivar viagem ↗</button>`;
 }
 
 function _renderLegCard(l) {
@@ -1212,6 +1229,7 @@ function _statusBadge(status, delay) {
   const PT = {
     'On Time':'No horário', 'Scheduled':'Programado', 'Delayed':'Atrasado',
     'Cancelled':'Cancelado', 'Landed':'Aterrou', 'Active':'Em voo',
+    'Expected':'Previsto',
   };
   const cls   = CLS[status] || 'scheduled';
   const label = status === 'Delayed' && delay > 0

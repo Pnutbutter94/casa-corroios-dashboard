@@ -440,16 +440,33 @@
 }
 
 /* ── Date picker for hourly breakdown ───────────────────────────── */
-.eredes-date-picker { margin-top: 6px; }
+.eredes-date-picker {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+.eredes-date-picker .profile-sub {
+  font-size: 0.65rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
 .eredes-date-input {
-  font-size: 0.72rem;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.15);
+  font-size: 0.78rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
   border-radius: 6px;
   color: var(--text-primary);
-  padding: 0.2rem 0.5rem;
+  padding: 0.3rem 0.6rem;
   cursor: pointer;
   margin-bottom: 6px;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 #eredes-hourly-result { min-height: 0; }
 
@@ -470,11 +487,13 @@
   border-radius: 2px;
   transition: width 0.3s ease;
 }
-.dchart-bar-wkd  { background: #9575cd; }
-.dchart-bar-none { background: rgba(255,255,255,0.08); }
-.dchart-val      { font-size: 0.6rem; color: var(--text-dim, #aaa); text-align: right; }
-.dchart-val-none { color: var(--text-muted); }
-.dchart-legend   { display: flex; gap: 12px; margin-top: 8px; font-size: 0.6rem; color: var(--text-muted); justify-content: flex-end; }
+.dchart-bar-wkd   { background: #9575cd; }
+.dchart-bar-none  { background: rgba(255,255,255,0.08); }
+.dchart-bar-today { opacity: 0.55; }
+.dchart-val       { font-size: 0.6rem; color: var(--text-dim, #aaa); text-align: right; }
+.dchart-val-none  { color: var(--text-muted); }
+.dchart-parcial   { font-size: 0.55rem; color: var(--text-muted); }
+.dchart-legend    { display: flex; gap: 12px; margin-top: 8px; font-size: 0.6rem; color: var(--text-muted); justify-content: flex-end; }
 .dchart-legend-wkd { color: #9575cd; }
 
 /* ── Hourly + DOW profile charts ────────────────────────────────── */

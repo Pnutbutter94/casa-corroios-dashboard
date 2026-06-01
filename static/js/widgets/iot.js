@@ -80,6 +80,7 @@ export function renderIot() {
         const ok   = temp !== 'unavailable';
         const tVal = ok ? parseFloat(temp) : 0;
         const tC   = ok ? (s.f ? ((tVal - 32) * 5 / 9) : tVal).toFixed(1) : '';
+        const lastSeen = !ok ? _timeAgo(_s(s.temp).last_changed) : '';
         return `
         <div class="iot-sensor-card${ok ? '' : ' unavail'}">
             <div class="iot-sensor-room">${esc(s.room)}</div>
@@ -89,7 +90,7 @@ export function renderIot() {
                 <span class="iot-sensor-sep"></span>
                 <span class="iot-sensor-val iot-hum-${_humClass(hum)}">${parseFloat(hum).toFixed(0)}%</span>
             </div>
-            ` : '<div class="iot-sensor-unavail"><span class="iot-offline-dot"></span>sem sinal</div>'}
+            ` : `<div class="iot-sensor-unavail"><span class="iot-offline-dot"></span>sem sinal${lastSeen ? ` · ${lastSeen}` : ''}</div>`}
         </div>`;
     }).join('');
 
@@ -141,7 +142,7 @@ export function renderIot() {
     <div class="iot-device-grid">${lightTilesHTML}</div>
 
     <div class="card-label iot-gap">Tomadas</div>
-    <div class="iot-device-grid">${tilesHTML(SWITCHES, '🔌', '⚫')}</div>
+    <div class="iot-device-grid">${tilesHTML(SWITCHES, '🔌', '🔌')}</div>
 
     <div class="card-label iot-gap">Aspirador</div>
     <div class="iot-vacuum">

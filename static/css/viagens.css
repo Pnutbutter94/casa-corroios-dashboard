@@ -1779,6 +1779,27 @@
   margin: 0;
 }
 
+.assistente-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.assistente-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: .8rem;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.assistente-chip:active { background: var(--surface); }
+
 .assistente-input-row {
   display: flex;
   gap: .5rem;
