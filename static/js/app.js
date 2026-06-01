@@ -283,7 +283,7 @@ function render(data) {
             <div class="hour-slot ${!s.hasSun ? 'bad' : s.score >= 70 ? 'best' : s.score >= 45 ? 'ok' : 'bad'}">
               <div class="hour-label">${String(s.hour).padStart(2,'0')}h</div>
               <div class="hour-icon">${s.icon}</div>
-              <div class="hour-rain">${s.hasSun ? s.rain + '%' : '🏠'}</div>
+              <div class="hour-rain">${s.hasSun ? s.rain + '%' : ''}</div>
             </div>`).join('')}
         </div>
       </div>

@@ -457,6 +457,7 @@ function _dailyChart(rows) {
         <span class="dchart-avg">média ${avg.toFixed(1)} kWh/dia</span>
       </div>
       <div class="dchart-list">${barsHtml}</div>
+      <div class="dchart-legend"><span class="dchart-legend-wday">■ Dias úteis</span><span class="dchart-legend-wkd">■ Fim de semana</span></div>
     </div>`;
 }
 

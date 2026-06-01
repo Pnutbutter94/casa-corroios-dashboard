@@ -97,8 +97,8 @@
 }
 
 .cal-week-day--selected {
-    background: rgba(255, 255, 255, 0.13);
-    outline: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.20);
+    outline: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 .cal-week-day--today.cal-week-day--selected {

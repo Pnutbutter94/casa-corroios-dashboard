@@ -194,6 +194,13 @@
   margin: 12px 0 6px;
 }
 
+.ref-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
 .recipe-list {
   display: flex;
   flex-direction: column;

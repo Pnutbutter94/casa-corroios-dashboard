@@ -278,8 +278,10 @@ function _renderMealModalHTML() {
   const scored = refeic.data.recipes
     .map(r => ({ r, score: matchScore(r) }))
     .sort((a, b) => b.score - a.score);
+  const allZero = scored.length > 0 && scored.every(({ score }) => score === 0);
   const recipeRows = type === 'recipe' ? `
     <div class="ref-section-label">Receita</div>
+    ${allZero ? '<div class="ref-hint">% indica ingredientes em casa — adiciona no Inventário</div>' : ''}
     <div class="recipe-list">
       ${scored.map(({ r, score }) => `
         <div class="recipe-pick-row${recipe === r.id ? ' selected' : ''}" data-pick-recipe="${r.id}">
@@ -307,7 +309,7 @@ function _renderMealModalHTML() {
         <div class="ref-modal-actions">
           <button class="ref-btn ref-btn-secondary" id="meal-cancel-btn">Cancelar</button>
           ${clearBtn}
-          <button class="ref-btn ref-btn-primary" id="meal-save-btn">Guardar</button>
+          <button class="ref-btn ref-btn-primary" id="meal-save-btn"${!type ? ' disabled' : ''}>Guardar</button>
         </div>
       </div>
     </div>`;

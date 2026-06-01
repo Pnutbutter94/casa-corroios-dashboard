@@ -578,6 +578,34 @@ def energy_costs():
         hours_today = now.hour + now.minute / 60
         days_elapsed = now.day - 1 + hours_today / 24
 
+        # Resolve contract rate before devices loop so both use the same rate
+        rate = TARIFF_EUR_KWH
+        contract = None
+        fatura_count = 0
+        try:
+            with open(FATURAS_FILE) as ff:
+                faturas = json.load(ff)
+            fatura_count = len(faturas)
+            if faturas:
+                latest = max(faturas, key=lambda x: x.get('periodo_fim', ''))
+                fim_str = latest.get('periodo_fim', '')
+                try:
+                    fim_date = datetime.date.fromisoformat(fim_str[:10])
+                    stale = (datetime.date.today() - fim_date).days > 365
+                except (ValueError, TypeError):
+                    stale = True
+                contract = {
+                    'fornecedor':         latest.get('fornecedor', ''),
+                    'potencia_kva':       latest.get('potencia_contratada_kva'),
+                    'preco_dia_potencia': latest.get('preco_dia_potencia_eur'),
+                    'preco_kwh':          latest.get('preco_kwh') or TARIFF_EUR_KWH,
+                    'periodo_fim':        fim_str,
+                    'stale':              stale,
+                }
+                rate = contract['preco_kwh'] or TARIFF_EUR_KWH
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            pass
+
         devices = []
         total_today = 0.0
         total_month = 0.0
@@ -591,8 +619,8 @@ def energy_costs():
                 'current_w':  round(current_w, 1),
                 'today_kwh':  round(today_kwh, 3),
                 'month_kwh':  round(month_kwh, 3),
-                'today_cost': round(today_kwh * TARIFF_EUR_KWH, 2),
-                'month_cost': round(month_kwh * TARIFF_EUR_KWH, 2),
+                'today_cost': round(today_kwh * rate, 2),
+                'month_cost': round(month_kwh * rate, 2),
                 'estimated':  False,
             })
             total_today += today_kwh
@@ -606,8 +634,8 @@ def energy_costs():
             'current_w':  SERVER_WATTS,
             'today_kwh':  srv_today,
             'month_kwh':  srv_month,
-            'today_cost': round(srv_today * TARIFF_EUR_KWH, 2),
-            'month_cost': round(srv_month * TARIFF_EUR_KWH, 2),
+            'today_cost': round(srv_today * rate, 2),
+            'month_cost': round(srv_month * rate, 2),
             'estimated':  True,
         })
         total_today += srv_today
@@ -637,33 +665,6 @@ def energy_costs():
                 }
         except Exception:
             pass
-
-        contract = None
-        fatura_count = 0
-        try:
-            with open(FATURAS_FILE) as ff:
-                faturas = json.load(ff)
-            fatura_count = len(faturas)
-            if faturas:
-                latest = max(faturas, key=lambda x: x.get('periodo_fim', ''))
-                fim_str = latest.get('periodo_fim', '')
-                try:
-                    fim_date = datetime.date.fromisoformat(fim_str[:10])
-                    stale = (datetime.date.today() - fim_date).days > 365
-                except (ValueError, TypeError):
-                    stale = True
-                contract = {
-                    'fornecedor':         latest.get('fornecedor', ''),
-                    'potencia_kva':       latest.get('potencia_contratada_kva'),
-                    'preco_dia_potencia': latest.get('preco_dia_potencia_eur'),
-                    'preco_kwh':          latest.get('preco_kwh') or TARIFF_EUR_KWH,
-                    'periodo_fim':        fim_str,
-                    'stale':              stale,
-                }
-        except (FileNotFoundError, json.JSONDecodeError, KeyError):
-            pass
-
-        rate = (contract['preco_kwh'] if contract and contract.get('preco_kwh') else TARIFF_EUR_KWH)
 
         return jsonify({
             'rate_per_kwh':  rate,

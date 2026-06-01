@@ -410,7 +410,7 @@ function _openDetailModal(jfId, type, title, year) {
     overlay.innerHTML = `
         <div class="bb-modal-panel" id="bb-modal-panel">
             <div class="bb-modal-header">
-                <div class="bb-modal-htitle">${esc(title)}${year ? ` <span class="bb-modal-year">${esc(String(year))}</span>` : ''}</div>
+                <div class="bb-modal-htitle">${esc(title)}${year ? `<span class="bb-modal-year"> · ${esc(String(year))}</span>` : ''}</div>
                 <button class="bb-modal-close" id="bb-modal-close">×</button>
             </div>
             <div class="bb-modal-body" id="bb-modal-body">
