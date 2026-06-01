@@ -40,10 +40,6 @@ function _eredesCard(er) {
           Actualizar E-REDES
           <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
         </label>
-        <label class="eredes-fatura-btn" title="Importar fatura PDF">
-          Importar Fatura
-          <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
-        </label>
       </div>
       <div class="eredes-card-body">
         <div class="energia-stat">
@@ -74,17 +70,43 @@ function _noEredesCard() {
   return `
     <div class="eredes-card eredes-card-empty">
       <div class="eredes-card-header">
-        <span class="eredes-card-title">Casa — Contador E-REDES</span>
+        <span class="eredes-card-title">Contador E-REDES</span>
         <label class="eredes-upload-btn" title="Importar Excel E-REDES">
           Importar E-REDES
           <input type="file" accept=".xlsx" class="eredes-file-input" style="display:none">
         </label>
+      </div>
+      <p class="eredes-empty-msg">Sem dados de consumo diário. Exporta o Excel em balcaodigital.e-redes.pt e importa aqui.</p>
+    </div>`;
+}
+
+function _faturasCard(contract, fatura_count) {
+  if (!contract) {
+    return `
+      <div class="eredes-card eredes-card-empty faturas-card">
+        <div class="eredes-card-header">
+          <span class="eredes-card-title">Faturas de Luz</span>
+          <label class="eredes-fatura-btn" title="Importar fatura PDF">
+            Importar Fatura
+            <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
+          </label>
+        </div>
+        <p class="eredes-empty-msg">Nenhuma fatura importada ainda. Importa o PDF que recebes por email.</p>
+      </div>`;
+  }
+  const period = contract.periodo_fim
+    ? `até ${esc(contract.periodo_fim.slice(0, 7))}`
+    : '';
+  return `
+    <div class="eredes-card faturas-card">
+      <div class="eredes-card-header">
+        <span class="eredes-card-title">Faturas de Luz</span>
+        <span class="eredes-updated">${fatura_count} fatura${fatura_count !== 1 ? 's' : ''} importada${fatura_count !== 1 ? 's' : ''} ${period}</span>
         <label class="eredes-fatura-btn" title="Importar fatura PDF">
           Importar Fatura
           <input type="file" accept=".pdf" class="fatura-file-input" style="display:none">
         </label>
       </div>
-      <p class="eredes-empty-msg">Sem dados. Exporta o Excel em balcaodigital.e-redes.pt e importa aqui.</p>
     </div>`;
 }
 
@@ -320,14 +342,25 @@ function _wireAnalysis(el) {
   });
 }
 
+function _contractBar(contract) {
+  if (!contract) return '';
+  const parts = [];
+  if (contract.fornecedor) parts.push(`<span class="contract-supplier">${esc(contract.fornecedor)}</span>`);
+  if (contract.potencia_kva) parts.push(`<span>${esc(String(contract.potencia_kva))} kVA</span>`);
+  if (contract.preco_dia_potencia) parts.push(`<span>${esc(contract.preco_dia_potencia.toFixed(4))} €/dia pot.</span>`);
+  if (contract.preco_kwh) parts.push(`<span>${esc(contract.preco_kwh.toFixed(4))} €/kWh</span>`);
+  return parts.length ? `<div class="contract-bar">${parts.join('<span class="contract-sep">·</span>')}</div>` : '';
+}
+
 export function renderEnergia(data, el, onEredesUpload) {
   if (!data || data.error) {
     el.innerHTML = `<p class="energia-error">Sem dados de energia disponíveis.</p>`;
     return;
   }
 
-  const { devices, totals, rate_per_kwh, eredes } = data;
+  const { devices, totals, rate_per_kwh, eredes, contract, fatura_count } = data;
   const eredesHtml = eredes ? _eredesCard(eredes) : _noEredesCard();
+  const faturasHtml = _faturasCard(contract || null, fatura_count || 0);
 
   const rows = devices.map(d => `
     <div class="energia-row${d.estimated ? ' energia-estimated' : ''}">
@@ -360,9 +393,10 @@ export function renderEnergia(data, el, onEredesUpload) {
   el.innerHTML = `
     <div class="energia-header">
       <h2 class="energia-title">Consumo &amp; Custos</h2>
-      <span class="energia-rate">Tarifa: ${rate_per_kwh.toFixed(4)} €/kWh</span>
     </div>
+    ${_contractBar(contract || null)}
     ${eredesHtml}
+    ${faturasHtml}
     <div class="energia-list">${rows}</div>
     <div class="energia-totals">
       <div class="energia-total-item">

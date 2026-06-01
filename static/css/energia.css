@@ -10,10 +10,25 @@
   color: var(--text-primary);
   margin: 0;
 }
-.energia-rate {
-  font-size: 0.72rem;
+.contract-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.8rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
+.contract-supplier {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.contract-sep { opacity: 0.35; }
+.faturas-card { margin-top: 0.6rem; }
 
 .energia-list {
   display: flex;

@@ -165,6 +165,15 @@ function initTabs() {
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
 function render(data) {
+  // Reset lazy-init flags — render() replaces #app innerHTML so all tab
+  // elements are recreated; stale flags would leave them stuck on the spinner.
+  refeicInitialised  = false;
+  listaInitialised   = false;
+  iotInitialised     = false;
+  bbInitialised      = false;
+  energiaInitialised = false;
+  viagensInitialised = false;
+  refreshEnergia     = null;
   const now         = new Date();
   const currentHour = now.getHours();
   const hourIdx     = data.hourly.time.findIndex((t, i) => new Date(t).getHours() === currentHour && Math.floor(i / 24) === 0);
@@ -316,20 +325,11 @@ function render(data) {
   if (activeTab === 'refeicoes' && refeicInitialised) {
     refreshRefeicoes();
   }
-  if (activeTab === 'lista' && listaInitialised) {
-    refreshLista();
-  }
-  if (activeTab === 'iot' && iotInitialised) {
-    refreshIot();
-  }
-  if (activeTab === 'blockbuster' && bbInitialised) {
-    refreshBlockbuster();
-  }
-  if (activeTab === 'energia' && energiaInitialised && refreshEnergia) {
-    refreshEnergia();
-  }
-  if (activeTab === 'viagens' && viagensInitialised) {
-    refreshViagens();
+  // Re-trigger the active tab's init if it's a lazy tab (flags were reset above).
+  // The click handler in initTabs() checks the flags and re-runs init.
+  const lazyTabs = ['refeicoes', 'lista', 'iot', 'blockbuster', 'energia', 'viagens'];
+  if (lazyTabs.includes(activeTab)) {
+    document.querySelector(`[data-tab="${activeTab}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }
 
   bindWeatherHourly(data);

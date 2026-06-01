@@ -406,6 +406,7 @@ ENERGY_ENTITIES = {
 }
 TARIFF_EUR_KWH   = 0.2228  # ERSE 2026 simple tariff incl. taxes
 ENERGIA_API_URL  = 'http://192.168.1.100:8090'
+FATURAS_FILE     = '/opt/casaserver/data/energia/faturas.json'
 SERVER_WATTS   = 18.0    # HP i5-4210U average idle draw (estimated)
 
 
@@ -636,15 +637,37 @@ def energy_costs():
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             pass
 
+        contract = None
+        fatura_count = 0
+        try:
+            with open(FATURAS_FILE) as ff:
+                faturas = json.load(ff)
+            fatura_count = len(faturas)
+            if faturas:
+                latest = max(faturas, key=lambda x: x.get('imported_at', ''))
+                contract = {
+                    'fornecedor':         latest.get('fornecedor', ''),
+                    'potencia_kva':       latest.get('potencia_contratada_kva'),
+                    'preco_dia_potencia': latest.get('preco_dia_potencia_eur'),
+                    'preco_kwh':          latest.get('preco_kwh') or TARIFF_EUR_KWH,
+                    'periodo_fim':        latest.get('periodo_fim', ''),
+                }
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            pass
+
+        rate = (contract['preco_kwh'] if contract and contract.get('preco_kwh') else TARIFF_EUR_KWH)
+
         return jsonify({
-            'rate_per_kwh': TARIFF_EUR_KWH,
-            'eredes': eredes_out,
-            'devices': devices,
+            'rate_per_kwh':  rate,
+            'contract':      contract,
+            'fatura_count':  fatura_count,
+            'eredes':        eredes_out,
+            'devices':       devices,
             'totals': {
                 'today_kwh':  round(total_today, 3),
                 'month_kwh':  round(total_month, 3),
-                'today_cost': round(total_today * TARIFF_EUR_KWH, 2),
-                'month_cost': round(total_month * TARIFF_EUR_KWH, 2),
+                'today_cost': round(total_today * rate, 2),
+                'month_cost': round(total_month * rate, 2),
             },
         })
     except Exception as e:
