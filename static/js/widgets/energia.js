@@ -112,14 +112,19 @@ function _supplierPills(suppliers) {
 function _filteredMonths(analysis) {
   if (!analysis || !analysis.monthly) return [];
   const all = analysis.monthly.filter(m => m.bill_eur || m.kwh);
-  if (_trendFilter === 'Tudo') return all;
-  const months = _trendFilter === '6M' ? 6 : _trendFilter === '1A' ? 12 : 24;
-  const cutoff = (() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - months);
-    return d.toISOString().slice(0, 7);
-  })();
-  return all.filter(r => r.month >= cutoff);
+  let rows;
+  if (_trendFilter === 'Tudo') {
+    rows = all;
+  } else {
+    const months = _trendFilter === '6M' ? 6 : _trendFilter === '1A' ? 12 : 24;
+    const cutoff = (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - months);
+      return d.toISOString().slice(0, 7);
+    })();
+    rows = all.filter(r => r.month >= cutoff);
+  }
+  return rows.slice().reverse(); // newest first
 }
 
 function _trendChart(analysis) {
