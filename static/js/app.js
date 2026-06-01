@@ -24,6 +24,7 @@ import {
 import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, resetTrendFilter,
          fetchDailyHistory, fetchProfile, renderDailyCharts } from './widgets/energia.js';
 import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
+import { initCalendar } from './widgets/calendar.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -247,6 +248,8 @@ function render(data) {
         <div class="quote-text">${getQuote()}</div>
       </div>
 
+      <div class="card fade-in" id="cal-card" style="display:none"></div>
+
       <div class="status-bar fade-in">
         <span><span class="refresh-dot"></span>Atualiza a cada 10 min</span>
         <span>Última atualização: ${now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -421,6 +424,7 @@ async function init() {
     weatherData     = await fetchWeather();
     maintenanceData = await fetchMaintenance();
     render(weatherData);
+    initCalendar();
   } catch (e) {
     document.getElementById('app').innerHTML = `<div class="loading">❌ Sem dados. A tentar novamente em 5 min...</div>`;
     setTimeout(init, 5 * 60 * 1000);

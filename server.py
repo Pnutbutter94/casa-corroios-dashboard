@@ -2632,6 +2632,80 @@ def link_update(trip_id, link_id):
     return jsonify({'ok': True})
 
 
+# ── CALENDAR ──────────────────────────────────────────────────────────────────
+
+def _unfold_ical(text):
+    return re.sub(r'\r?\n[ \t]', '', text)
+
+def _parse_ical_dt(prop, value):
+    if 'VALUE=DATE' in prop or ('T' not in value and len(value) >= 8):
+        try:
+            d = datetime.datetime.strptime(value[:8], '%Y%m%d').date()
+            return d.strftime('%Y-%m-%d'), None, True
+        except ValueError:
+            return None, None, True
+    try:
+        if value.endswith('Z'):
+            dt_utc = datetime.datetime.strptime(value, '%Y%m%dT%H%M%SZ')
+            dt_utc = dt_utc.replace(tzinfo=datetime.timezone.utc)
+            dt_local = dt_utc.astimezone()
+            return dt_local.strftime('%Y-%m-%d'), dt_local.strftime('%H:%M'), False
+        dt = datetime.datetime.strptime(value[:15], '%Y%m%dT%H%M%S')
+        return dt.strftime('%Y-%m-%d'), dt.strftime('%H:%M'), False
+    except ValueError:
+        return None, None, False
+
+def _parse_ical(text):
+    text = _unfold_ical(text)
+    events, in_ev, ev = [], False, {}
+    for raw in text.splitlines():
+        line = raw.rstrip('\r')
+        if line == 'BEGIN:VEVENT':
+            in_ev, ev = True, {}
+        elif line == 'END:VEVENT':
+            in_ev = False
+            if ev.get('summary') and ev.get('start_date') and not ev.get('cancelled'):
+                events.append(ev)
+        elif in_ev and ':' in line:
+            prop, _, val = line.partition(':')
+            key = prop.upper().split(';')[0]
+            if key == 'SUMMARY':
+                ev['summary'] = val
+            elif key == 'DTSTART':
+                ev['start_date'], ev['start_time'], ev['all_day'] = _parse_ical_dt(prop, val)
+            elif key == 'STATUS' and val.strip() == 'CANCELLED':
+                ev['cancelled'] = True
+    return events
+
+@app.route('/api/calendar')
+def api_calendar():
+    url = os.environ.get('GCAL_ICAL_URL', '')
+    if not url:
+        return jsonify({'today': [], 'tomorrow_count': 0})
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'casa-dashboard/1.0'})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            text = resp.read().decode('utf-8', errors='replace')
+        events = _parse_ical(text)
+        today_str    = datetime.date.today().strftime('%Y-%m-%d')
+        tomorrow_str = (datetime.date.today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+        today_evs, tomorrow_count = [], 0
+        for ev in events:
+            d = ev.get('start_date')
+            if d == today_str:
+                today_evs.append({
+                    'title':  ev['summary'],
+                    'time':   ev.get('start_time'),
+                    'allDay': ev.get('all_day', False),
+                })
+            elif d == tomorrow_str:
+                tomorrow_count += 1
+        today_evs.sort(key=lambda e: (0 if e['allDay'] else 1, e['time'] or ''))
+        return jsonify({'today': today_evs, 'tomorrow_count': tomorrow_count})
+    except Exception as exc:
+        return jsonify({'today': [], 'tomorrow_count': 0, 'error': str(exc)})
+
+
 # ── STATIC ────────────────────────────────────────────────────────────────────
 
 @app.route('/', defaults={'path': 'index.html'})
