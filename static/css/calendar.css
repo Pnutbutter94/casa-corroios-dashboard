@@ -54,3 +54,55 @@
     margin-top: 10px;
     text-align: right;
 }
+
+/* ── Week strip ─────────────────────────────────────────────── */
+.cal-week {
+    display: flex;
+    gap: 4px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cal-week-day {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 2px;
+    border-radius: 6px;
+    gap: 3px;
+}
+
+.cal-week-day--today {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.cal-week-name {
+    font-size: 0.68rem;
+    color: var(--muted, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.cal-week-num {
+    font-size: 0.88rem;
+    color: var(--text, #e0e0e0);
+    font-variant-numeric: tabular-nums;
+}
+
+.cal-week-day--today .cal-week-name,
+.cal-week-day--today .cal-week-num {
+    color: #f5c542;
+}
+
+.cal-week-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #7ba7d4;
+}
+
+.cal-week-dot--hidden {
+    visibility: hidden;
+}
