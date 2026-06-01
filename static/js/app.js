@@ -21,7 +21,8 @@ import {
 import {
   bb, initBlockbuster, renderBlockbuster, bindBlockbuster,
 } from './widgets/blockbuster.js';
-import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, resetTrendFilter } from './widgets/energia.js';
+import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, resetTrendFilter,
+         fetchDailyHistory, fetchProfile, renderDailyCharts } from './widgets/energia.js';
 import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
 
 let weatherData       = null;
@@ -138,11 +139,20 @@ function initTabs() {
         energiaInitialised = true;
         resetTrendFilter();
         const el = document.getElementById('energia-card');
+        let dailyCache = null, profileCache = null;
         refreshEnergia = async () => {
           try {
-            const [d, a] = await Promise.all([fetchEnergy(), fetchAnalysis()]);
+            const [d, a, daily, profile] = await Promise.all([
+              fetchEnergy(),
+              fetchAnalysis(),
+              dailyCache ? Promise.resolve(dailyCache) : fetchDailyHistory(30).catch(() => null),
+              profileCache ? Promise.resolve(profileCache) : fetchProfile().catch(() => null),
+            ]);
+            dailyCache = daily;
+            profileCache = profile;
             renderEnergia(d, el, refreshEnergia);
             renderTrend(a, el);
+            renderDailyCharts(dailyCache, profileCache, el);
           } catch { renderEnergia(null, el); }
         };
         refreshEnergia();
