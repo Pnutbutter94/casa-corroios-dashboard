@@ -161,9 +161,13 @@ export function bindLista(container, onRefresh) {
     genBtn.disabled = true;
     genBtn.textContent = '⏳ A gerar…';
     await _ensureRefeicData();
-    const hasPlanned = Object.values(refeic.data.planner || {}).some(day =>
-      Object.values(day).some(m => m && m.type && m.type !== 'empty')
-    );
+    const _today = new Date(); _today.setHours(0, 0, 0, 0);
+    const _ds = d => d.toISOString().split('T')[0];
+    const _weekDates = Array.from({ length: 7 }, (_, i) => { const d = new Date(_today); d.setDate(_today.getDate() + i); return _ds(d); });
+    const hasPlanned = _weekDates.some(ds => {
+      const day = (refeic.data.planner || {})[ds];
+      return day && Object.values(day).some(m => m && m.type && m.type !== 'empty');
+    });
     if (!hasPlanned) {
       genBtn.disabled = false;
       genBtn.textContent = 'Plano vazio';
