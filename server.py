@@ -2717,6 +2717,32 @@ def api_calendar():
         return jsonify({'today': [], 'tomorrow_count': 0, 'error': str(exc)})
 
 
+# ── JARVIS CAPTURE ────────────────────────────────────────────────────────────
+
+SHORTCUTS_DIR = os.path.join(BASE_DIR, 'shortcuts')
+
+@app.route('/shortcuts/<name>')
+def serve_shortcut(name):
+    filename = f'{name}.signed.shortcut'
+    return send_from_directory(
+        SHORTCUTS_DIR, filename,
+        mimetype='application/x-apple-shortcut',
+        as_attachment=True,
+        download_name=f'{name}.shortcut',
+    )
+
+@app.route('/api/jarvis/capture', methods=['POST'])
+def jarvis_capture():
+    data = request.get_json(silent=True, force=True) or {}
+    line = (data.get('line') or '').strip()
+    line = re.sub(r'\s*—\s*$', '', line).strip()
+    if not line:
+        return jsonify({'error': 'empty'}), 400
+    inbox = os.path.join(JARVIS_VAULT, 'Ideas', 'Inbox.md')
+    with open(inbox, 'a', encoding='utf-8') as f:
+        f.write(line + '\n')
+    return jsonify({'ok': True, 'line': line})
+
 # ── STATIC ────────────────────────────────────────────────────────────────────
 
 @app.route('/', defaults={'path': 'index.html'})
