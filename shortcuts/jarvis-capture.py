@@ -15,10 +15,16 @@ After building, sign with:
         --output shortcuts/jarvis-capture.signed.shortcut
 
 Then deploy:
-    make deploy   (or /deploy skill)
+    /deploy  (or: scp signed.shortcut casaserver:/opt/casaserver/dashboard/shortcuts/)
+
+Install on iPhone (Safari — both work):
+    Home:  http://192.168.1.100:8080/shortcuts/jarvis-capture
+    Away:  http://100.100.203.28:8080/shortcuts/jarvis-capture  (Tailscale — always valid)
 """
 import plistlib, uuid, os, sys
 
+# Tailscale IP works from anywhere (home + away). LAN IP (192.168.1.100) is faster at home
+# but Tailscale is always correct — no need to switch.
 CASASERVER_URL = 'http://100.100.203.28:8080'
 CAPTURE_URL    = f'{CASASERVER_URL}/api/jarvis/capture'
 
