@@ -50,6 +50,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--ds-ink-tertiary);
+  font-family: inherit;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: -0.01em;
