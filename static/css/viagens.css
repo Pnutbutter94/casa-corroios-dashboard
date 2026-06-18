@@ -716,8 +716,40 @@
   border-radius: 999px;
   font-weight: 600;
 }
-.day-badge.arrival   { background: color-mix(in srgb, #4caf7d 15%, transparent); color: #4caf7d; }
-.day-badge.departure { background: color-mix(in srgb, #f0a040 15%, transparent); color: #f0a040; }
+.day-badge.arrival    { background: color-mix(in srgb, #4caf7d 15%, transparent); color: #4caf7d; }
+.day-badge.departure  { background: color-mix(in srgb, #f0a040 15%, transparent); color: #f0a040; }
+.day-badge.today-badge { background: color-mix(in srgb, var(--vg-rausch, #ff385c) 20%, transparent); color: var(--vg-rausch, #ff385c); }
+
+.itin-day.today {
+  border-color: var(--vg-rausch, #ff385c);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--vg-rausch, #ff385c) 30%, transparent);
+}
+.itin-day.today .itin-day-header {
+  background: color-mix(in srgb, var(--vg-rausch, #ff385c) 10%, var(--surface2, #282840));
+}
+
+.hotel-home-btn {
+  font-size: .95rem;
+  text-decoration: none;
+  opacity: .55;
+  padding: .15rem .3rem;
+  border-radius: 4px;
+  transition: opacity .15s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.hotel-home-btn:hover { opacity: 1; }
+
+.slot-current { background: color-mix(in srgb, var(--vg-rausch, #ff385c) 4%, transparent); }
+.slot-now-badge {
+  font-size: .68rem;
+  font-weight: 700;
+  padding: .1rem .45rem;
+  border-radius: 999px;
+  background: var(--vg-rausch, #ff385c);
+  color: #fff;
+  letter-spacing: .03em;
+}
 
 /* ── SLOT ENHANCEMENTS ───────────────────────────────────────────────────── */
 
@@ -1242,6 +1274,7 @@
   color: var(--text-dim);
   margin-left: auto;
   opacity: .6;
+  flex-shrink: 0;
 }
 .itinerary-day-header.map-day-active .day-map-hint { opacity: 1; color: var(--accent, #7c6aff); }
 

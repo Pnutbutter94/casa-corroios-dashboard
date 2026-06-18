@@ -2178,6 +2178,8 @@ def _trip_context_for_claude(t):
     all_pois = [{**p} for c in cities for p in c.get('pois', [])]
     start    = t.get('countdown_to', '')
     end      = max((c.get('departure', '') for c in cities), default='')
+    now      = _dt.datetime.now()
+    now_str  = f"{_DAYS_PT[now.weekday()]} {now.day} {_MONTHS_PT[now.month-1]}, {now.strftime('%H:%M')}"
 
     day_lines = []
     if start and end:
@@ -2200,6 +2202,7 @@ def _trip_context_for_claude(t):
     hotels = '; '.join(f"{c['name']}: {c.get('hotel',{}).get('name','?')}" for c in cities)
 
     parts = [
+        f"Agora: {now_str}",
         f"Viagem: {t['name']}",
         f"Período: {_fmt_date_pt(start)} → {_fmt_date_pt(end)}",
         f"Hotéis: {hotels}",

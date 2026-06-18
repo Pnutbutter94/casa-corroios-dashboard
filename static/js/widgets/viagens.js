@@ -127,6 +127,19 @@ async function _autoAssignUnscheduled() {
   if (batched.length) _trip = await _api(`/api/trips/${_trip.id}`);
 }
 
+async function _cleanupPastDays() {
+  if (!_trip) return;
+  const today   = new Date().toISOString().slice(0, 10);
+  const allPois = _trip.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id})));
+  const stale   = allPois.filter(p => p.assigned_day && p.assigned_day < today && !p.done);
+  if (!stale.length) return;
+  for (const p of stale) {
+    await _api(`/api/trips/${_trip.id}/cities/${p.cityId}/pois/${p.id}`, 'PATCH',
+      { assigned_day: null, assigned_slot: null, assigned_order: null });
+  }
+  _trip = await _api(`/api/trips/${_trip.id}`);
+}
+
 export async function initViagens() {
   _trips = await _api('/api/trips');
   if (_trips.length > 0) {
@@ -134,6 +147,7 @@ export async function initViagens() {
     _tripId = (_trips.find(t => t.id === urlTripId) ? urlTripId : null) || _trips[0].id;
     _trip   = await _api(`/api/trips/${_tripId}`);
     await _autoAssignUnscheduled();
+    await _cleanupPastDays();
   }
 }
 
@@ -1096,10 +1110,10 @@ function _renderPoiSuggestions() {
 }
 
 const _CLAUDE_CHIPS = [
+  'O que fazer AGORA? 🗺️',
   'Chegámos ao hotel 🏨',
-  'Estou a almoçar aqui 🍽️',
-  'O que fazer agora? 🗺️',
-  'Onde jantar perto do hotel?',
+  'Quanto tempo temos antes do próximo plano? ⏱️',
+  'Estou perdido, como volto ao hotel? 🏠',
 ];
 
 function _renderActionsTaken() {
@@ -1394,6 +1408,7 @@ function _renderDaySection(day, allPois, trip) {
   const blocks     = _getTimeBlocks(trip).filter(b => b.date === day);
   const isFirst    = day === trip.legs[0]?.date;
   const isLast     = day === trip.legs[trip.legs.length-1]?.date;
+  const isToday    = day === new Date().toISOString().slice(0, 10);
   const activeCity = trip.cities.find(c => c.arrival <= day && day <= c.departure) || trip.cities[0];
   const hotel      = activeCity?.hotel;
   const hotelCoords = hotel?.coords;
@@ -1417,11 +1432,18 @@ function _renderDaySection(day, allPois, trip) {
   const endOrs = (hotelCoords && !isLast && lastGeo)
     ? `${lastGeo.coords.lat},${lastGeo.coords.lon},${hotelCoords.lat},${hotelCoords.lon}` : null;
 
+  const hotelMapsUrl = hotelCoords
+    ? `https://www.google.com/maps/dir/?api=1&destination=${hotelCoords.lat},${hotelCoords.lon}&travelmode=transit`
+    : null;
+
   return `
-    <div class="itin-day" data-day="${day}">
+    <div class="itin-day ${isToday ? 'today' : ''}" data-day="${day}">
       <div class="itin-day-header" data-map-day="${day}">
         <span class="itin-day-title">${DAYS_PT[d.getDay()]}, ${d.getDate()} ${MONTHS_PT[d.getMonth()]}</span>
-        ${isFirst ? '<span class="day-badge arrival">Chegada</span>' : isLast ? '<span class="day-badge departure">Partida</span>' : ''}
+        ${isToday ? '<span class="day-badge today-badge">Hoje</span>' : ''}
+        ${!isToday && isFirst ? '<span class="day-badge arrival">Chegada</span>' : ''}
+        ${isLast ? '<span class="day-badge departure">Partida</span>' : ''}
+        ${hotelMapsUrl ? `<a class="hotel-home-btn" href="${esc(hotelMapsUrl)}" target="_blank" rel="noopener" title="Ir ao hotel">🏠</a>` : ''}
         <span class="day-map-hint">mapa ▾</span>
       </div>
 
@@ -1483,12 +1505,16 @@ function _renderBucket(day, slot, pois, info={}, suggestions=[]) {
   const capacityLabel = !blocked && totalH > 0
     ? `<span class="slot-capacity ${remainingH < 1 ? 'slot-cap-low' : ''}">${fmtH(remainingH)} livre</span>`
     : '';
+  const today   = new Date().toISOString().slice(0, 10);
+  const nowH    = new Date().getHours() + new Date().getMinutes() / 60;
+  const isNow   = day === today && !blocked && nowH >= slot.from && nowH < slot.to;
 
   return `
-    <div class="itin-bucket ${blocked?'itin-bucket-blocked':''}">
+    <div class="itin-bucket ${blocked?'itin-bucket-blocked':''} ${isNow?'slot-current':''}">
       <div class="itin-bucket-label">
         <span class="itin-slot-name">${slot.label}</span>
         <span class="itin-slot-time">${slot.subtitle}</span>
+        ${isNow ? '<span class="slot-now-badge">Agora</span>' : ''}
         ${blocked && reason === 'in-transit'      ? '<span class="slot-blocked-badge">✈️ Em trânsito</span>' : ''}
         ${blocked && reason === 'require-arrival' ? '<span class="slot-blocked-badge slot-need-arrival">⚠️ Falta hora de chegada</span>' : ''}
         ${capacityLabel}
