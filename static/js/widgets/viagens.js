@@ -22,6 +22,7 @@ let _markersLayer = null;
 let _routeLayer   = null;
 let _mapDay       = null;
 let _editingDayNotes = new Set(); // days currently in note edit mode
+let _showPastDays    = false;     // collapsed by default during trip
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -615,6 +616,11 @@ export function bindViagens(card, refresh) {
       _nearby = _nearby.filter(n => n.name !== p.name);
       refresh();
     });
+  });
+
+  // past days toggle
+  card.querySelector('#past-days-toggle')?.addEventListener('click', () => {
+    _showPastDays = !_showPastDays; refresh();
   });
 
   // dismiss nearby
@@ -1358,9 +1364,25 @@ function _renderItinerario() {
     <!-- DAYS -->
     ${days.length === 0
       ? `<div class="poi-empty">Adiciona voos ou cidades para ver o itinerário.</div>`
-      : `<div class="itin-days">
-          ${days.map(day => _renderDaySection(day, allPois, t)).join('')}
-        </div>
+      : (() => {
+          const today      = new Date().toISOString().slice(0, 10);
+          const pastDays   = days.filter(d => d < today);
+          const activeDays = days.filter(d => d >= today);
+          return `
+          ${pastDays.length > 0 ? `
+            <div class="past-days-toggle" id="past-days-toggle">
+              ${_showPastDays ? '▾' : '▸'}
+              ${pastDays.length} dia${pastDays.length > 1 ? 's' : ''} anterior${pastDays.length > 1 ? 'es' : ''}
+              <span class="past-days-hint">${_showPastDays ? 'ocultar' : 'ver'}</span>
+            </div>
+            ${_showPastDays ? `<div class="itin-days past">${pastDays.map(d => _renderDaySection(d, allPois, t)).join('')}</div>` : ''}
+          ` : ''}
+          <div class="itin-days">
+            ${activeDays.length > 0
+              ? activeDays.map(day => _renderDaySection(day, allPois, t)).join('')
+              : `<div class="poi-empty">Viagem concluída.</div>`}
+          </div>`;
+        })()
         <div class="viagens-map-section">
           <div class="viagens-map-label" id="viagens-map-label"></div>
           <div id="viagens-map" class="viagens-map-container"></div>

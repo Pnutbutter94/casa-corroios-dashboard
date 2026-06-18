@@ -1759,6 +1759,25 @@
 /* ── RESPONSIVE ───────────────────────────────────────────────────────────── */
 
 /* Tablet portrait & phone landscape */
+.past-days-toggle {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .75rem;
+  font-size: .8rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  margin-bottom: .5rem;
+  user-select: none;
+  transition: background .15s;
+}
+.past-days-toggle:hover { background: var(--surface2); color: var(--text); }
+.past-days-hint { margin-left: auto; font-size: .75rem; opacity: .7; }
+.itin-days.past { opacity: .65; }
+
 @media (max-width: 900px) {
   .viagens-subnav { gap: .25rem; }
   .viagens-subnav-btn { font-size: .82rem; padding: .25rem .6rem; }
@@ -1812,6 +1831,22 @@
   /* Modal: full width on phone */
   .viagens-modal { width: 95vw !important; max-height: 85vh; overflow-y: auto; }
   .modal-row { flex-direction: column; gap: .5rem; }
+
+  /* Drag handles useless on touch — hide */
+  .poi-drag-handle { display: none; }
+
+  /* Claude assistant: bigger for thumb use */
+  .assistente-textarea { font-size: .95rem; min-height: 3.5rem; }
+  .assistente-send-btn { width: 2.8rem; height: 2.8rem; font-size: 1.1rem; }
+  .assistente-chip { font-size: .82rem; padding: .45rem .75rem; min-height: 2.2rem; }
+  .action-chip { font-size: .85rem; padding: .4rem .85rem; }
+
+  /* Transit block: readable on small screen */
+  .day-transit-text { font-size: .82rem; }
+  .day-transit-block { padding: .5rem .75rem; }
+
+  /* Past days toggle: full width tap area */
+  .past-days-toggle { padding: .6rem .75rem; }
 }
 
 /* ── CLAUDE ASSISTANT ────────────────────────────────────────────────────── */
