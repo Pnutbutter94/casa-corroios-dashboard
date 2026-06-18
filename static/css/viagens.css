@@ -1369,21 +1369,51 @@
   color: var(--vg-rausch);
 }
 .itin-day-title { font-weight: 600; font-size: .9rem; }
+.day-transit-block {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .45rem .75rem;
+  background: color-mix(in srgb, var(--vg-tesla, #00b4d8) 8%, transparent);
+  border-left: 2px solid var(--vg-tesla, #00b4d8);
+  border-bottom: 1px solid var(--border, #3e3e58);
+}
+.day-transit-icon { font-size: .85rem; flex-shrink: 0; margin-top: .1rem; }
+.day-transit-text {
+  flex: 1;
+  font-size: .78rem;
+  color: var(--text, #e8e8f0);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.day-transit-edit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .75rem;
+  opacity: .4;
+  padding: .1rem .2rem;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+.day-transit-edit:hover { opacity: 1; }
 .day-notes-wrap {
   display: flex;
   align-items: flex-start;
   gap: .4rem;
   padding: .35rem .75rem;
-  background: color-mix(in srgb, var(--vg-rausch) 3%, transparent);
+  background: color-mix(in srgb, var(--vg-tesla, #00b4d8) 4%, transparent);
   border-bottom: 1px solid var(--border, #3e3e58);
   transition: background .15s;
 }
-.day-notes-wrap:focus-within {
-  background: color-mix(in srgb, var(--vg-rausch) 7%, transparent);
-  border-bottom-color: var(--vg-rausch);
+.day-notes-wrap:focus-within,
+.day-notes-wrap.editing {
+  background: color-mix(in srgb, var(--vg-tesla, #00b4d8) 9%, transparent);
+  border-bottom-color: var(--vg-tesla, #00b4d8);
 }
 .day-notes-icon { font-size: .8rem; margin-top: .2rem; opacity: .5; flex-shrink: 0; }
-.day-notes-wrap:focus-within .day-notes-icon { opacity: 1; }
+.day-notes-wrap:focus-within .day-notes-icon,
+.day-notes-wrap.editing .day-notes-icon { opacity: 1; }
 .day-notes-input {
   flex: 1;
   background: transparent;
@@ -1400,6 +1430,15 @@
   transition: color .15s;
 }
 .day-notes-input:focus { color: var(--text, #e8e8f0); }
+.day-notes-done {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .8rem;
+  color: var(--vg-tesla, #00b4d8);
+  padding: .1rem .2rem;
+  flex-shrink: 0;
+}
 .itin-blocks { padding: .35rem .75rem 0; }
 .hotel-anchor-block {
   font-size: .78rem;

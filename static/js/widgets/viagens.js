@@ -20,6 +20,7 @@ let _map          = null;
 let _markersLayer = null;
 let _routeLayer   = null;
 let _mapDay       = null;
+let _editingDayNotes = new Set(); // days currently in note edit mode
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -419,7 +420,27 @@ export function bindViagens(card, refresh) {
     });
   });
 
-  // day notes — save on blur (no refresh to avoid losing focus)
+  // transit block → enter edit mode
+  card.querySelectorAll('[data-edit-note]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _editingDayNotes.add(btn.dataset.editNote);
+      refresh();
+      // focus textarea after render
+      setTimeout(() => {
+        card.querySelector(`[data-day-note="${btn.dataset.editNote}"]`)?.focus();
+      }, 50);
+    });
+  });
+
+  // done button → exit edit mode
+  card.querySelectorAll('[data-done-note]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _editingDayNotes.delete(btn.dataset.doneNote);
+      refresh();
+    });
+  });
+
+  // day notes — save on blur; if note has content exit edit mode
   card.querySelectorAll('[data-day-note]').forEach(textarea => {
     textarea.addEventListener('blur', async () => {
       const day    = textarea.dataset.dayNote;
@@ -429,6 +450,10 @@ export function bindViagens(card, refresh) {
       const dayNotes = { ...(city.day_notes||{}), [day]: textarea.value.trim() };
       city.day_notes = dayNotes; // optimistic local update
       await _api(`/api/trips/${_trip.id}/cities/${cityId}`, 'PATCH', { day_notes: dayNotes });
+      if (textarea.value.trim()) {
+        _editingDayNotes.delete(day);
+        refresh();
+      }
     });
   });
 
@@ -1360,11 +1385,20 @@ function _renderDaySection(day, allPois, trip) {
         <span class="day-map-hint">mapa ▾</span>
       </div>
 
-      <div class="day-notes-wrap">
-        <span class="day-notes-icon">✏️</span>
-        <textarea class="day-notes-input" placeholder="Notas do dia…"
-          data-day-note="${day}" data-city-id="${activeCity?.id||''}">${esc(dayNotes)}</textarea>
-      </div>
+      ${dayNotes && !_editingDayNotes.has(day)
+        ? `<div class="day-transit-block" data-transit-day="${day}">
+            <span class="day-transit-icon">🚇</span>
+            <span class="day-transit-text">${esc(dayNotes)}</span>
+            <button class="day-transit-edit" data-edit-note="${day}" title="Editar nota">✏️</button>
+           </div>`
+        : `<div class="day-notes-wrap ${_editingDayNotes.has(day) ? 'editing' : ''}">
+            <span class="day-notes-icon">🚇</span>
+            <textarea class="day-notes-input" placeholder="Notas / direções de transporte…"
+              data-day-note="${day}" data-city-id="${activeCity?.id||''}">${esc(dayNotes)}</textarea>
+            ${_editingDayNotes.has(day) && dayNotes
+              ? `<button class="day-notes-done" data-done-note="${day}" title="Fechar">✓</button>` : ''}
+           </div>`
+      }
 
       ${blocks.length > 0 ? `
         <div class="itin-blocks">
