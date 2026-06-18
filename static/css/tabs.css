@@ -49,12 +49,10 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-family: 'Syne', sans-serif;
+  color: var(--ds-ink-tertiary);
   font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
@@ -66,13 +64,13 @@
     flex: 0 0 auto;   /* don't shrink — let bar scroll instead */
     padding: 12px 10px;
     font-size: 11px;
-    letter-spacing: 0.04em;
+    letter-spacing: -0.005em;
   }
 }
 
 .tab-btn.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--ds-ink);
+  border-bottom: 2px solid var(--ds-ink);
 }
 
 /* ── TAB CONTENT ─────────────────────────────────────── */
@@ -111,9 +109,8 @@
 
 .iot-placeholder .icon { font-size: 48px; }
 .iot-placeholder .title {
-  font-family: 'Syne', sans-serif;
   font-size: 18px;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 600;
+  color: var(--ds-ink);
 }
 .iot-placeholder .sub { font-size: 13px; line-height: 1.6; }

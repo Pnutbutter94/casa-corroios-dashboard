@@ -9,13 +9,12 @@
 }
 
 .quote-mark {
-  font-family: 'Syne', sans-serif;
   font-size: 60px;
-  font-weight: 800;
-  color: var(--accent);
+  font-weight: 700;
+  color: var(--ds-primary);
   line-height: 0.7;
   flex-shrink: 0;
-  opacity: 0.4;
+  opacity: 0.25;
 }
 
 .quote-text {

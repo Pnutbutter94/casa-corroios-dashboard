@@ -11,7 +11,7 @@
 
 .cal-day-label {
     font-size: 0.72rem;
-    color: var(--muted, #666);
+    color: var(--ds-ink-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -21,7 +21,7 @@
     align-items: baseline;
     gap: 14px;
     padding: 7px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--ds-hairline);
 }
 .cal-event:last-of-type {
     border-bottom: none;
@@ -29,17 +29,18 @@
 
 .cal-time {
     font-size: 0.85rem;
+    font-weight: 500;
     color: var(--ds-primary);
     min-width: 72px;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
 .cal-allday {
-    color: var(--muted, #666);
+    color: var(--ds-ink-tertiary);
 }
 
 .cal-event--allday .cal-title {
-    color: var(--muted, #666);
+    color: var(--ds-ink-tertiary);
     font-size: 0.88rem;
 }
 
@@ -55,7 +56,8 @@
 
 .cal-title {
     font-size: 0.95rem;
-    color: var(--text, #e0e0e0);
+    font-weight: 400;
+    color: var(--ds-ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -63,13 +65,13 @@
 
 .cal-empty {
     font-size: 0.95rem;
-    color: var(--muted, #666);
+    color: var(--ds-ink-tertiary);
     padding: 6px 0;
 }
 
 .cal-tomorrow {
     font-size: 0.78rem;
-    color: var(--muted, #666);
+    color: var(--ds-ink-tertiary);
     margin-top: 10px;
     text-align: right;
 }
@@ -80,7 +82,7 @@
     gap: 4px;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--ds-hairline);
 }
 
 .cal-week-day {
@@ -112,15 +114,15 @@
 }
 
 .cal-week-name {
-    font-size: 0.68rem;
-    color: var(--muted, #666);
+    font-size: 0.70rem;
+    color: var(--ds-ink-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
 .cal-week-num {
-    font-size: 0.88rem;
-    color: var(--text, #e0e0e0);
+    font-size: 0.90rem;
+    color: var(--ds-ink);
     font-variant-numeric: tabular-nums;
 }
 

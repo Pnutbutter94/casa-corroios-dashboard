@@ -15,11 +15,10 @@
 }
 
 .weather-temp-big {
-  font-family: 'Syne', sans-serif;
   font-size: 52px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .weather-now-details { flex: 1; }
@@ -58,9 +57,9 @@
 }
 
 .weather-stat-value {
-  font-family: 'Syne', sans-serif;
   font-size: 22px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   margin-top: 4px;
 }
 
@@ -99,9 +98,9 @@
 .forecast-temps { font-size: 13px; }
 
 .forecast-max {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
+  letter-spacing: -0.01em;
 }
 
 .forecast-min { color: var(--muted); }
