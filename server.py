@@ -2083,6 +2083,95 @@ def _strip_poi_block(text):
     return _re.sub(r'\s*\[SUGESTOES_POI\].*?\[/SUGESTOES_POI\]', '', text, flags=_re.S).strip()
 
 
+def _parse_trip_actions(text):
+    import re as _re, json as _json
+    m = _re.search(r'\[ACTIONS\](.*?)\[/ACTIONS\]', text, _re.S)
+    if not m:
+        return []
+    try:
+        return _json.loads(m.group(1).strip())
+    except Exception:
+        return []
+
+
+def _strip_actions_block(text):
+    import re as _re
+    return _re.sub(r'\s*\[ACTIONS\].*?\[/ACTIONS\]', '', text, flags=_re.S).strip()
+
+
+_VALID_EXPENSE_CATS = {'voos','alojamento','alimentacao','actividades','transporte','compras','outros'}
+_VALID_SPLITS       = {'comum','pedro','ines'}
+
+
+def _execute_trip_actions(trip_id, t, actions):
+    """Execute Claude-generated trip mutations. Returns list of human-readable confirmations."""
+    import datetime as _dt
+    cities = t.get('cities', [])
+    done   = []
+
+    def _find_poi(poi_id):
+        for c in cities:
+            for p in c.get('pois', []):
+                if p['id'] == poi_id:
+                    return c, p
+        return None, None
+
+    for a in actions:
+        act = a.get('action', '')
+
+        if act == 'checkin':
+            city, poi = _find_poi(a.get('poi_id', ''))
+            if poi and not poi.get('checkin_time'):
+                now = _dt.datetime.now().isoformat(timespec='seconds')
+                poi['checkin_time'] = now
+                done.append({'action': 'checkin', 'label': f"✓ Check-in: {poi['name']} às {now[11:16]}"})
+
+        elif act == 'checkout':
+            city, poi = _find_poi(a.get('poi_id', ''))
+            if poi and poi.get('checkin_time') and not poi.get('checkout_time'):
+                now = _dt.datetime.now().isoformat(timespec='seconds')
+                poi['checkout_time'] = now
+                poi['done'] = True
+                done.append({'action': 'checkout', 'label': f"✓ Saída: {poi['name']} às {now[11:16]}"})
+
+        elif act == 'add_expense':
+            desc     = str(a.get('description', ''))[:200].strip()
+            amount   = a.get('amount', 0)
+            category = a.get('category', 'alimentacao')
+            split    = a.get('split', 'comum')
+            if category not in _VALID_EXPENSE_CATS:
+                category = 'alimentacao'
+            if split not in _VALID_SPLITS:
+                split = 'comum'
+            try:
+                amount = round(float(amount), 2)
+            except (TypeError, ValueError):
+                amount = 0
+            if desc and amount > 0:
+                exp = {
+                    'id':          f'exp-{uuid.uuid4().hex[:8]}',
+                    'description': desc,
+                    'category':    category,
+                    'amount':      amount,
+                    'date':        _dt.date.today().isoformat(),
+                    'split':       split,
+                    'confirmed':   False,
+                }
+                t.setdefault('expenses', []).append(exp)
+                done.append({'action': 'add_expense', 'label': f"✓ Despesa: {desc} €{amount:.2f}"})
+
+        elif act == 'note_post_visit':
+            city, poi = _find_poi(a.get('poi_id', ''))
+            note = str(a.get('note', ''))[:500].strip()
+            if poi and note:
+                poi['note_post_visit'] = note
+                done.append({'action': 'note', 'label': f"✓ Nota: {poi['name']}"})
+
+    if done:
+        _save_trip(trip_id, t)
+    return done
+
+
 def _trip_context_for_claude(t):
     import datetime as _dt
     cities   = t.get('cities', [])
@@ -2120,6 +2209,18 @@ def _trip_context_for_claude(t):
     if backlog:
         parts.append(f"Backlog a agendar: {', '.join(backlog[:12])}")
     parts.append(f"Orçamento: €{t.get('budget_per_person',0)}/pessoa · gasto Pedro €{pedro:.0f} · Inês €{ines:.0f}")
+
+    # POI registry with IDs (for update actions)
+    poi_registry = []
+    for c in cities:
+        for p in c.get('pois', []):
+            status = 'visitado' if p.get('done') else ('em curso' if p.get('checkin_time') else 'por visitar')
+            poi_registry.append(
+                f"  {p['name']} | id:{p['id']} | city:{c['id']} | {status}"
+            )
+    if poi_registry:
+        parts.append("POIs (nome | id | cidade | estado):\n" + '\n'.join(poi_registry))
+
     parts.append("Responde em português (pt-PT). Sê conciso e prático.")
     parts.append(
         "Quando sugeres locais específicos para visitar, comer ou explorar, inclui no FINAL da resposta:\n"
@@ -2128,6 +2229,19 @@ def _trip_context_for_claude(t):
         "[/SUGESTOES_POI]\n"
         "Inclui o bloco apenas quando tens sugestões concretas de lugares. "
         "Se não souberes as coordenadas exatas, usa 0,0."
+    )
+    parts.append(
+        "Se o utilizador reportar atividade atual (chegou a um sítio, está a comer/beber, saiu de um sítio, pagou algo), "
+        "executa as ações correspondentes incluindo no FINAL da resposta:\n"
+        "[ACTIONS]\n"
+        "[{\"action\":\"checkin\",\"poi_id\":\"<id>\"}, ...]\n"
+        "[/ACTIONS]\n"
+        "Ações disponíveis:\n"
+        "- checkin: chegou a um POI {action, poi_id}\n"
+        "- checkout: saiu de um POI e marcá-lo como visitado {action, poi_id}\n"
+        "- add_expense: despesa {action, description, amount (número), category (alimentacao/transporte/actividades/compras/outros), split (comum/pedro/ines)}\n"
+        "- note_post_visit: nota sobre visita {action, poi_id, note}\n"
+        "Usa apenas os poi_id exatos da lista acima. Inclui [ACTIONS] apenas quando execuatas ações concretas."
     )
 
     return '\n'.join(parts)
@@ -2451,7 +2565,7 @@ def trip_claude(trip_id):
     if not query:
         return jsonify({'error': 'query required'}), 400
     context = _trip_context_for_claude(t)
-    prompt  = f"{context}\n\nPergunta: {query}"
+    prompt  = f"{context}\n\nMensagem: {query}"
     try:
         req = urllib.request.Request(
             CLAUDE_RELAY,
@@ -2461,10 +2575,13 @@ def trip_claude(trip_id):
         )
         with urllib.request.urlopen(req, timeout=55) as r:
             result = json.loads(r.read())
-        raw = result.get('response', '')
+        raw         = result.get('response', '')
+        actions     = _parse_trip_actions(raw)
         suggestions = _parse_poi_suggestions(raw)
-        clean = _strip_poi_block(raw)
-        return jsonify({'response': clean, 'suggestions': suggestions})
+        raw         = _strip_actions_block(raw)
+        clean       = _strip_poi_block(raw)
+        actions_taken = _execute_trip_actions(trip_id, t, actions) if actions else []
+        return jsonify({'response': clean, 'suggestions': suggestions, 'actions_taken': actions_taken})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 

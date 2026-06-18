@@ -15,6 +15,7 @@ let _claudeQuery       = '';
 let _claudeResponse    = null;
 let _claudePending     = false;
 let _claudeSuggestions = [];
+let _claudeActionsTaken = [];
 let _travelTimes  = {};  // cache: "lat,lon-lat,lon" → minutes
 let _map          = null;
 let _markersLayer = null;
@@ -213,6 +214,7 @@ export function bindViagens(card, refresh) {
       _nearby = [];
       _claudeResponse = null;
       _claudeSuggestions = [];
+      _claudeActionsTaken = [];
       _claudeQuery = '';
       refresh();
     });
@@ -321,11 +323,17 @@ export function bindViagens(card, refresh) {
     _claudePending = true;
     _claudeResponse = null;
     _claudeSuggestions = [];
+    _claudeActionsTaken = [];
     refresh();
     const r = await _api(`/api/trips/${_trip.id}/claude`, 'POST', { query: q });
     _claudePending = false;
     _claudeResponse = r.response || r.error || 'Sem resposta.';
     _claudeSuggestions = r.suggestions || [];
+    _claudeActionsTaken = r.actions_taken || [];
+    // reload trip if actions were executed (checkins/expenses updated on server)
+    if (_claudeActionsTaken.length) {
+      _trip = await _api(`/api/trips/${_trip.id}`);
+    }
     refresh();
   });
 
@@ -1082,26 +1090,36 @@ function _renderPoiSuggestions() {
 }
 
 const _CLAUDE_CHIPS = [
-  'O que fazer sábado à tarde?',
+  'Chegámos ao hotel 🏨',
+  'Estou a almoçar aqui 🍽️',
+  'O que fazer agora? 🗺️',
   'Onde jantar perto do hotel?',
-  'Sugestões de museus gratuitos',
 ];
 
+function _renderActionsTaken() {
+  if (!_claudeActionsTaken.length) return '';
+  return `
+    <div class="actions-taken">
+      ${_claudeActionsTaken.map(a => `<div class="action-chip">${esc(a.label)}</div>`).join('')}
+    </div>`;
+}
+
 function _renderAssistente() {
-  const showChips = !_claudeQuery && !_claudeResponse && !_claudePending;
+  const showChips = !_claudeQuery && !_claudeResponse && !_claudePending && !_claudeActionsTaken.length;
   return `
     <div class="assistente-panel">
-      <p class="assistente-hint">Faz uma pergunta sobre esta viagem — sugestões, horários, logística.</p>
+      <p class="assistente-hint">Diz o que estás a fazer ou faz uma pergunta sobre a viagem.</p>
       ${showChips ? `<div class="assistente-chips">${_CLAUDE_CHIPS.map(c =>
         `<button class="assistente-chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       <div class="assistente-input-row">
         <textarea class="assistente-textarea" id="claude-query" rows="2"
-          placeholder="ex: O que devo fazer sábado à tarde? / Onde jantar perto do Prado?">${esc(_claudeQuery)}</textarea>
+          placeholder="ex: Chegámos ao Debod · Estou a almoçar no BelMondo · O que fazer agora?">${esc(_claudeQuery)}</textarea>
         <button class="assistente-send-btn" id="claude-send" ${_claudePending ? 'disabled' : ''}>
           ${_claudePending ? '⟳' : '↑'}
         </button>
       </div>
-      ${_claudePending ? `<div class="assistente-loading">A pensar…</div>` : ''}
+      ${_claudePending ? `<div class="assistente-loading">A processar…</div>` : ''}
+      ${_renderActionsTaken()}
       ${_claudeResponse ? `<div class="assistente-response">${_mdToHtml(_claudeResponse)}</div>` : ''}
       ${_renderPoiSuggestions()}
     </div>`;

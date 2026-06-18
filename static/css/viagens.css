@@ -1890,6 +1890,25 @@
   font-style: italic;
 }
 
+.actions-taken {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  margin: .5rem 0;
+}
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: color-mix(in srgb, #2ecc71 12%, transparent);
+  border: 1px solid color-mix(in srgb, #2ecc71 35%, transparent);
+  color: #2ecc71;
+  border-radius: 6px;
+  padding: .3rem .7rem;
+  font-size: .82rem;
+  font-weight: 500;
+}
+
 .assistente-response {
   background: var(--surface2);
   border: 1px solid var(--border);
