@@ -1396,11 +1396,11 @@ function _renderItinerario() {
               ? activeDays.map(day => _renderDaySection(day, allPois, t)).join('')
               : `<div class="poi-empty">Viagem concluída.</div>`}
           </div>`;
-        })()
-        <div class="viagens-map-section">
-          <div class="viagens-map-label" id="viagens-map-label"></div>
-          <div id="viagens-map" class="viagens-map-container"></div>
-        </div>`}`;
+        })()}
+    <div class="viagens-map-section">
+      <div class="viagens-map-label" id="viagens-map-label"></div>
+      <div id="viagens-map" class="viagens-map-container"></div>
+    </div>`;
 }
 
 function _renderDaySection(day, allPois, trip) {
