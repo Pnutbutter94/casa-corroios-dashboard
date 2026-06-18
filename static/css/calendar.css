@@ -29,7 +29,7 @@
 
 .cal-time {
     font-size: 0.85rem;
-    color: #f5c542;
+    color: var(--ds-primary);
     min-width: 72px;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
@@ -50,8 +50,8 @@
     flex-shrink: 0;
     align-self: center;
 }
-.cal-dot--event   { background: #7ba7d4; }
-.cal-dot--special { background: #e8924a; }
+.cal-dot--event   { background: var(--ds-primary); }
+.cal-dot--special { background: var(--ds-warn); }
 
 .cal-title {
     font-size: 0.95rem;
@@ -107,8 +107,8 @@
 }
 
 .cal-week-day--today.cal-week-day--selected {
-    background: rgba(245, 197, 66, 0.13);
-    outline: 1px solid rgba(245, 197, 66, 0.25);
+    background: color-mix(in srgb, var(--ds-primary) 13%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--ds-primary) 25%, transparent);
 }
 
 .cal-week-name {
@@ -126,14 +126,14 @@
 
 .cal-week-day--today .cal-week-name,
 .cal-week-day--today .cal-week-num {
-    color: #f5c542;
+    color: var(--ds-primary);
 }
 
 .cal-week-dot {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #7ba7d4;
+    background: var(--ds-primary);
 }
 
 .cal-week-dot--hidden {
