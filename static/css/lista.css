@@ -1,43 +1,191 @@
-/* ── LISTA DE COMPRAS ─────────────────────────────────────── */
+/* ── SHOPPING (Lista de Compras) — Pinterest + Shopify palette ── */
+
+:root {
+  --sh-red:         #e60023;
+  --sh-red-tint:    color-mix(in srgb, #e60023 12%, transparent);
+  --sh-red-border:  color-mix(in srgb, #e60023 30%, transparent);
+  --sh-aloe:        #c1fbd4;
+  --sh-aloe-tint:   color-mix(in srgb, #c1fbd4 8%, transparent);
+  --sh-aloe-border: color-mix(in srgb, #c1fbd4 22%, transparent);
+  --sh-radius-card: 16px;
+  --sh-radius-pill: 9999px;
+}
+
 #lista-card {
   min-height: 60vh;
 }
 
-.lista-empty {
-  text-align: center;
-  color: var(--text-dim, var(--muted));
-  font-size: 15px;
-  padding: 72px 24px;
-  line-height: 1.7;
+/* ── Toolbar ─────────────────────────────────────────────────── */
+
+.lista-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
 }
+
+.lista-gen-btn {
+  flex: 1;
+  padding: 11px 10px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-hairline);
+  color: var(--ds-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lista-add-btn {
+  padding: 11px 20px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-red);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+
+/* ── Category headers ────────────────────────────────────────── */
+
+.lista-category {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-ink-tertiary);
+  margin: 14px 0 6px;
+}
+
+.lista-category:first-child { margin-top: 0; }
+
+.lista-category-done { color: var(--sh-aloe); }
+
+/* ── List items ──────────────────────────────────────────────── */
+
+.lista-items { display: flex; flex-direction: column; }
+
+.lista-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-hairline);
+  border-radius: var(--sh-radius-card);
+  margin-bottom: 4px;
+}
+
+.lista-item-done {
+  background: var(--sh-aloe-tint);
+  border-color: var(--sh-aloe-border);
+  opacity: 0.8;
+}
+
+.lista-check {
+  font-size: 22px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lista-item-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ds-ink);
+}
+
+.lista-item-done .lista-item-name {
+  text-decoration: line-through;
+  color: var(--ds-ink-subtle);
+}
+
+.lista-item-qty {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-ink-subtle);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lista-del {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--ds-hairline);
+  color: var(--ds-ink-tertiary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Done section ────────────────────────────────────────────── */
+
+.lista-done-section { margin-top: 8px; }
+
+/* ── Danger button (clear done) ──────────────────────────────── */
 
 .lista-danger-btn {
   display: block;
   width: 100%;
   margin-top: 10px;
   padding: 12px;
-  border-radius: 10px;
-  background: rgba(232,80,80,0.12);
-  color: var(--bad);
-  border: 1px solid rgba(232,80,80,0.25);
-  font-family: 'Syne', sans-serif;
+  border-radius: var(--sh-radius-pill);
+  background: color-mix(in srgb, var(--ds-bad) 10%, transparent);
+  color: var(--ds-bad);
+  border: 1px solid color-mix(in srgb, var(--ds-bad) 22%, transparent);
+  font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+
+.lista-empty {
+  text-align: center;
+  color: var(--ds-ink-subtle);
+  font-size: 15px;
+  padding: 72px 24px;
+  line-height: 1.7;
+}
+
+/* ── Category select (add modal) ─────────────────────────────── */
 
 .lista-cat-select {
   width: 100%;
   margin-bottom: 12px;
   padding: 10px 32px 10px 10px;
-  border-radius: 8px;
-  background: var(--surface2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
+  border-radius: var(--ds-rounded-md);
+  background: var(--ds-surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid var(--ds-hairline);
+  color: var(--ds-ink);
+  font-family: inherit;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   outline: none;
   -webkit-appearance: none;
   cursor: pointer;
