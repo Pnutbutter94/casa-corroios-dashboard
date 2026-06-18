@@ -1,98 +1,116 @@
+/* Inter — variable font, covers weights 100–900 */
 @font-face {
-  font-family: 'DM Sans';
+  font-family: 'Inter';
   font-style: normal;
-  font-weight: 300 500;
+  font-weight: 100 900;
   font-display: swap;
-  src: url('/fonts/dm-sans-latin-ext.woff2') format('woff2');
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'DM Sans';
+  font-family: 'Inter';
   font-style: normal;
-  font-weight: 300 500;
+  font-weight: 100 900;
   font-display: swap;
-  src: url('/fonts/dm-sans-latin.woff2') format('woff2');
+  src: url('/fonts/inter-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+/* JetBrains Mono — mono text */
 @font-face {
-  font-family: 'Syne';
+  font-family: 'JetBrains Mono';
   font-style: normal;
-  font-weight: 400 800;
+  font-weight: 400;
   font-display: swap;
-  src: url('/fonts/syne-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Syne';
-  font-style: normal;
-  font-weight: 400 800;
-  font-display: swap;
-  src: url('/fonts/syne-latin.woff2') format('woff2');
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 :root {
-  --bg: #0f0f13;
-  --surface: #1d1d28;
-  --surface2: #282840;
-  --border: #3e3e58;
-  --text: #e8e8f0;
-  --text-dim: #7a7a9a;
-  --muted: #8a8aa0;
-  --accent: #f0c060;
-  --accent2: #60a0f0;
-  --good: #60d090;
-  --warn: #f09040;
-  --bad: #f06060;
-  --radius: 16px;
+  /* ── Linear design system tokens ── */
+  --ds-canvas:           #010102;
+  --ds-surface-1:        #0f1011;
+  --ds-surface-2:        #141516;
+  --ds-surface-3:        #18191a;
+  --ds-surface-4:        #191a1b;
+  --ds-hairline:         #23252a;
+  --ds-hairline-strong:  #34343a;
+  --ds-hairline-tertiary:#3e3e44;
+  --ds-ink:              #f7f8f8;
+  --ds-ink-muted:        #d0d6e0;
+  --ds-ink-subtle:       #8a8f98;
+  --ds-ink-tertiary:     #62666d;
+  --ds-primary:          #5e6ad2;
+  --ds-primary-hover:    #828fff;
+  --ds-primary-focus:    #5e69d1;
+  --ds-success:          #27a644;
+  --ds-warn:             #f0a030;
+  --ds-bad:              #e05050;
+  --ds-rounded-xs:       4px;
+  --ds-rounded-sm:       6px;
+  --ds-rounded-md:       8px;
+  --ds-rounded-lg:       12px;
+  --ds-rounded-xl:       16px;
+  --ds-space-xxs:        4px;
+  --ds-space-xs:         8px;
+  --ds-space-sm:         12px;
+  --ds-space-md:         16px;
+  --ds-space-lg:         24px;
+  --ds-space-xl:         32px;
+  --ds-space-xxl:        48px;
+
+  /* ── Compatibility aliases (widgets use these until migrated per-tab) ── */
+  --bg:        var(--ds-canvas);
+  --surface:   var(--ds-surface-1);
+  --surface2:  var(--ds-surface-2);
+  --border:    var(--ds-hairline);
+  --text:      var(--ds-ink);
+  --text-dim:  var(--ds-ink-subtle);
+  --muted:     var(--ds-ink-tertiary);
+  --accent:    var(--ds-primary);
+  --accent2:   var(--ds-primary-hover);
+  --good:      var(--ds-success);
+  --warn:      var(--ds-warn);
+  --bad:       var(--ds-bad);
+  --radius:    var(--ds-rounded-lg);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
+  background: var(--ds-canvas);
+  color: var(--ds-ink);
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
   height: 100vh;
   overflow: hidden;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse at 20% 20%, rgba(96,160,240,0.04) 0%, transparent 60%),
-              radial-gradient(ellipse at 80% 80%, rgba(240,192,96,0.04) 0%, transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
 .container {
   position: relative;
-  z-index: 1;
   max-width: 1024px;
   margin: 0 auto;
-  padding: 24px 20px;
+  padding: var(--ds-space-lg) var(--ds-space-md);
   display: grid;
-  gap: 16px;
+  gap: var(--ds-space-sm);
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+  background: var(--ds-surface-1);
+  border: 1px solid var(--ds-hairline);
+  border-radius: var(--ds-rounded-lg);
+  padding: var(--ds-space-md);
   position: relative;
   overflow: hidden;
 }
 
 .card-label {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 14px;
+  color: var(--ds-ink-tertiary);
+  margin-bottom: var(--ds-space-sm);
 }
 
 .loading {
@@ -100,7 +118,7 @@ body::before {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  color: var(--muted);
+  color: var(--ds-ink-tertiary);
   font-size: 14px;
   gap: 10px;
 }
@@ -108,8 +126,8 @@ body::before {
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border: 2px solid var(--ds-hairline-strong);
+  border-top-color: var(--ds-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -117,11 +135,11 @@ body::before {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .fade-in {
-  animation: fadeIn 0.4s ease forwards;
+  animation: fadeIn 0.3s ease forwards;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -129,7 +147,7 @@ body::before {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--good);
+  background: var(--ds-success);
   display: inline-block;
   margin-right: 6px;
   animation: pulse 3s ease infinite;
@@ -145,7 +163,7 @@ body::before {
   align-items: center;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--ds-ink-tertiary);
   padding: 0 2px;
 }
 
