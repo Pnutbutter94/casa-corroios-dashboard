@@ -1700,7 +1700,7 @@ ALLOWED_LEG_FIELDS = {
     'flight', 'status', 'delay_minutes',
     'terminal_dep', 'gate_dep', 'actual_departs',
     'terminal_arr', 'gate_arr', 'baggage_belt', 'actual_arrives',
-    'status_updated',
+    'status_updated', 'arrives_local', 'departs_local', 'confirmed',
 }
 
 

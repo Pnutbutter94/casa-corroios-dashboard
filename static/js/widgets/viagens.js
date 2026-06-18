@@ -2251,10 +2251,14 @@ function _conflictWarning(p) {
   if (kb?.closed_days?.includes(dow)) return `Fechado ${_DOW_NAMES[dow]}`;
 
   const oh = (p.opening_hours || '').toLowerCase();
-  if (!oh || !oh.includes('fechad')) return null;
+  if (!oh) return null;
 
-  for (const [abbr, day] of Object.entries(_DOW_MAP)) {
-    if (day === dow && oh.includes(abbr)) return `Fechado ${_DOW_NAMES[dow]}`;
+  // Only match day abbreviations that follow "fechado" — avoids false positives
+  // e.g. "Sáb-Dom 10:00 · fechado Seg" should NOT warn for Sáb
+  const fechadoMatches = [...oh.matchAll(/fechado\s+([\wáéíóúãõâêîôûàèìòùç]+)/g)];
+  for (const m of fechadoMatches) {
+    const closedDay = _DOW_MAP[m[1]];
+    if (closedDay === dow) return `Fechado ${_DOW_NAMES[dow]}`;
   }
   return null;
 }
