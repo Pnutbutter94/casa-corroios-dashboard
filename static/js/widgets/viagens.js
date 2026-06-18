@@ -2258,7 +2258,8 @@ function _bindMap(card) {
   _updateMapLabel(card);
 
   if (!_map) {
-    _map = L.map(container, { scrollWheelZoom: false, tap: true, zoomControl: true });
+    const isMobile = window.matchMedia('(max-width: 600px)').matches;
+    _map = L.map(container, { scrollWheelZoom: false, dragging: !isMobile, tap: !isMobile, touchZoom: true, zoomControl: true });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://openstreetmap.org">OSM</a>',
       maxZoom: 19,

@@ -1822,6 +1822,12 @@
 
 /* Phone portrait — primary on-trip mode */
 @media (max-width: 600px) {
+  /* Allow page scroll when finger is on a POI card */
+  .poi-card { touch-action: pan-y; }
+
+  /* Viagens card must not clip content on mobile */
+  #viagens-card { overflow: visible; }
+
   .viagens-header { flex-wrap: wrap; gap: .35rem; }
   .viagens-trip-name { font-size: 1.2rem; }
   .viagens-subnav { overflow-x: auto; flex-wrap: nowrap; padding-bottom: .3rem; }
