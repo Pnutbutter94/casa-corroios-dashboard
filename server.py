@@ -2296,6 +2296,27 @@ def _trip_path(trip_id):
     return os.path.join(TRIPS_DIR, f'{name}.json')
 
 
+def _trip_log_path(trip_id):
+    name = re.sub(r'[^a-z0-9\-]', '', trip_id.lower())
+    return os.path.join(TRIPS_DIR, f'{name}-chatlog.json')
+
+
+def _append_trip_log(trip_id, query, response, actions_taken):
+    path = _trip_log_path(trip_id)
+    try:
+        entries = json.load(open(path)) if os.path.exists(path) else []
+    except Exception:
+        entries = []
+    entries.append({
+        'ts': datetime.datetime.now().isoformat(timespec='seconds'),
+        'q': query,
+        'r': response,
+        'actions': actions_taken,
+    })
+    with open(path, 'w') as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+
+
 def _load_trip(trip_id):
     path = _trip_path(trip_id)
     if not os.path.exists(path):
@@ -2584,6 +2605,7 @@ def trip_claude(trip_id):
         raw         = _strip_actions_block(raw)
         clean       = _strip_poi_block(raw)
         actions_taken = _execute_trip_actions(trip_id, t, actions) if actions else []
+        _append_trip_log(trip_id, query, clean, actions_taken)
         return jsonify({'response': clean, 'suggestions': suggestions, 'actions_taken': actions_taken})
     except Exception as e:
         return jsonify({'error': str(e)}), 502
