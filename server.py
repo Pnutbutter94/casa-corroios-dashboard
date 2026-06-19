@@ -33,7 +33,7 @@ HA_TOKEN = os.environ['HA_TOKEN']
 
 IOT_ENTITIES = frozenset([
     'light.escritorio_ines', 'light.luz_de_entrada', 'light.wiz_rgbw_tunable_877be6',
-    'switch.plug_sala', 'switch.termoacumulador',
+    'switch.plug_sala',
     'sensor.plug_sala_current_power', 'sensor.termoacumulador_current_power',
     'sensor.01_sala_cozinha_temperature', 'sensor.01_sala_cozinha_humidity',
     'sensor.02_quarto_temperature', 'sensor.02_quarto_humidity',
@@ -394,7 +394,7 @@ ENERGY_ENTITIES = {
         'power':  'sensor.termoacumulador_current_power',
         'today':  'sensor.termoacumulador_today_energy',
         'month':  'sensor.termoacumulador_month_energy',
-        'label':  'Termoacumulador',
+        'label':  'Casaserver',
     },
     'plug_sala': {
         'power':  'sensor.plug_sala_current_power',
@@ -406,7 +406,6 @@ ENERGY_ENTITIES = {
 TARIFF_EUR_KWH   = 0.2228  # ERSE 2026 simple tariff incl. taxes
 ENERGIA_API_URL  = 'http://192.168.1.100:8090'
 FATURAS_FILE     = os.path.join(DATA_DIR, 'faturas.json')
-SERVER_WATTS   = 18.0    # HP i5-4210U average idle draw (estimated)
 
 
 def _parse_eredes_xlsx(fileobj):
@@ -626,20 +625,6 @@ def energy_costs():
             total_today += today_kwh
             total_month += month_kwh
 
-        # Casaserver estimate
-        srv_today = round(SERVER_WATTS * hours_today / 1000, 3)
-        srv_month = round(SERVER_WATTS * 24 * days_elapsed / 1000, 3)
-        devices.append({
-            'label':      'Servidor',
-            'current_w':  SERVER_WATTS,
-            'today_kwh':  srv_today,
-            'month_kwh':  srv_month,
-            'today_cost': round(srv_today * rate, 2),
-            'month_cost': round(srv_month * rate, 2),
-            'estimated':  True,
-        })
-        total_today += srv_today
-        total_month += srv_month
 
         eredes_out = None
         try:

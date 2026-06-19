@@ -8,8 +8,7 @@ const LIGHTS = [
     { id: 'light.wiz_rgbw_tunable_877be6', label: 'Luz Quarto' },
 ];
 const SWITCHES = [
-    { id: 'switch.plug_sala',       label: 'Plug Sala',       power: 'sensor.plug_sala_current_power' },
-    { id: 'switch.termoacumulador', label: 'Termoacumulador', power: 'sensor.termoacumulador_current_power' },
+    { id: 'switch.plug_sala', label: 'Plug Sala', power: 'sensor.plug_sala_current_power' },
 ];
 const SENSORS = [
     { temp: 'sensor.03_escritorio_temperature', hum: 'sensor.03_escritorio_humidity', room: 'Escritório', f: true },
