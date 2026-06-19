@@ -1,0 +1,64 @@
+{
+  "id": "passagem-de-ano-26-27",
+  "name": "Passagem de Ano 26-27",
+  "flag": "✈️",
+  "status": "planned",
+  "countdown_to": "2026-12-30",
+  "travellers": [
+    "Pedro",
+    "Inês"
+  ],
+  "budget_per_person": 450.0,
+  "tips": [],
+  "legs": [
+    {
+      "id": "leg-e3e6680e",
+      "date": "2026-12-30",
+      "from": "LIS",
+      "to": "BER",
+      "airline": "Ryanair",
+      "departs_local": "14:25",
+      "arrives_local": "17:50",
+      "confirmed": false,
+      "flight": null,
+      "status": null,
+      "delay_minutes": 0
+    }
+  ],
+  "cities": [
+    {
+      "id": "city-1",
+      "name": "Berlim",
+      "country": "",
+      "arrival": "2026-12-30",
+      "departure": "2027-01-02",
+      "hotel": {
+        "name": "",
+        "confirmed": false,
+        "nights": 3
+      },
+      "pois": []
+    }
+  ],
+  "expenses": [
+    {
+      "id": "exp-b9bb098d",
+      "description": "Voo ida e volta",
+      "category": "voos",
+      "amount": 350.0,
+      "date": "2026-05-27",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-72f4350c",
+      "description": "Camisola Bayern",
+      "category": "compras",
+      "amount": 65.0,
+      "date": "2026-05-27",
+      "split": "pedro",
+      "confirmed": false
+    }
+  ],
+  "links": []
+}

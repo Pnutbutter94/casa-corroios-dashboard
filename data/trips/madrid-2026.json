@@ -4,7 +4,10 @@
   "flag": "🇪🇸",
   "status": "confirmed",
   "countdown_to": "2026-06-19",
-  "travellers": ["Pedro", "Inês"],
+  "travellers": [
+    "Pedro",
+    "Inês"
+  ],
   "budget_per_person": 500,
   "legs": [
     {
@@ -16,7 +19,16 @@
       "arrives_local": "16:15",
       "airline": "EasyJet",
       "flight": null,
-      "confirmed": true
+      "confirmed": true,
+      "buffers": {
+        "processing_min": 15,
+        "transfer_min": 38,
+        "hotel_checkin_min": 20,
+        "checkin_buffer_min": 90,
+        "estimated": true,
+        "from_iata": "LIS",
+        "to_iata": "MAD"
+      }
     },
     {
       "id": "leg-2",
@@ -27,7 +39,16 @@
       "arrives_local": "22:55",
       "airline": "EasyJet",
       "flight": null,
-      "confirmed": true
+      "confirmed": true,
+      "buffers": {
+        "processing_min": 15,
+        "transfer_min": 38,
+        "hotel_checkin_min": 20,
+        "checkin_buffer_min": 90,
+        "estimated": true,
+        "from_iata": "MAD",
+        "to_iata": "LIS"
+      }
     }
   ],
   "cities": [
@@ -41,7 +62,10 @@
         "name": "Hostal Besaya",
         "confirmed": true,
         "nights": 2,
-        "coords": {"lat": 40.4237, "lon": -3.7103}
+        "coords": {
+          "lat": 40.4237,
+          "lon": -3.7103
+        }
       },
       "day_notes": {
         "2026-06-19": "Metro aeroporto: L8 rosa → Nuevos Ministerios → trocar L10 azul dir. Puerta del Sur → sair Plaza España → 7min a pé ao hotel.",
@@ -57,7 +81,10 @@
           "notes": "Walk from hotel through Gran Via → Plaza Callao → Plaza del Sol → Plaza Mayor → Mercado San Miguel → Teatro Real/Opera",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4168, "lon": -3.7038},
+          "coords": {
+            "lat": 40.4168,
+            "lon": -3.7038
+          },
           "done": false,
           "assigned_day": "2026-06-19",
           "assigned_slot": "tarde",
@@ -99,7 +126,10 @@
           "notes": "Rooftop pago no Círculo de Bellas Artes, Calle Alcalá 42",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4168, "lon": -3.6999},
+          "coords": {
+            "lat": 40.4168,
+            "lon": -3.6999
+          },
           "done": false,
           "assigned_day": "2026-06-19",
           "assigned_slot": "noite",
@@ -162,7 +192,10 @@
           "notes": "",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4132, "lon": -3.7082},
+          "coords": {
+            "lat": 40.4132,
+            "lon": -3.7082
+          },
           "done": false,
           "assigned_day": "2026-06-19",
           "assigned_slot": "noite",
@@ -246,7 +279,10 @@
           "notes": "Pão c/ presunto",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4244, "lon": -3.7076},
+          "coords": {
+            "lat": 40.4244,
+            "lon": -3.7076
+          },
           "done": false,
           "assigned_day": "2026-06-20",
           "assigned_slot": "manha",
@@ -267,7 +303,10 @@
           "notes": "Uniqlo + passear",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4195, "lon": -3.7010},
+          "coords": {
+            "lat": 40.4195,
+            "lon": -3.701
+          },
           "done": false,
           "assigned_day": "2026-06-20",
           "assigned_slot": "manha",
@@ -288,7 +327,10 @@
           "notes": "",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4178, "lon": -3.7038},
+          "coords": {
+            "lat": 40.4178,
+            "lon": -3.7038
+          },
           "done": false,
           "assigned_day": "2026-06-20",
           "assigned_slot": "manha",
@@ -330,7 +372,10 @@
           "notes": "Grátis 18h-20h",
           "opening_hours": "Seg-Sáb 10:00-20:00 · Dom 10:00-19:00 · Grátis Seg-Sáb 18:00-20:00 · Dom 17:00-19:00",
           "free_entry": "Seg-Sáb 18:00-20:00 · Dom 17:00-19:00",
-          "coords": {"lat": 40.4138, "lon": -3.6922},
+          "coords": {
+            "lat": 40.4138,
+            "lon": -3.6922
+          },
           "done": false,
           "assigned_day": "2026-06-20",
           "assigned_slot": "tarde",
@@ -352,7 +397,10 @@
           "url": "https://www.madrid.es/portales/munimadrid/es/Inicio/Cultura-ocio-y-deporte/Cultura-y-ocio/Templo-de-Debod?vgnextfmt=default&vgnextoid=46caa0d03aa8b010VgnVCM100000d90ca8c0RCRD&vgnextchannel=c937f073808fe410VgnVCM2000000c205a0aRCRD",
           "opening_hours": "Ter-Sex 10:00-14:00 e 18:00-20:00 · Sáb-Dom 10:00-20:00 · fechado Seg",
           "free_entry": "Entrada gratuita",
-          "coords": {"lat": 40.4238, "lon": -3.7181},
+          "coords": {
+            "lat": 40.4238,
+            "lon": -3.7181
+          },
           "done": false,
           "assigned_day": "2026-06-20",
           "assigned_slot": "noite",
@@ -372,7 +420,10 @@
           "notes": "Bares",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4252, "lon": -3.7049},
+          "coords": {
+            "lat": 40.4252,
+            "lon": -3.7049
+          },
           "done": false,
           "assigned_day": "2026-06-20",
           "assigned_slot": "noite",
@@ -414,7 +465,10 @@
           "notes": "",
           "opening_hours": "Dom 09:00-15:00",
           "free_entry": "",
-          "coords": {"lat": 40.4087, "lon": -3.7076},
+          "coords": {
+            "lat": 40.4087,
+            "lon": -3.7076
+          },
           "done": false,
           "assigned_day": "2026-06-21",
           "assigned_slot": "manha",
@@ -456,7 +510,10 @@
           "notes": "",
           "opening_hours": "",
           "free_entry": "Entrada gratuita",
-          "coords": {"lat": 40.4153, "lon": -3.6844},
+          "coords": {
+            "lat": 40.4153,
+            "lon": -3.6844
+          },
           "done": false,
           "assigned_day": "2026-06-21",
           "assigned_slot": "tarde",
@@ -477,7 +534,10 @@
           "notes": "Ver jogo na plaza com ambiente",
           "opening_hours": "",
           "free_entry": "",
-          "coords": {"lat": 40.4239, "lon": -3.6880},
+          "coords": {
+            "lat": 40.4239,
+            "lon": -3.688
+          },
           "done": false,
           "assigned_day": "2026-06-21",
           "assigned_slot": "tarde",
