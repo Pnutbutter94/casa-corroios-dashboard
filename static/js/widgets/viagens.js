@@ -35,7 +35,7 @@ const CATEGORY_LABELS = {
   actividades:'Actividades', transporte:'Transporte',
   compras:'Compras', outros:'Outros',
 };
-const SPLIT_LABELS    = { comum:'Comum', pedro:'Pedro', ines:'Inês' };
+let SPLIT_LABELS = { comum:'Comum', pedro:'Pedro', ines:'Inês' };
 const PRIORITY_LABELS = { must:'Imprescindível', want:'Quero ir', backlog:'Backlog' };
 const PRIORITY_NEXT   = { must:'want', want:'backlog', backlog:'must' };
 const TYPE_ICONS      = {
@@ -46,45 +46,7 @@ const TYPE_ICONS      = {
 };
 
 // Free entry knowledge base — verified via official museum sites (Jun 2026)
-const FREE_ENTRY_KB = {
-  prado: {
-    official_name: 'Museo del Prado',
-    opening: 'Seg-Sáb 10:00-20:00 · Dom 10:00-19:00',
-    free: 'Seg-Sáb 18:00-20:00 · Dom 17:00-19:00',
-    type: 'museu', duration_h: 3,
-    // day 0=Sun, 1=Mon…6=Sat; from/to in decimal hours
-    free_windows: [{ days:[1,2,3,4,5,6], from:18, to:20 }, { days:[0], from:17, to:19 }],
-    closed_days: [],
-    keywords: ['prado'],
-  },
-  reina_sofia: {
-    official_name: 'Museo Reina Sofía',
-    opening: 'Seg, Qua-Sáb 10:00-21:00 · Dom 10:00-14:30 (fechado Ter)',
-    free: 'Seg, Qua-Sáb 19:00-21:00 · Dom 12:30-14:30',
-    type: 'museu', duration_h: 2.5,
-    free_windows: [{ days:[1,3,4,5,6], from:19, to:21 }, { days:[0], from:12.5, to:14.5 }],
-    closed_days: [2],
-    keywords: ['reina sofia', 'reina sofía'],
-  },
-  thyssen: {
-    official_name: 'Museo Thyssen-Bornemisza',
-    opening: 'Ter-Dom 10:00-19:00 (Sáb até 21:00) · fechado Seg',
-    free: 'Segundas-feiras (coleção permanente)',
-    type: 'museu', duration_h: 2,
-    free_windows: [{ days:[1], from:10, to:19 }],
-    closed_days: [1],
-    keywords: ['thyssen'],
-  },
-  debod: {
-    official_name: 'Templo de Debod',
-    opening: 'Ter-Sex 10:00-14:00 e 18:00-20:00 · Sáb-Dom 10:00-20:00 · fechado Seg',
-    free: 'Entrada gratuita',
-    type: 'monumento', duration_h: 1,
-    free_windows: [],
-    closed_days: [1],
-    keywords: ['debod', 'templo de debod'],
-  },
-};
+let _freeEntryKB = {};
 
 // Slot definitions
 const SLOTS = [
@@ -142,12 +104,20 @@ async function _cleanupPastDays() {
   _trip = await _api(`/api/trips/${_trip.id}`);
 }
 
+function _updateSplitLabels() {
+  SPLIT_LABELS = Object.fromEntries([
+    ['comum', 'Comum'],
+    ...(_trip?.travellers || ['Pedro', 'Inês']).map(t => [t.toLowerCase(), t]),
+  ]);
+}
+
 export async function initViagens() {
-  _trips = await _api('/api/trips');
+  [_trips, _freeEntryKB] = await Promise.all([_api('/api/trips'), _api('/api/free-entry-kb').catch(() => ({}))]);
   if (_trips.length > 0) {
     const urlTripId = new URLSearchParams(location.search).get('trip');
     _tripId = (_trips.find(t => t.id === urlTripId) ? urlTripId : null) || _trips[0].id;
     _trip   = await _api(`/api/trips/${_tripId}`);
+    _updateSplitLabels();
     await _autoAssignUnscheduled();
     await _cleanupPastDays();
   }
@@ -168,6 +138,7 @@ export function renderViagens() {
         </button>
         <span class="trip-sel-right">
           <div class="viagens-countdown ${countdown.past?'past':''}">${esc(countdown.text)}</div>
+          <button class="trip-edit-btn"  id="btn-edit-trip"  title="Editar viagem">⚙️</button>
           <button class="trip-share-btn" id="trip-share-btn" title="Partilhar viagem">🔗</button>
         </span>
       </div>
@@ -198,7 +169,7 @@ export function bindViagens(card, refresh) {
 
   // share trip link (copies Tailscale URL with ?trip=<id>)
   card.querySelector('#trip-share-btn')?.addEventListener('click', () => {
-    const url = `http://100.100.203.28:8080/?trip=${_tripId}`;
+    const url = `${window.location.origin}/?trip=${_tripId}`;
     const btn = card.querySelector('#trip-share-btn');
     navigator.clipboard.writeText(url).then(() => {
       btn.textContent = '✓';
@@ -223,10 +194,13 @@ export function bindViagens(card, refresh) {
 
   // fechar viagem
   card.querySelector('#btn-fechar-viagem')?.addEventListener('click', () => _openFecharModal());
+  card.querySelector('#btn-fechar-viagem-top')?.addEventListener('click', () => _openFecharModal());
+  card.querySelector('#btn-edit-trip')?.addEventListener('click', () => _openEditTripModal(refresh));
   card.querySelectorAll('[data-select-trip]').forEach(btn => {
     btn.addEventListener('click', async () => {
       _tripId = btn.dataset.selectTrip;
       _trip   = await _api(`/api/trips/${_tripId}`);
+      _updateSplitLabels();
       _selectorOpen = false;
       _nearby = [];
       _claudeResponse = null;
@@ -813,6 +787,61 @@ function _openNewTripModal(refresh) {
   });
 }
 
+// ── EDITAR VIAGEM ──────────────────────────────────────────────────────────
+function _openEditTripModal(refresh) {
+  const t = _trip;
+  const travStr = (t.travellers || ['Pedro', 'Inês']).join(', ');
+  const overlay = _overlay(`
+    <div class="modal-title">Editar viagem <button class="modal-close" id="mc">✕</button></div>
+    <div class="modal-field">
+      <label class="modal-label">Nome</label>
+      <input class="modal-input" id="et-name" value="${esc(t.name||'')}" />
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Emoji</label>
+        <input class="modal-input" id="et-flag" value="${esc(t.flag||'✈️')}" style="width:4rem;text-align:center" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Data de chegada</label>
+        <input class="modal-input" type="date" id="et-arr" value="${esc(t.countdown_to||'')}" />
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Orçamento por pessoa (€)</label>
+      <input class="modal-input" type="number" id="et-budget" value="${t.budget_per_person||500}" min="0" />
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Viajantes (vírgula separada)</label>
+      <input class="modal-input" id="et-trav" value="${esc(travStr)}" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+      <button class="btn-modal-save"   id="msave">Guardar</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const name   = overlay.querySelector('#et-name').value.trim();
+    const flag   = overlay.querySelector('#et-flag').value.trim() || '✈️';
+    const arr    = overlay.querySelector('#et-arr').value;
+    const budget = parseFloat(overlay.querySelector('#et-budget').value) || t.budget_per_person;
+    const travStr = overlay.querySelector('#et-trav').value.trim();
+    const travellers = travStr ? travStr.split(',').map(s => s.trim()).filter(Boolean) : t.travellers;
+    await _api(`/api/trips/${t.id}`, 'PATCH', {
+      name, flag, countdown_to: arr, budget_per_person: budget, travellers,
+    });
+    _trip = await _api(`/api/trips/${t.id}`);
+    _trips = await _api('/api/trips');
+    _updateSplitLabels();
+    close(); refresh();
+  });
+}
+
 // ── EDITAR HOTEL ───────────────────────────────────────────────────────────
 function _openHotelModal(city, refresh) {
   const existingName   = city.hotel?.name   || '';
@@ -1133,13 +1162,6 @@ function _renderPoiSuggestions() {
     </div>`;
 }
 
-const _CLAUDE_CHIPS = [
-  'O que fazer AGORA? 🗺️',
-  'Chegámos ao hotel 🏨',
-  'Quanto tempo temos antes do próximo plano? ⏱️',
-  'Estou perdido, como volto ao hotel? 🏠',
-];
-
 function _renderActionsTaken() {
   if (!_claudeActionsTaken.length) return '';
   return `
@@ -1150,10 +1172,20 @@ function _renderActionsTaken() {
 
 function _renderAssistente() {
   const showChips = !_claudeQuery && !_claudeResponse && !_claudePending && !_claudeActionsTaken.length;
+  const now = new Date();
+  const tripEnd = new Date(_trip.countdown_to);
+  const isArchived = _trip.status === 'archived';
+  const isPast = tripEnd < now;
+  const city = _trip.cities[0]?.name || 'destino';
+  const chips = isArchived || isPast
+    ? [`Faz um resumo da viagem`, `O que ficou por fazer?`, `Próxima vez em ${city}?`, `Onde comemos melhor?`]
+    : tripEnd - now < 86400000 * 3
+      ? [`O que fazer agora?`, `Onde almoçar perto?`, `Como chegar a X?`, `Previsão do tempo`]
+      : [`O que fazer em ${city}?`, `Melhores restaurantes`, `Museus gratuitos`, `Dicas de transporte`];
   return `
     <div class="assistente-panel">
       <p class="assistente-hint">Diz o que estás a fazer ou faz uma pergunta sobre a viagem.</p>
-      ${showChips ? `<div class="assistente-chips">${_CLAUDE_CHIPS.map(c =>
+      ${showChips ? `<div class="assistente-chips">${chips.map(c =>
         `<button class="assistente-chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       <div class="assistente-input-row">
         <textarea class="assistente-textarea" id="claude-query" rows="2"
@@ -1189,11 +1221,14 @@ function _renderSelector() {
 // ── RESUMO ─────────────────────────────────────────────────────────────────
 function _renderResumo() {
   const t = _trip;
-  const nights   = t.cities.reduce((s,c) => s + Math.round((new Date(c.departure) - new Date(c.arrival)) / 86400000), 0);
-  const totalPoi = t.cities.reduce((s,c) => s + (c.pois?.length||0), 0);
+  const nights    = t.cities.reduce((s,c) => s + Math.round((new Date(c.departure) - new Date(c.arrival)) / 86400000), 0);
+  const totalPoi  = t.cities.reduce((s,c) => s + (c.pois?.length||0), 0);
+  const visitedPoi = t.cities.reduce((s,c) => s + (c.pois?.filter(p => p.done).length||0), 0);
   const { pedro, ines } = _budgetCalc(t);
+  const isPastTrip = new Date(t.countdown_to) < new Date() && t.status !== 'archived';
 
   return `
+    ${isPastTrip ? `<button class="btn-primary btn-fechar-viagem-top" id="btn-fechar-viagem-top">Arquivar viagem ↗</button>` : ''}
     <div class="viagens-legs">
       ${t.legs.length===0
         ? `<p class="section-hint">Adiciona voos para rastrear o estado em tempo real e calcular a disponibilidade no itinerário.</p>`
@@ -1227,7 +1262,7 @@ function _renderResumo() {
       ${[
         [t.cities.length, `Cidade${t.cities.length!==1?'s':''}`],
         [nights,          `Noite${nights!==1?'s':''}`],
-        [totalPoi,        `Lugar${totalPoi!==1?'es':''}`],
+        [`${visitedPoi}/${totalPoi}`, `Visitado${totalPoi!==1?'s':''}`],
         [`€${(pedro+ines).toFixed(0)}`, 'Gasto total'],
       ].map(([v,l]) => `
         <div class="viagens-stat">
@@ -1336,6 +1371,9 @@ function _renderDespesas() {
   const pedroSolo = exps.reduce((s,e) => s + (e.split==='pedro'  ? e.amount : 0), 0);
   const inesSolo  = exps.reduce((s,e) => s + (e.split==='ines'   ? e.amount : 0), 0);
   const grand     = exps.reduce((s,e) => s + e.amount, 0);
+  const cashTotal = exps.reduce((s,e) => s + (e.payment_method==='cash' ? e.amount : 0), 0);
+  const noMethod  = exps.filter(e => !e.payment_method).reduce((s,e) => s + e.amount, 0);
+  const cardTotal = grand - cashTotal;
 
   // Category chart
   const catTotals = {};
@@ -1384,6 +1422,9 @@ function _renderDespesas() {
         <div class="exp-total-item"><span class="exp-total-label">Pedro solo</span><span class="exp-total-value">€${pedroSolo.toFixed(2)}</span></div>
         <div class="exp-total-item"><span class="exp-total-label">Inês solo</span><span class="exp-total-value">€${inesSolo.toFixed(2)}</span></div>
         <div class="exp-total-item exp-total-grand"><span class="exp-total-label">Total</span><span class="exp-total-value">€${grand.toFixed(2)}</span></div>
+        <div class="exp-total-item exp-total-payment">
+          <span class="exp-total-label">💳 €${cardTotal.toFixed(2)} · 💵 €${cashTotal.toFixed(2)}${noMethod > 0 ? ` · ❓ €${noMethod.toFixed(2)} sem método` : ''}</span>
+        </div>
       </div>
     </div>
 
@@ -1488,6 +1529,10 @@ function _renderItinerario() {
     <div class="viagens-map-section">
       <div class="viagens-map-label" id="viagens-map-label"></div>
       <div id="viagens-map" class="viagens-map-container"></div>
+      <div class="map-legend">
+        <span class="map-legend-dot map-legend-poi"></span> POI
+        <span class="map-legend-dot map-legend-exp"></span> Despesa
+      </div>
     </div>`;
 }
 
@@ -1653,16 +1698,18 @@ function _renderPoiCard(p, context='backlog') {
   const inBucket  = context === 'bucket';
   const conflict  = inBucket ? _conflictWarning(p) : null;
 
+  const isMissed = !p.done && p.missed;
   return `
-    <div class="poi-card ${p.done?'poi-done':''} ${p.locked?'poi-locked':''}"
-         draggable="true" data-drag='${dragData}' data-poi-id="${p.id}">
-      <div class="poi-drag-handle" title="Arrastar">⠿</div>
+    <div class="poi-card ${p.done?'poi-done':''} ${p.locked?'poi-locked':''} ${isMissed?'poi-card--missed':''}"
+         draggable="${isMissed ? 'false' : 'true'}" data-drag='${dragData}' data-poi-id="${p.id}">
+      <div class="poi-drag-handle" title="Arrastar" style="${isMissed?'visibility:hidden':''}">⠿</div>
       <div class="poi-priority-dot ${p.priority}"></div>
       <span class="poi-type-icon">${TYPE_ICONS[p.type]||'📍'}</span>
       <div class="poi-body">
         <div class="poi-name-row">
           ${p.locked ? '<span class="poi-lock" title="Fixo">🔒</span>' : ''}
           <span class="poi-name">${esc(p.name)}</span>
+          ${isMissed ? `<span class="poi-missed-badge">Não visitado</span>` : ''}
           ${kb ? `<span class="poi-free-badge" title="${esc(kb.free)}">🎟</span>` : ''}
           ${conflict ? `<span class="poi-conflict-warn" title="${esc(conflict)}">⚠️ ${esc(conflict)}</span>` : ''}
         </div>
@@ -1705,100 +1752,6 @@ function _renderPoiCard(p, context='backlog') {
     </div>`;
 }
 
-function _renderDay(day, dayData, allPois) {
-  const d = new Date(day + 'T12:00:00');
-  const blocks  = dayData.blocks || [];
-  const isFirst = day === _trip.legs[0]?.date;
-  const isLast  = day === _trip.legs[_trip.legs.length-1]?.date;
-
-  // Active hotel for this day
-  const activeCity  = _trip.cities.find(c => c.arrival <= day && day <= c.departure) || _trip.cities[0];
-  const hotel       = activeCity?.hotel;
-  const hotelCoords = hotel?.coords;
-
-  // All POIs assigned to this day, in slot order, filtered to those with coords
-  const dayPois = ['manha','tarde','noite']
-    .flatMap(s => (dayData[s] || []))
-    .map(item => allPois.find(p => p.id === item.poiId))
-    .filter(Boolean);
-  const firstGeo = dayPois.find(p => p.coords);
-  const lastGeo  = [...dayPois].reverse().find(p => p.coords);
-
-  // Hotel anchor: show whenever hotel has coords
-  // Arrival day: skip top anchor (check-in block already covers departure from airport)
-  // Departure day: skip bottom anchor (heading to airport, not back to hotel)
-  const showStart = hotelCoords && !isFirst;
-  const showEnd   = hotelCoords && !isLast;
-
-  // ORS pills only when there's a geocoded POI to route from/to
-  const startOrs = (showStart && firstGeo)
-    ? `${hotelCoords.lat},${hotelCoords.lon},${firstGeo.coords.lat},${firstGeo.coords.lon}` : null;
-  const endOrs   = (showEnd && lastGeo)
-    ? `${lastGeo.coords.lat},${lastGeo.coords.lon},${hotelCoords.lat},${hotelCoords.lon}` : null;
-
-  const _tt = key => key && _travelTimes[key] ? `~${_travelTimes[key]}min 🚶` : '';
-
-  return `
-    <div class="itinerary-day">
-      <div class="itinerary-day-header" data-map-day="${day}">
-        <span>${DAYS_PT[d.getDay()]}, ${d.getDate()} ${MONTHS_PT[d.getMonth()]}</span>
-        ${isFirst?'<span class="day-badge arrival">Chegada</span>':isLast?'<span class="day-badge departure">Partida</span>':''}
-        <span class="day-map-hint">ver no mapa ▾</span>
-      </div>
-      <div class="itinerary-slots">
-        ${blocks.map(b => `
-          <div class="itinerary-block">
-            <span class="block-icon">${b.type==='flight'?'✈️':'🏨'}</span>
-            <span class="block-label">${esc(b.label)}</span>
-          </div>`).join('')}
-
-        ${showStart ? `
-          <div class="hotel-anchor-block">🏨 ${esc(hotel.name)}</div>
-          ${startOrs ? `<div class="travel-time-pill" data-traveltime="${esc(startOrs)}">${_tt(startOrs)}</div>` : ''}
-        ` : ''}
-
-        ${SLOTS.map(slot => {
-          const pois  = (dayData[slot.id] || []);
-          const avail = dayData[slot.id+'_cap'] ?? slot.cap;
-          return `
-            <div class="itinerary-slot">
-              <span class="slot-time-label">${slot.label}</span>
-              <div class="slot-pois">
-                ${avail===0 ? `<span class="slot-blocked">Bloqueado</span>` :
-                  pois.length===0 ? `<span class="slot-empty">Livre</span>` :
-                  pois.map((item, idx) => {
-                    const poi      = allPois.find(p => p.id === item.poiId) || item;
-                    const nextItem = pois[idx + 1];
-                    const nextPoi  = nextItem ? allPois.find(p => p.id === nextItem.poiId) : null;
-                    const kb  = _matchKB(poi.name||'');
-                    const confirmed = !!poi.assigned_day;
-                    const confirmData = JSON.stringify({cityId:poi.cityId, poiId:poi.id, day, slot:slot.id});
-                    const ttKey = (poi.coords && nextPoi?.coords)
-                      ? `${poi.coords.lat},${poi.coords.lon},${nextPoi.coords.lat},${nextPoi.coords.lon}`
-                      : null;
-                    const cached = ttKey && _travelTimes[ttKey];
-                    return `
-                      <div class="slot-poi-row ${confirmed?'confirmed':'suggested'}">
-                        <span class="slot-poi-icon">${TYPE_ICONS[poi.type]||'📍'}</span>
-                        <span class="slot-poi-name">${esc(poi.name||'')}</span>
-                        ${kb?`<span class="poi-free-badge small" title="${esc(kb.free)}">🎟</span>`:''}
-                        ${poi.checkin_time?`<span class="slot-checkin">✓ ${_fmtTime(poi.checkin_time)}</span>`:''}
-                        ${!confirmed?`<button class="btn-confirm-slot" data-confirm-slot='${confirmData}'>✓</button>`:''}
-                      </div>
-                      ${ttKey ? `<div class="travel-time-pill" data-traveltime="${esc(ttKey)}">${cached ? `~${cached}min 🚶` : ''}</div>` : ''}`;
-                  }).join('')}
-              </div>
-            </div>`;
-        }).join('')}
-
-        ${showEnd ? `
-          ${endOrs ? `<div class="travel-time-pill" data-traveltime="${esc(endOrs)}">${_tt(endOrs)}</div>` : ''}
-          <div class="hotel-anchor-block">🏨 ${esc(hotel.name)} · regresso</div>
-        ` : ''}
-      </div>
-    </div>`;
-}
-
 function _renderNearby() {
   return `
     <div class="nearby-panel fade-in">
@@ -1833,11 +1786,11 @@ function _renderLinks() {
               <div class="link-url">${esc(l.url)}</div>
               ${l.summary?`<div class="link-summary">${esc(l.summary)}</div>`:''}
             </div>
-            <span class="link-status ${l.status}">${esc(l.status)}</span>
+            <span class="link-status ${l.status}">${esc(l.status === 'pending' ? 'pendente' : l.status === 'processed' ? 'analisado' : l.status)}</span>
             <button class="exp-del-btn" data-discard-link="${esc(l.id)}">✕</button>
           </div>`).join('')}
         </div>`}
-    <button class="btn-add-expense" id="btn-add-link">＋ Adicionar link</button>`;
+    <button class="btn-add-link" id="btn-add-link">＋ Adicionar link</button>`;
 }
 
 // ── AUTO-ROUTE ENGINE ──────────────────────────────────────────────────────
@@ -2106,6 +2059,10 @@ function _openExpenseModal(refresh) {
         </select>
       </div>
     </div>
+    <div class="modal-field">
+      <label class="modal-label">Localização (opcional)</label>
+      <input class="modal-input" id="eaddr" placeholder="Endereço para geocodificar…" />
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
       <button class="btn-modal-save"   id="msave">Guardar</button>
@@ -2119,11 +2076,17 @@ function _openExpenseModal(refresh) {
     const desc   = overlay.querySelector('#ed').value.trim();
     const amount = parseFloat(overlay.querySelector('#ea').value);
     if (!desc || isNaN(amount) || amount <= 0) return;
+    const addr = overlay.querySelector('#eaddr').value.trim();
+    let coords = null;
+    if (addr) {
+      try { coords = (await _api(`/api/geo/geocode?q=${encodeURIComponent(addr)}`))?.coords; } catch (_) {}
+    }
     await _api(`/api/trips/${_trip.id}/expenses`, 'POST', {
       description: desc, category: overlay.querySelector('#ec').value,
       split: overlay.querySelector('#es').value, amount,
       date: overlay.querySelector('#edt').value,
       payment_method: overlay.querySelector('#epm').value,
+      ...(coords ? { coords } : {}),
     });
     _trip = await _api(`/api/trips/${_trip.id}`);
     close(); _view = 'despesas'; refresh();
@@ -2203,7 +2166,7 @@ function _openEditExpenseModal(exp, refresh) {
     close(); _view = 'despesas'; refresh();
   });
   overlay.querySelector('#mdelete').addEventListener('click', async () => {
-    if (!confirm(`Eliminar "${exp.description}"?`)) return;
+    if (!await _confirm(`Eliminar "${exp.description}"?`)) return;
     await _api(`/api/trips/${_trip.id}/expenses/${exp.id}`, 'DELETE');
     _trip = await _api(`/api/trips/${_trip.id}`);
     close(); _view = 'despesas'; refresh();
@@ -2501,7 +2464,7 @@ function _updateMapMarkers() {
   }
 
   // Expense pins for this day (supplementary layer — not part of route)
-  const CAT_EMOJI = { alimentacao:'🍽️', compras:'🛍️', actividades:'🎫', transporte:'🚌', hospedagem:'🏨' };
+  const CAT_EMOJI = { alimentacao:'🍽️', compras:'🛍️', actividades:'🎫', transporte:'🚌', hospedagem:'🏨', voos:'✈️' };
   const dayExps = (_trip.expenses||[]).filter(e => e.date === _mapDay && e.coords);
   dayExps.forEach(e => {
     const emoji = CAT_EMOJI[e.category] || '📍';
@@ -2590,7 +2553,9 @@ function _bindDespesasMap(card) {
 
 function _matchKB(name) {
   const lower = name.toLowerCase();
-  return Object.values(FREE_ENTRY_KB).find(kb => kb.keywords.some(k => lower.includes(k))) || null;
+  const cityName = (_trip?.cities[0]?.name || '').toLowerCase();
+  const entries = _freeEntryKB[cityName] || [];
+  return entries.find(kb => (kb.keywords || [kb.name.toLowerCase()]).some(k => lower.includes(k))) || null;
 }
 
 function _mdToHtml(text) {
@@ -2630,6 +2595,21 @@ function _overlay(html) {
   overlay.innerHTML = `<div class="viagens-modal">${html}</div>`;
   document.body.appendChild(overlay);
   return overlay;
+}
+
+function _confirm(message) {
+  return new Promise(resolve => {
+    const overlay = _overlay(`
+      <div class="modal-title">Confirmar</div>
+      <p class="modal-hint">${esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="mc-cancel">Cancelar</button>
+        <button class="btn-modal-save"   id="mc-ok">Confirmar</button>
+      </div>`);
+    const close = v => { overlay.remove(); resolve(v); };
+    overlay.querySelector('#mc-cancel').addEventListener('click', () => close(false));
+    overlay.querySelector('#mc-ok').addEventListener('click', () => close(true));
+  });
 }
 
 function _budgetCalc(t) {

@@ -2256,3 +2256,29 @@
 /* modal hint line */
 .modal-hint { font-size: .72rem; color: var(--text-dim); margin-top: .25rem; }
 .exp-no-pin { font-size: .7rem; opacity: .5; cursor: default; }
+
+/* Fix 6 — missed POI */
+.poi-card--missed { opacity: .55; border-left: 3px solid var(--vg-rausch, #e05); }
+.poi-missed-badge { background: var(--vg-rausch, #e05); color: #fff; border-radius: 4px; font-size: .65rem; padding: 1px 5px; }
+
+/* Fix 10 — map legend */
+.map-legend { display: flex; gap: 12px; font-size: .72rem; color: var(--text-muted, var(--text-dim)); margin-top: 6px; align-items: center; }
+.map-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.map-legend-poi { background: #7c6aff; }
+.map-legend-exp { background: #ff9f40; }
+
+/* Fix 13 — btn-add-link */
+.btn-add-link { display: block; width: 100%; margin-top: .75rem; padding: .5rem; background: var(--surface2); border: 1px dashed var(--border); border-radius: 8px; color: var(--text-dim); font-size: .85rem; cursor: pointer; }
+.btn-add-link:hover { background: var(--surface3, var(--surface2)); color: var(--text); }
+
+/* Fix 14 — prominent archive CTA */
+.btn-fechar-viagem-top { display: block; width: 100%; margin-bottom: .75rem; }
+.btn-primary { background: var(--accent, #7c6aff); color: #fff; border: none; border-radius: 8px; padding: .6rem 1rem; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.btn-primary:hover { filter: brightness(1.1); }
+
+/* Fix 15 — trip edit btn */
+.trip-edit-btn { background: none; border: none; font-size: 1rem; cursor: pointer; padding: 0 .25rem; opacity: .6; }
+.trip-edit-btn:hover { opacity: 1; }
+
+/* Fix 7 — payment breakdown */
+.exp-total-payment { font-size: .78rem; color: var(--text-dim); padding: .25rem 0; }

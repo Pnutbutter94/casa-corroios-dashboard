@@ -1942,7 +1942,7 @@ def patch_leg(trip_id, leg_id):
 
 TRIPS_DIR = os.path.join(DATA_DIR, 'trips')
 
-ALLOWED_TRIP_FIELDS    = {'name', 'status', 'countdown_to', 'budget_per_person', 'flag'}
+ALLOWED_TRIP_FIELDS    = {'name', 'status', 'countdown_to', 'budget_per_person', 'flag', 'travellers'}
 ALLOWED_EXPENSE_FIELDS = {'description', 'category', 'amount', 'date', 'split', 'payment_method', 'coords'}
 ALLOWED_POI_FIELDS     = {'done', 'priority', 'notes', 'duration_h', 'assigned_day',
                            'assigned_slot', 'assigned_order', 'checkin_time', 'checkout_time',
@@ -2314,6 +2314,12 @@ def _save_trip(trip_id, data):
     os.makedirs(TRIPS_DIR, exist_ok=True)
     with open(_trip_path(trip_id), 'w') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+@app.route('/api/free-entry-kb')
+def free_entry_kb():
+    p = os.path.join(DATA_DIR, 'free_entry_kb.json')
+    return jsonify(json.load(open(p))) if os.path.exists(p) else jsonify({})
 
 
 @app.route('/api/trips')

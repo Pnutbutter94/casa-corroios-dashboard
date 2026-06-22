@@ -1,0 +1,44 @@
+{
+  "madrid": [
+    {
+      "name": "Museo del Prado",
+      "coords": {"lat": 40.4138, "lon": -3.6921},
+      "keywords": ["prado"],
+      "opening": "Seg-Sáb 10:00-20:00 · Dom 10:00-19:00",
+      "free": "Seg-Sáb 18:00-20:00 · Dom 17:00-19:00",
+      "free_windows": [{"days": [1,2,3,4,5,6], "from": 18, "to": 20}, {"days": [0], "from": 17, "to": 19}],
+      "closed_days": [],
+      "windows": [{"day": 1, "from": "18:00", "to": "20:00"}, {"day": 2, "from": "18:00", "to": "20:00"}, {"day": 3, "from": "18:00", "to": "20:00"}, {"day": 4, "from": "18:00", "to": "20:00"}, {"day": 5, "from": "18:00", "to": "20:00"}, {"day": 0, "from": "17:00", "to": "19:00"}]
+    },
+    {
+      "name": "Museo Reina Sofía",
+      "coords": {"lat": 40.4080, "lon": -3.6944},
+      "keywords": ["reina sofia", "reina sofía"],
+      "opening": "Seg, Qua-Sáb 10:00-21:00 · Dom 10:00-14:30 (fechado Ter)",
+      "free": "Seg, Qua-Sáb 19:00-21:00 · Dom 12:30-14:30",
+      "free_windows": [{"days": [1,3,4,5,6], "from": 19, "to": 21}, {"days": [0], "from": 12.5, "to": 14.5}],
+      "closed_days": [2],
+      "windows": [{"day": 1, "from": "19:00", "to": "21:00"}, {"day": 2, "from": "19:00", "to": "21:00"}, {"day": 3, "from": "19:00", "to": "21:00"}, {"day": 4, "from": "19:00", "to": "21:00"}, {"day": 5, "from": "19:00", "to": "21:00"}, {"day": 0, "from": "12:30", "to": "14:30"}]
+    },
+    {
+      "name": "Museo Thyssen-Bornemisza",
+      "coords": {"lat": 40.4155, "lon": -3.6940},
+      "keywords": ["thyssen"],
+      "opening": "Ter-Dom 10:00-19:00 (Sáb até 21:00) · fechado Seg",
+      "free": "Segundas-feiras (coleção permanente)",
+      "free_windows": [{"days": [1], "from": 10, "to": 19}],
+      "closed_days": [1],
+      "windows": [{"day": 1, "from": "12:00", "to": "16:00"}]
+    },
+    {
+      "name": "Templo de Debod",
+      "coords": {"lat": 40.4238, "lon": -3.7174},
+      "keywords": ["debod", "templo de debod"],
+      "opening": "Ter-Sex 10:00-14:00 e 18:00-20:00 · Sáb-Dom 10:00-20:00 · fechado Seg",
+      "free": "Entrada gratuita",
+      "free_windows": [],
+      "closed_days": [1],
+      "windows": [{"day": 2, "from": "10:00", "to": "13:00"}, {"day": 2, "from": "16:00", "to": "19:30"}, {"day": 3, "from": "10:00", "to": "13:00"}, {"day": 3, "from": "16:00", "to": "19:30"}, {"day": 4, "from": "10:00", "to": "13:00"}, {"day": 4, "from": "16:00", "to": "19:30"}, {"day": 5, "from": "10:00", "to": "13:00"}, {"day": 5, "from": "16:00", "to": "19:30"}, {"day": 0, "from": "10:00", "to": "13:00"}, {"day": 0, "from": "16:00", "to": "20:00"}]
+    }
+  ]
+}
