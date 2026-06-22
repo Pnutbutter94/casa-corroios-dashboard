@@ -1192,8 +1192,8 @@ function _openFecharModal() {
         hint.textContent = '⟳';
         try {
           const r = await _api(`/api/geo/geocode?q=${encodeURIComponent(q + ' ' + (t.cities[0]?.name||''))}`);
-          if (r?.coords) {
-            _confirmedNewPois[idx].coords = r.coords;
+          if (r?.found) {
+            _confirmedNewPois[idx].coords = { lat: r.lat, lon: r.lon };
             hint.textContent = `✓ ${r.display_name || 'localizado'}`;
           } else {
             hint.textContent = '⚠ não encontrado';
@@ -2213,7 +2213,7 @@ function _openExpenseModal(refresh) {
     const addr = overlay.querySelector('#eaddr').value.trim();
     let coords = null;
     if (addr) {
-      try { coords = (await _api(`/api/geo/geocode?q=${encodeURIComponent(addr)}`))?.coords; } catch (_) {}
+      try { const geo = await _api(`/api/geo/geocode?q=${encodeURIComponent(addr)}`); coords = geo?.found ? { lat: geo.lat, lon: geo.lon } : null; } catch (_) {}
     }
     await _api(`/api/trips/${_trip.id}/expenses`, 'POST', {
       description: desc, category: overlay.querySelector('#ec').value,
@@ -2699,7 +2699,6 @@ function _mdToHtml(text) {
   return s;
 }
 
-const _DOW_NAMES = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 // abbreviated PT day names → JS day-of-week (0=Sun)
 const _DOW_MAP = { dom:0, seg:1, ter:2, qua:3, qui:4, sex:5, sáb:6, sab:6 };
 
@@ -2708,7 +2707,7 @@ function _conflictWarning(p) {
   const dow = new Date(p.assigned_day + 'T12:00:00').getDay();
 
   const kb = _matchKB(p.name);
-  if (kb?.closed_days?.includes(dow)) return `Fechado ${_DOW_NAMES[dow]}`;
+  if (kb?.closed_days?.includes(dow)) return `Fechado ${DAYS_PT[dow]}`;
 
   const oh = (p.opening_hours || '').toLowerCase();
   if (!oh) return null;
@@ -2718,7 +2717,7 @@ function _conflictWarning(p) {
   const fechadoMatches = [...oh.matchAll(/fechado\s+([\wáéíóúãõâêîôûàèìòùç]+)/g)];
   for (const m of fechadoMatches) {
     const closedDay = _DOW_MAP[m[1]];
-    if (closedDay === dow) return `Fechado ${_DOW_NAMES[dow]}`;
+    if (closedDay === dow) return `Fechado ${DAYS_PT[dow]}`;
   }
   return null;
 }
