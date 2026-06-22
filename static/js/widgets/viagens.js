@@ -1057,10 +1057,11 @@ function _openFecharModal() {
 
   // wizard state
   let _summary = '';
-  let _analysis = null; // {visited:[], missed:[], new_places:[]}
+  let _analysis = null;
+  let _rewritten = '';
   let _confirmedVisited  = new Set();
   let _confirmedMissed   = new Set();
-  let _confirmedNewPois  = []; // [{name, coords, inferred_day, confirmed:true}]
+  let _confirmedNewPois  = [];
 
   const overlay = _overlay('');
   const modal   = overlay.querySelector('.viagens-modal');
@@ -1073,11 +1074,32 @@ function _openFecharModal() {
 
   // ── Step 1: Free text summary
   function renderStep1() {
+    const donePois = allPois.filter(p => p.done);
+    const byDay = {};
+    donePois.forEach(p => {
+      const day = p.assigned_day || '—';
+      if (!byDay[day]) byDay[day] = [];
+      byDay[day].push(p.name);
+    });
+    const refHtml = Object.keys(byDay).sort().map(day => {
+      const label = day === '—' ? 'Sem dia' : (() => {
+        const d = new Date(day + 'T12:00:00');
+        return `${DAYS_PT[d.getDay()]} ${d.getDate()} ${MONTHS_PT[d.getMonth()]}`;
+      })();
+      return `<div class="close-ref-day">
+        <div class="close-ref-day-label">${esc(label)}</div>
+        ${byDay[day].map(n => `<div class="close-ref-poi">· ${esc(n)}</div>`).join('')}
+      </div>`;
+    }).join('');
+
     modal.innerHTML = `
       <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
       ${_stepIndicator(1)}
       <p class="modal-hint">Conta como foi a viagem. O que fizeram, onde foram, o que surpreendeu.</p>
-      <textarea class="modal-textarea" id="tc-summary" rows="8" placeholder="Ex: Chegámos no dia 19 ao fim da tarde…">${esc(_summary)}</textarea>
+      <div class="close-step1-body">
+        <textarea class="modal-textarea" id="tc-summary" rows="8" placeholder="Ex: Chegámos no dia 19 ao fim da tarde…">${esc(_summary)}</textarea>
+        ${donePois.length ? `<div class="close-ref-panel"><div class="close-ref-title">O que fizeram</div>${refHtml}</div>` : ''}
+      </div>
       <div class="modal-actions">
         <button class="btn-modal-cancel" id="mc2">Cancelar</button>
         <button class="btn-modal-save"   id="tc-next-1">Analisar →</button>
@@ -1109,6 +1131,7 @@ function _openFecharModal() {
     _confirmedVisited = new Set(_analysis.visited || []);
     _confirmedMissed  = new Set(_analysis.missed  || []);
     _confirmedNewPois = (_analysis.new_places || []).map(p => ({...p, confirmed: true, coords: null}));
+    _rewritten        = _analysis.rewritten_summary || '';
 
     const visitedCards = [..._confirmedVisited].map(id => {
       const p = allPois.find(p => p.id === id);
@@ -1125,17 +1148,38 @@ function _openFecharModal() {
         <span class="wizard-geo-hint" id="geo-hint-${i}"></span>
       </div>`).join('');
 
+    const rewrittenHtml = _rewritten ? `
+      <div class="wizard-rewritten">
+        <div class="wizard-rewritten-header">
+          <span class="wizard-rewritten-label">✨ Versão melhorada</span>
+          <button class="wizard-rewritten-toggle" id="wiz-toggle-raw">ver original</button>
+        </div>
+        <div class="wizard-rewritten-body" id="wiz-rewritten-body">${_rewritten.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>
+        <div class="wizard-rewritten-body" id="wiz-raw-body" style="display:none">${esc(_summary).replace(/\n/g,'<br>')}</div>
+      </div>` : '';
+
     modal.innerHTML = `
       <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
       ${_stepIndicator(2)}
+      ${rewrittenHtml}
       ${visitedCards || missedCards || newCards
-        ? `<p class="modal-hint">Confirma as inferências abaixo antes de avançar.</p>
+        ? `<p class="modal-hint" style="margin-top:.75rem">Confirma as inferências antes de avançar.</p>
            <div class="wizard-cards">${visitedCards}${missedCards}${newCards}</div>`
         : `<p class="modal-hint">Nenhum POI identificado no texto. Podes continuar.</p>`}
       <div class="modal-actions">
         <button class="btn-modal-cancel" id="wiz-back">← Voltar</button>
         <button class="btn-modal-save"   id="wiz-next-2">Confirmar tudo →</button>
       </div>`;
+
+    if (_rewritten) {
+      let showingRaw = false;
+      modal.querySelector('#wiz-toggle-raw').addEventListener('click', () => {
+        showingRaw = !showingRaw;
+        modal.querySelector('#wiz-rewritten-body').style.display = showingRaw ? 'none' : '';
+        modal.querySelector('#wiz-raw-body').style.display        = showingRaw ? '' : 'none';
+        modal.querySelector('#wiz-toggle-raw').textContent = showingRaw ? 'ver melhorado' : 'ver original';
+      });
+    }
 
     modal.querySelector('#mc').addEventListener('click', close);
     modal.querySelector('#wiz-back').addEventListener('click', renderStep1);
@@ -1209,7 +1253,7 @@ function _openFecharModal() {
       }));
       try {
         _trip = await _api(`/api/trips/${t.id}/archive`, 'POST', {
-          summary: _summary,
+          summary: _rewritten || _summary,
           visited_ids: [..._confirmedVisited],
           missed_ids:  [..._confirmedMissed],
           new_pois:    newPois,
@@ -1318,7 +1362,7 @@ function _renderResumo() {
   const isPastTrip = new Date(t.countdown_to) < new Date() && t.status !== 'archived';
 
   return `
-    ${t.status === 'archived' && t.summary ? `<div class="trip-memory-card"><div class="trip-memory-label">Memória da viagem</div><p>${esc(t.summary)}</p></div>` : ''}
+    ${t.status === 'archived' && t.summary ? `<div class="trip-memory-card"><div class="trip-memory-label">Memória da viagem</div><div class="trip-memory-body">${esc(t.summary).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}</div></div>` : ''}
     ${isPastTrip ? `<button class="btn-primary btn-fechar-viagem-top" id="btn-fechar-viagem-top">Arquivar viagem ↗</button>` : ''}
     <div class="viagens-legs">
       ${t.legs.length===0
@@ -1463,7 +1507,6 @@ function _renderDespesas() {
   const inesSolo  = exps.reduce((s,e) => s + (e.split==='ines'   ? e.amount : 0), 0);
   const grand     = exps.reduce((s,e) => s + e.amount, 0);
   const cashTotal = exps.reduce((s,e) => s + (e.payment_method==='cash' ? e.amount : 0), 0);
-  const noMethod  = exps.filter(e => !e.payment_method).reduce((s,e) => s + e.amount, 0);
   const cardTotal = grand - cashTotal;
 
   // Category chart
@@ -1514,7 +1557,7 @@ function _renderDespesas() {
         <div class="exp-total-item"><span class="exp-total-label">Inês solo</span><span class="exp-total-value">€${inesSolo.toFixed(2)}</span></div>
         <div class="exp-total-item exp-total-grand"><span class="exp-total-label">Total</span><span class="exp-total-value">€${grand.toFixed(2)}</span></div>
         <div class="exp-total-item exp-total-payment">
-          <span class="exp-total-label">💳 €${cardTotal.toFixed(2)} · 💵 €${cashTotal.toFixed(2)}${noMethod > 0 ? ` · ❓ €${noMethod.toFixed(2)} sem método` : ''}</span>
+          <span class="exp-total-label">💳 €${cardTotal.toFixed(2)} · 💵 €${cashTotal.toFixed(2)}</span>
         </div>
       </div>
     </div>

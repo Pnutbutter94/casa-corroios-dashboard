@@ -2614,28 +2614,53 @@ def analyze_trip_summary(trip_id):
                 for c in t.get('cities', []) for p in c.get('pois', [])]
     poi_list = '\n'.join(f"  {p['id']}: {p['name']} ({p['city']})" for p in all_pois)
 
+    city_names  = [c['name'] for c in t.get('cities', [])]
+    legs        = t.get('legs', [])
+    date_range  = ''
+    if legs:
+        dates = sorted(l['date'] for l in legs if l.get('date'))
+        if dates:
+            date_range = f"{dates[0]} a {dates[-1]}"
+
     prompt = (
-        f"Trip: {t.get('name', '')}\n"
-        f"POIs:\n{poi_list}\n\n"
-        f"Narrative:\n{summary}\n\n"
-        "Extract structured data. Return ONLY valid JSON:\n"
-        '{"visited": ["poi-id-1", ...], "missed": ["poi-id-2", ...], '
-        '"new_places": [{"name": "...", "context": "...", "inferred_day": "YYYY-MM-DD"}]}\n'
-        "Only use POI IDs from the list above. new_places are mentions not in the list."
+        f"Viagem: {t.get('name', '')} ({date_range})\n"
+        f"Cidades: {', '.join(city_names)}\n"
+        f"Viajantes: {', '.join(t.get('travellers', []))}\n"
+        f"POIs registados:\n{poi_list}\n\n"
+        f"Narrativa bruta do utilizador:\n{summary}\n\n"
+        "Faz DUAS coisas e responde neste formato exato:\n\n"
+        "RESUMO:\n"
+        "<reescreve a narrativa em português europeu correto e fluido. "
+        "Organiza por dia com subtítulo em negrito (ex: **Dia 1 — Quinta, 19 Jun**). "
+        "Mantém TODOS os detalhes, sítios e momentos mencionados. "
+        "Destaca o que foi especial ou surpreendente. "
+        "Para cada sítio visitado indica o que provaram/fizeram e uma breve avaliação se o utilizador a deu. "
+        "Termina com um parágrafo 'Em resumo' com 2-3 linhas sobre o espírito geral da viagem.>\n\n"
+        "JSON:\n"
+        '{"visited": ["poi-id"], "missed": ["poi-id"], '
+        '"new_places": [{"name": "...", "context": "...", "inferred_day": "YYYY-MM-DD"}]}\n\n'
+        "Regras do JSON: só usa IDs da lista de POIs acima. "
+        "new_places são sítios mencionados na narrativa que NÃO estão na lista de POIs."
     )
     try:
         req = urllib.request.Request(
             CLAUDE_RELAY,
-            data=json.dumps({'prompt': prompt}).encode(),
+            data=json.dumps({'prompt': prompt, 'timeout': 110}).encode(),
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
-        with urllib.request.urlopen(req, timeout=55) as r:
-            raw = json.loads(r.read()).get('response', '{}')
-        # Extract JSON from response
+        with urllib.request.urlopen(req, timeout=120) as r:
+            raw = json.loads(r.read()).get('response', '')
+
         import re as _re
-        m = _re.search(r'\{.*\}', raw, _re.DOTALL)
-        result = json.loads(m.group()) if m else {'visited': [], 'missed': [], 'new_places': []}
+        rewritten = ''
+        m_resumo = _re.search(r'(?:#+\s*)?RESUMO:?\s*(.*?)\s*(?:#+\s*)?JSON:?', raw, _re.DOTALL | _re.IGNORECASE)
+        if m_resumo:
+            rewritten = m_resumo.group(1).strip()
+
+        m_json = _re.search(r'(?:#+\s*)?JSON:?\s*(\{.*\})', raw, _re.DOTALL | _re.IGNORECASE)
+        result = json.loads(m_json.group(1)) if m_json else {'visited': [], 'missed': [], 'new_places': []}
+        result['rewritten_summary'] = rewritten
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 502

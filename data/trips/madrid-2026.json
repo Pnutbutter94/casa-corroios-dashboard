@@ -2,7 +2,7 @@
   "id": "madrid-2026",
   "name": "Madrid 2026",
   "flag": "🇪🇸",
-  "status": "confirmed",
+  "status": "archived",
   "countdown_to": "2026-06-19",
   "travellers": [
     "Pedro",
@@ -115,7 +115,8 @@
           "planned_time": "19:00",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": null,
+          "missed": true
         },
         {
           "id": "poi-azotea",
@@ -139,7 +140,8 @@
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": null,
+          "missed": true
         },
         {
           "id": "poi-hermanos-vinagre",
@@ -205,7 +207,8 @@
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": "Rua de tapas próxima de La Campana."
+          "note_post_visit": "Rua de tapas próxima de La Campana.",
+          "missed": true
         },
         {
           "id": "poi-takos-pastor",
@@ -340,7 +343,8 @@
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": null,
+          "missed": true
         },
         {
           "id": "poi-belmondo",
@@ -433,7 +437,8 @@
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": "Bairro da Bodega La Ardosa."
+          "note_post_visit": "Bairro da Bodega La Ardosa.",
+          "missed": true
         },
         {
           "id": "poi-panera-rosa",
@@ -454,7 +459,8 @@
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": null,
+          "missed": true
         },
         {
           "id": "poi-rastro",
@@ -526,28 +532,67 @@
           "note_post_visit": "Domingo de manhã antes do aeroporto. Quiosque com cervejas + água."
         },
         {
-          "id": "poi-jogo-espanha",
-          "name": "Jogo Espanha (Plaza Colón)",
+          "id": "poi-99c5678b",
+          "name": "Plaza Chueca",
           "type": "outro",
-          "priority": "must",
-          "duration_h": 2.5,
-          "notes": "Ver jogo na plaza com ambiente",
-          "opening_hours": "",
-          "free_entry": "",
-          "coords": {
-            "lat": 40.4239,
-            "lon": -3.688
-          },
+          "priority": "backlog",
+          "duration_h": 1,
           "done": true,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "noite",
-          "assigned_order": 1,
-          "checkin_time": null,
-          "checkout_time": null,
-          "planned_time": "18:00",
-          "locked": false,
-          "url": "",
-          "note_post_visit": "⚠️ Confirmar: antes ou depois do Prado?"
+          "assigned_day": "2026-06-19"
+        },
+        {
+          "id": "poi-f7b45e39",
+          "name": "San Ginés",
+          "type": "outro",
+          "priority": "backlog",
+          "duration_h": 1,
+          "done": true,
+          "assigned_day": "2026-06-19"
+        },
+        {
+          "id": "poi-4518a565",
+          "name": "Cibeles",
+          "type": "outro",
+          "priority": "backlog",
+          "duration_h": 1,
+          "done": true,
+          "assigned_day": "2026-06-20"
+        },
+        {
+          "id": "poi-b85bb654",
+          "name": "Puerta de Alcalá",
+          "type": "outro",
+          "priority": "backlog",
+          "duration_h": 1,
+          "done": true,
+          "assigned_day": "2026-06-20"
+        },
+        {
+          "id": "poi-30fa0247",
+          "name": "Plaza Colón",
+          "type": "outro",
+          "priority": "backlog",
+          "duration_h": 1,
+          "done": true,
+          "assigned_day": "2026-06-20"
+        },
+        {
+          "id": "poi-03e6ed06",
+          "name": "Frois",
+          "type": "outro",
+          "priority": "backlog",
+          "duration_h": 1,
+          "done": true,
+          "assigned_day": "2026-06-20"
+        },
+        {
+          "id": "poi-799f22a6",
+          "name": "McDonald's Gran Vía",
+          "type": "outro",
+          "priority": "backlog",
+          "duration_h": 1,
+          "done": true,
+          "assigned_day": "2026-06-21"
         }
       ]
     }
@@ -899,5 +944,7 @@
     }
   ],
   "tips": [],
-  "links": []
+  "links": [],
+  "summary": "**Dia 1 — Quinta-feira, 19 de Junho**\n\nA viagem começou com a chegada ao hotel por volta das 17h30, onde desfrutaram de uma vista magnífica do quarto. Logo após o check-in, com fome redobrada, dirigiram-se ao Takos el Pastor para o primeiro contacto gastronómico de Madrid. Tinham uma reserva no Hundred para as 19h, mas ao chegarem à porta decidiram cancelá-la e enveredaram por um percurso mais descontraído. Ficaram na Plaza Chueca a saborear Aperol Spritz e Vermut, uma pausa refrescante. De seguida, foram ao Hermanos Vinagre provar batatas bravas, que apesar da proximidade não os conquistou. Continuaram para o Pez Tortilla a experimentar a tortilha, que se revelou uma escolha acertada com um ambiente acolhedor. A caminhada pelas ruas madrileñas levou-os até à Puerta del Sol e Plaza Mayor para um passeio noturno. No La Campana provaram calamares, e terminaram a noite memorável no San Ginés com churros quentes e chocolate derretido. Toda esta exploração foi feita a pé, numa andança que refletiu o ritmo descontraído da primeira noite.\n\n**Dia 2 — Sexta-feira, 20 de Junho**\n\nO segundo dia começou cedo com o lendário \"pequeno almoço dos campeões\" na Bodega La Ardosa: dois pinchos de tortilha, uma alcachofra à plancha, uma cerveja e dois vermutes. Com nova energia, passearam pela Fuencarral e Gran Vía, uma caminhada que os levou pela Cibeles, Puerta de Alcalá, zona de lojas de luxo e Plaza Colón até ao BelMondo. O almoço, por volta das 16h, incluiu uma pizza e um excelente carpaccio com tiramisu, combinação que mereceu plena aprovação. À tarde, visitaram o Museo del Prado, aproveitando a entrada gratuita após as 18h. Saindo do museu pelas 20h, dirigiram-se ao Templo de Debod para presenciar o pôr do sol, passando no Frois para adquirir água e cervejas. Apanharam o autocarro C003 para esta deslocação, o único transporte do dia. Terminaram com hambúrgueres no Five Guys da Gran Vía, encerando mais um dia repleto de descobertas gastronómicas e culturais.\n\n**Dia 3 — Sábado, 21 de Junho**\n\nO último dia manteve a tradição com pequeno almoço na Bodega La Ardosa. Passaram por Puertas del Sol e Plaza Mayor para uma visualização diurna destas praças icónicas. Dirigiram-se depois a La Latina para explorar o histórico mercado El Rastro, um passeio impregnado de autenticidade madrileña. O almoço foi na Taberna El Sur, após o qual se instalaram numa esplanada do Parque del Retiro com vista para o Lago Central, onde passaram várias horas em descontração total. Quando chegou a hora de partir, apanharam o metro rumo ao hotel para recolher a mochila, e depois novamente metro até ao aeroporto. Um último e prático jantar no McDonald's da Gran Vía serviu como ponte para o regresso. O voo atrasou uma hora, chegando a casa apenas após a 1 da manhã de dia 22.\n\n**Em resumo:**\nUma viagem por Madrid que se definiu pela exploração descontraída a pé, pausas gastronómicas memoráveis e a capacidade de se desviar do planeado quando algo melhor se apresentava. Pedro e Inês viveram Madrid como quem passeia um bairro amigo: sem pressa, com bom apetite e olhos atentos.\n\n---",
+  "archived_on": "2026-06-22"
 }

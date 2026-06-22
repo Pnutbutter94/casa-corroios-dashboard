@@ -2284,6 +2284,43 @@
 .exp-total-payment { font-size: .78rem; color: var(--text-dim); padding: .25rem 0; }
 
 /* Part 2 — Wizard */
+/* ── Rewritten summary block (Step 2) ── */
+.wizard-rewritten {
+  background: var(--surface2);
+  border-radius: 10px;
+  border-left: 3px solid var(--accent, #7c6aff);
+  padding: .75rem 1rem;
+  margin-bottom: .5rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.wizard-rewritten-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+.wizard-rewritten-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--accent, #7c6aff);
+}
+.wizard-rewritten-toggle {
+  font-size: .7rem;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.wizard-rewritten-body {
+  font-size: .82rem;
+  line-height: 1.65;
+  color: var(--text);
+}
 .wizard-steps { display: flex; gap: .5rem; font-size: .75rem; color: var(--text-dim); margin-bottom: .75rem; }
 .wiz-step-active { color: var(--text); font-weight: 700; }
 .wizard-loading { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 1.1rem; }
@@ -2297,9 +2334,50 @@
 .wizard-last-exps { display: flex; flex-direction: column; gap: .25rem; font-size: .8rem; max-height: 120px; overflow-y: auto; margin-bottom: .75rem; }
 .wizard-exp-row { display: flex; justify-content: space-between; padding: .2rem 0; border-bottom: 1px solid var(--border); }
 
+/* Step 1 close wizard — two-column layout */
+.close-step1-body {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+}
+.close-step1-body .modal-textarea {
+  flex: 1;
+  min-width: 0;
+}
+.close-ref-panel {
+  width: 180px;
+  flex-shrink: 0;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: .6rem .75rem;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: .75rem;
+}
+.close-ref-title {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-dim);
+  margin-bottom: .4rem;
+}
+.close-ref-day { margin-bottom: .5rem; }
+.close-ref-day-label {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: .15rem;
+}
+.close-ref-poi { color: var(--text-dim); line-height: 1.4; }
+@media (max-width: 500px) {
+  .close-step1-body { flex-direction: column; }
+  .close-ref-panel { width: 100%; max-height: 130px; }
+}
+
 /* Part 2 — Archived trip */
 .trip-memory-card { background: var(--surface2); border-radius: 10px; padding: .75rem 1rem; margin-bottom: .75rem; }
 .trip-memory-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: .3rem; }
-.trip-memory-card p { font-size: .85rem; line-height: 1.5; margin: 0; color: var(--text); white-space: pre-wrap; }
+.trip-memory-card p, .trip-memory-body { font-size: .85rem; line-height: 1.65; margin: 0; color: var(--text); }
+.trip-memory-body p { margin: .4rem 0 0; }
 .trip-sel-item.archived { opacity: .7; }
 .trip-sel-item-cd.archived { color: var(--text-dim); }
