@@ -646,7 +646,11 @@
       "date": "2026-06-19",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "card"
+      "payment_method": "card",
+      "coords": {
+        "lat": 38.780998,
+        "lon": -9.131861
+      }
     },
     {
       "id": "exp-9daf4a3b",
@@ -656,7 +660,11 @@
       "date": "2026-06-19",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "card"
+      "payment_method": "card",
+      "coords": {
+        "lat": 40.495227,
+        "lon": -3.573373
+      }
     },
     {
       "id": "exp-1baa15c4",
@@ -732,7 +740,11 @@
       "date": "2026-06-19",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "card"
+      "payment_method": "card",
+      "coords": {
+        "lat": 40.4215,
+        "lon": -3.7066
+      }
     },
     {
       "id": "exp-8a6e9b8d",
@@ -834,7 +846,11 @@
       "date": "2026-06-20",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "card"
+      "payment_method": "card",
+      "coords": {
+        "lat": 40.4215,
+        "lon": -3.7066
+      }
     },
     {
       "id": "exp-9a965da4",
@@ -893,7 +909,11 @@
       "date": "2026-06-21",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "cash"
+      "payment_method": "cash",
+      "coords": {
+        "lat": 40.495227,
+        "lon": -3.573373
+      }
     },
     {
       "id": "exp-2f474e19",
@@ -903,7 +923,11 @@
       "date": "2026-06-21",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "cash"
+      "payment_method": "cash",
+      "coords": {
+        "lat": 40.495227,
+        "lon": -3.573373
+      }
     },
     {
       "id": "exp-9bef1392",

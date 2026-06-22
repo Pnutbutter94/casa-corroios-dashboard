@@ -22,7 +22,16 @@
       "confirmed": false,
       "flight": null,
       "status": null,
-      "delay_minutes": 0
+      "delay_minutes": 0,
+      "buffers": {
+        "processing_min": 15,
+        "transfer_min": 45,
+        "hotel_checkin_min": 20,
+        "checkin_buffer_min": 90,
+        "estimated": true,
+        "from_iata": "LIS",
+        "to_iata": "BER"
+      }
     }
   ],
   "cities": [
@@ -57,7 +66,11 @@
       "amount": 65.0,
       "date": "2026-05-27",
       "split": "pedro",
-      "confirmed": false
+      "confirmed": false,
+      "coords": {
+        "lat": 52.521457,
+        "lon": 13.411079
+      }
     }
   ],
   "links": []
