@@ -2325,6 +2325,8 @@ def trips_list():
             continue
         with open(os.path.join(TRIPS_DIR, fname)) as f:
             t = json.load(f)
+        if not isinstance(t, dict):
+            continue
         trips.append({k: t.get(k) for k in ('id', 'name', 'flag', 'status', 'countdown_to', 'travellers', 'budget_per_person')})
     return jsonify(trips)
 
