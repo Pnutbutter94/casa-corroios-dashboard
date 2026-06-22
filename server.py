@@ -2600,6 +2600,94 @@ def trip_jarvis_save(trip_id):
     return jsonify({'ok': True, 'path': f'Viagens/{slug}.md'})
 
 
+@app.route('/api/trips/<trip_id>/analyze-summary', methods=['POST'])
+def analyze_trip_summary(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body    = request.get_json(silent=True) or {}
+    summary = str(body.get('summary', '')).strip()[:3000]
+    if not summary:
+        return jsonify({'error': 'summary required'}), 400
+
+    all_pois = [{'id': p['id'], 'name': p['name'], 'city': c['name']}
+                for c in t.get('cities', []) for p in c.get('pois', [])]
+    poi_list = '\n'.join(f"  {p['id']}: {p['name']} ({p['city']})" for p in all_pois)
+
+    prompt = (
+        f"Trip: {t.get('name', '')}\n"
+        f"POIs:\n{poi_list}\n\n"
+        f"Narrative:\n{summary}\n\n"
+        "Extract structured data. Return ONLY valid JSON:\n"
+        '{"visited": ["poi-id-1", ...], "missed": ["poi-id-2", ...], '
+        '"new_places": [{"name": "...", "context": "...", "inferred_day": "YYYY-MM-DD"}]}\n'
+        "Only use POI IDs from the list above. new_places are mentions not in the list."
+    )
+    try:
+        req = urllib.request.Request(
+            CLAUDE_RELAY,
+            data=json.dumps({'prompt': prompt}).encode(),
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=55) as r:
+            raw = json.loads(r.read()).get('response', '{}')
+        # Extract JSON from response
+        import re as _re
+        m = _re.search(r'\{.*\}', raw, _re.DOTALL)
+        result = json.loads(m.group()) if m else {'visited': [], 'missed': [], 'new_places': []}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@app.route('/api/trips/<trip_id>/archive', methods=['POST'])
+def archive_trip(trip_id):
+    t = _load_trip(trip_id)
+    if t is None:
+        return jsonify({'error': 'not found'}), 404
+    body        = request.get_json(silent=True) or {}
+    summary     = str(body.get('summary', ''))[:5000]
+    visited_ids = set(body.get('visited_ids', []))
+    missed_ids  = set(body.get('missed_ids', []))
+    new_pois    = body.get('new_pois', [])
+    import datetime as _dt
+
+    for c in t.get('cities', []):
+        for p in c.get('pois', []):
+            if p['id'] in visited_ids:
+                p['done'] = True
+                p.pop('missed', None)
+            elif p['id'] in missed_ids:
+                p['missed'] = True
+
+        if new_pois:
+            for np in new_pois:
+                name = str(np.get('name', '')).strip()[:200]
+                if not name:
+                    continue
+                poi = {
+                    'id':        f'poi-{uuid.uuid4().hex[:8]}',
+                    'name':      name,
+                    'type':      'outro',
+                    'priority':  'backlog',
+                    'duration_h': 1,
+                    'done':      True,
+                }
+                if np.get('coords'):
+                    poi['coords'] = np['coords']
+                if np.get('inferred_day'):
+                    poi['assigned_day'] = str(np['inferred_day'])[:10]
+                c.setdefault('pois', []).append(poi)
+            new_pois = []  # only add to first city
+
+    t['summary']     = summary
+    t['status']      = 'archived'
+    t['archived_on'] = _dt.date.today().isoformat()
+    _save_trip(trip_id, t)
+    return jsonify(t)
+
+
 @app.route('/api/trips/<trip_id>/claude', methods=['POST'])
 def trip_claude(trip_id):
     t = _load_trip(trip_id)
@@ -2610,7 +2698,15 @@ def trip_claude(trip_id):
     if not query:
         return jsonify({'error': 'query required'}), 400
     context = _trip_context_for_claude(t)
-    prompt  = f"{context}\n\nMensagem: {query}"
+    archive_prefix = ''
+    if t.get('status') == 'archived' and t.get('summary'):
+        missed = [p['name'] for c in t.get('cities', []) for p in c.get('pois', []) if p.get('missed')]
+        archive_prefix = (
+            f"Esta viagem já terminou. Resumo do utilizador: \"{t['summary']}\"\n"
+            + (f"POIs não visitados: {', '.join(missed)}\n" if missed else '')
+            + "Usa este contexto para responder ao que fizeram, ao que não visitaram, e recomendações futuras.\n\n"
+        )
+    prompt  = f"{archive_prefix}{context}\n\nMensagem: {query}"
     try:
         req = urllib.request.Request(
             CLAUDE_RELAY,

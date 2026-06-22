@@ -1048,96 +1048,183 @@ function _openAddCityModal(refresh) {
   });
 }
 
-// ── FECHAR VIAGEM ──────────────────────────────────────────────────────────
+// ── FECHAR VIAGEM (3-step wizard) ──────────────────────────────────────────
 function _openFecharModal() {
   const t = _trip;
+  const exps   = t.expenses || [];
   const { pedro, ines } = _budgetCalc(t);
-  const nights = (t.cities||[]).reduce(
-    (s,c) => s + Math.round((new Date(c.departure) - new Date(c.arrival)) / 86400000), 0);
+  const allPois = t.cities.flatMap(c => (c.pois||[]).map(p => ({...p, cityId:c.id, cityName:c.name})));
 
-  const legLines = (t.legs||[]).map(l =>
-    `- ✈️ ${l.from} → ${l.to} · ${_fmtDate(l.date)} · ${l.airline}${l.flight ? ' ' + l.flight : ''}`
-  ).join('\n') || '— (sem voos registados)';
+  // wizard state
+  let _summary = '';
+  let _analysis = null; // {visited:[], missed:[], new_places:[]}
+  let _confirmedVisited  = new Set();
+  let _confirmedMissed   = new Set();
+  let _confirmedNewPois  = []; // [{name, coords, inferred_day, confirmed:true}]
 
-  const cityLines = (t.cities||[]).map(c =>
-    `- **${c.name}** · ${_fmtDate(c.arrival)} → ${_fmtDate(c.departure)} · ${c.hotel.name || 'alojamento a definir'}`
-  ).join('\n') || '— (sem alojamento)';
-
-  const allPois = (t.cities||[]).flatMap(c => (c.pois||[]).map(p => ({...p, cityName:c.name})));
-  const poiLines = [
-    ...allPois.filter(p=>p.done).map(p =>
-      `- ✓ **${p.name}** (${p.type})${p.checkin_time ? ' · ' + _fmtTime(p.checkin_time) : ''}`),
-    ...allPois.filter(p=>!p.done && p.priority!=='backlog').map(p =>
-      `- ○ ${p.name} (${p.type}) — não visitado`),
-  ].join('\n') || '— (sem POIs)';
-
-  const exps = (t.expenses||[]);
-  let expBlock = '— (sem despesas)';
-  if (exps.length) {
-    const rows = exps.map(e =>
-      `| ${esc(e.description||'—')} | ${esc(CATEGORY_LABELS[e.category]||e.category)} | €${Number(e.amount).toFixed(2)} | ${esc(SPLIT_LABELS[e.split]||e.split)} |`
-    ).join('\n');
-    expBlock = `| Descrição | Categoria | Valor | Split |\n|---|---|---|---|\n${rows}\n\n**Total:** €${(pedro+ines).toFixed(2)} · Pedro €${pedro.toFixed(2)} · Inês €${ines.toFixed(2)}`;
-  }
-
-  const today = new Date().toLocaleDateString('pt-PT');
-  const slug  = t.name.replace(/\s+/g, '-');
-  const md = `# ${t.name}
-${_fmtDate(t.countdown_to)} · ${nights} noite${nights!==1?'s':''} · ${(t.cities||[]).map(c=>c.name).join(', ')}
-
-## Voos
-${legLines}
-
-## Alojamento
-${cityLines}
-
-## POIs
-${poiLines}
-
-## Despesas
-${expBlock}
-
----
-*Exportado em ${today}*`;
-
-  const overlay = _overlay(`
-    <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
-    <p class="modal-hint">Copia para o Obsidian em <code>Viagens/${esc(slug)}.md</code></p>
-    <textarea class="modal-textarea" id="md-out" readonly>${esc(md)}</textarea>
-    <div class="modal-actions">
-      <button class="btn-modal-cancel" id="mcancel">Fechar</button>
-      <button class="btn-modal-secondary" id="mjsave">🗂 Guardar no Jarvis</button>
-      <button class="btn-modal-save"   id="msave">📋 Copiar</button>
-    </div>`);
-
-  const close = () => document.body.removeChild(overlay);
-  overlay.querySelector('#mc').addEventListener('click', close);
-  overlay.querySelector('#mcancel').addEventListener('click', close);
+  const overlay = _overlay('');
+  const modal   = overlay.querySelector('.viagens-modal');
+  const close   = () => document.body.removeChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
-  overlay.querySelector('#msave').addEventListener('click', async () => {
-    const saveBtn = overlay.querySelector('#msave');
-    try {
-      await navigator.clipboard.writeText(md);
-      saveBtn.textContent = '✓ Copiado!';
-      setTimeout(() => { saveBtn.textContent = '📋 Copiar'; }, 2000);
-    } catch (_) {
-      overlay.querySelector('#md-out').select();
-    }
-  });
+  function _stepIndicator(step) {
+    return `<div class="wizard-steps"><span class="${step===1?'wiz-step-active':''}">1 Resumo</span> · <span class="${step===2?'wiz-step-active':''}">2 Análise</span> · <span class="${step===3?'wiz-step-active':''}">3 Despesas</span></div>`;
+  }
 
-  overlay.querySelector('#mjsave').addEventListener('click', async () => {
-    const btn = overlay.querySelector('#mjsave');
-    btn.textContent = '⟳ A guardar…';
-    btn.disabled = true;
-    const r = await _api(`/api/trips/${_trip.id}/jarvis-save`, 'POST');
-    if (r.ok) {
-      btn.textContent = `✓ ${r.path}`;
-    } else {
-      btn.textContent = '✕ Erro';
-      setTimeout(() => { btn.textContent = '🗂 Guardar no Jarvis'; btn.disabled = false; }, 3000);
+  // ── Step 1: Free text summary
+  function renderStep1() {
+    modal.innerHTML = `
+      <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
+      ${_stepIndicator(1)}
+      <p class="modal-hint">Conta como foi a viagem. O que fizeram, onde foram, o que surpreendeu.</p>
+      <textarea class="modal-textarea" id="tc-summary" rows="8" placeholder="Ex: Chegámos no dia 19 ao fim da tarde…">${esc(_summary)}</textarea>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="mc2">Cancelar</button>
+        <button class="btn-modal-save"   id="tc-next-1">Analisar →</button>
+      </div>`;
+    modal.querySelector('#mc').addEventListener('click', close);
+    modal.querySelector('#mc2').addEventListener('click', close);
+    modal.querySelector('#tc-next-1').addEventListener('click', async () => {
+      _summary = modal.querySelector('#tc-summary').value.trim();
+      if (!_summary) { modal.querySelector('#tc-summary').focus(); return; }
+      renderStep2();
+    });
+  }
+
+  // ── Step 2: AI analysis + confirmation cards
+  async function renderStep2() {
+    modal.innerHTML = `
+      <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
+      ${_stepIndicator(2)}
+      <div class="wizard-loading">A analisar… ⟳</div>`;
+    modal.querySelector('#mc').addEventListener('click', close);
+
+    try {
+      _analysis = await _api(`/api/trips/${t.id}/analyze-summary`, 'POST', { summary: _summary, trip: t });
+    } catch (e) {
+      modal.querySelector('.wizard-loading').textContent = 'Erro na análise. Continua sem análise.';
+      _analysis = { visited: [], missed: [], new_places: [] };
     }
-  });
+
+    _confirmedVisited = new Set(_analysis.visited || []);
+    _confirmedMissed  = new Set(_analysis.missed  || []);
+    _confirmedNewPois = (_analysis.new_places || []).map(p => ({...p, confirmed: true, coords: null}));
+
+    const visitedCards = [..._confirmedVisited].map(id => {
+      const p = allPois.find(p => p.id === id);
+      return p ? `<div class="wizard-card wizard-card-ok">✓ <strong>${esc(p.name)}</strong> — marcar como visitado</div>` : '';
+    }).join('');
+    const missedCards = [..._confirmedMissed].map(id => {
+      const p = allPois.find(p => p.id === id);
+      return p ? `<div class="wizard-card wizard-card-miss">✗ <strong>${esc(p.name)}</strong> — marcar como não visitado</div>` : '';
+    }).join('');
+    const newCards = _confirmedNewPois.map((np, i) => `
+      <div class="wizard-card wizard-card-new" data-new-idx="${i}">
+        ＋ <strong>${esc(np.name)}</strong> — novo sítio
+        <input class="modal-input" placeholder="Endereço para geocodificar…" data-geo-idx="${i}" style="margin-top:.4rem" />
+        <span class="wizard-geo-hint" id="geo-hint-${i}"></span>
+      </div>`).join('');
+
+    modal.innerHTML = `
+      <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
+      ${_stepIndicator(2)}
+      ${visitedCards || missedCards || newCards
+        ? `<p class="modal-hint">Confirma as inferências abaixo antes de avançar.</p>
+           <div class="wizard-cards">${visitedCards}${missedCards}${newCards}</div>`
+        : `<p class="modal-hint">Nenhum POI identificado no texto. Podes continuar.</p>`}
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="wiz-back">← Voltar</button>
+        <button class="btn-modal-save"   id="wiz-next-2">Confirmar tudo →</button>
+      </div>`;
+
+    modal.querySelector('#mc').addEventListener('click', close);
+    modal.querySelector('#wiz-back').addEventListener('click', renderStep1);
+    modal.querySelectorAll('[data-geo-idx]').forEach(inp => {
+      const idx = parseInt(inp.dataset.geoIdx, 10);
+      const hint = modal.querySelector(`#geo-hint-${idx}`);
+      inp.addEventListener('blur', async () => {
+        const q = inp.value.trim();
+        if (!q) return;
+        hint.textContent = '⟳';
+        try {
+          const r = await _api(`/api/geo/geocode?q=${encodeURIComponent(q + ' ' + (t.cities[0]?.name||''))}`);
+          if (r?.coords) {
+            _confirmedNewPois[idx].coords = r.coords;
+            hint.textContent = `✓ ${r.display_name || 'localizado'}`;
+          } else {
+            hint.textContent = '⚠ não encontrado';
+          }
+        } catch (_) { hint.textContent = '⚠ erro'; }
+      });
+    });
+    modal.querySelector('#wiz-next-2').addEventListener('click', renderStep3);
+  }
+
+  // ── Step 3: Expenses review + final archive
+  function renderStep3() {
+    const lastFive = exps.slice().sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
+    const total = exps.reduce((s,e) => s + e.amount, 0);
+    const { pedro: pp, ines: ip } = _budgetCalc(t);
+    modal.innerHTML = `
+      <div class="modal-title">Fechar viagem <button class="modal-close" id="mc">✕</button></div>
+      ${_stepIndicator(3)}
+      <p class="modal-hint">${exps.length} despesa${exps.length!==1?'s':''} registada${exps.length!==1?'s':''} · €${(pp+ip).toFixed(2)} total</p>
+      <p class="modal-hint">Falta alguma despesa?</p>
+      <div class="wizard-quick-add">
+        <input class="modal-input" id="qa-desc" placeholder="Descrição" style="flex:2" />
+        <input class="modal-input" type="number" id="qa-amt" placeholder="€" style="flex:1;width:5rem" min="0" step="0.01" />
+        <input class="modal-input" type="date"   id="qa-date" style="flex:1" />
+        <button class="btn-modal-secondary" id="qa-add">＋ Adicionar</button>
+      </div>
+      <div class="wizard-last-exps">
+        ${lastFive.map(e => `<div class="wizard-exp-row"><span>${esc(e.description)}</span><span>€${e.amount.toFixed(2)}</span></div>`).join('')}
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="wiz-back3">← Voltar</button>
+        <button class="btn-modal-save"   id="wiz-archive">Tudo certo — Arquivar viagem ✓</button>
+      </div>`;
+
+    modal.querySelector('#mc').addEventListener('click', close);
+    modal.querySelector('#wiz-back3').addEventListener('click', renderStep2);
+
+    modal.querySelector('#qa-add').addEventListener('click', async () => {
+      const desc   = modal.querySelector('#qa-desc').value.trim();
+      const amount = parseFloat(modal.querySelector('#qa-amt').value);
+      const date   = modal.querySelector('#qa-date').value || new Date().toISOString().slice(0,10);
+      if (!desc || isNaN(amount) || amount <= 0) return;
+      await _api(`/api/trips/${t.id}/expenses`, 'POST', {
+        description: desc, category: 'outros', split: 'comum', amount, date,
+      });
+      _trip = await _api(`/api/trips/${t.id}`);
+      exps.push(..._trip.expenses.slice(-1));
+      modal.querySelector('#qa-desc').value = '';
+      modal.querySelector('#qa-amt').value  = '';
+    });
+
+    modal.querySelector('#wiz-archive').addEventListener('click', async () => {
+      const btn = modal.querySelector('#wiz-archive');
+      btn.disabled = true; btn.textContent = '⟳ A arquivar…';
+      const newPois = _confirmedNewPois.filter(p => p.confirmed).map(p => ({
+        name: p.name, coords: p.coords, inferred_day: p.inferred_day,
+      }));
+      try {
+        _trip = await _api(`/api/trips/${t.id}/archive`, 'POST', {
+          summary: _summary,
+          visited_ids: [..._confirmedVisited],
+          missed_ids:  [..._confirmedMissed],
+          new_pois:    newPois,
+        });
+        _trips = await _api('/api/trips');
+        _view = 'resumo';
+        close();
+        window.refreshViagens?.();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = '✕ Erro — tenta novamente';
+      }
+    });
+  }
+
+  renderStep1();
 }
 
 // ── CLAUDE ASSISTANT ──────────────────────────────────────────────────────
@@ -1203,15 +1290,18 @@ function _renderAssistente() {
 
 // ── SELECTOR ───────────────────────────────────────────────────────────────
 function _renderSelector() {
+  const ORDER = {planned:0, confirmed:1, archived:2};
+  const sorted = [..._trips].sort((a,b) => (ORDER[a.status]??1) - (ORDER[b.status]??1));
   return `
     <div class="trip-selector-panel fade-in">
-      ${_trips.map(t => {
+      ${sorted.map(t => {
         const cd = _countdown(t.countdown_to);
+        const isArchived = t.status === 'archived';
         return `
-          <button class="trip-sel-item ${t.id===_tripId?'active':''}" data-select-trip="${esc(t.id)}">
+          <button class="trip-sel-item ${t.id===_tripId?'active':''} ${isArchived?'archived':''}" data-select-trip="${esc(t.id)}">
             <span class="trip-sel-item-flag">${esc(t.flag||'✈️')}</span>
             <span class="trip-sel-item-name">${esc(t.name)}</span>
-            <span class="trip-sel-item-cd ${cd.past?'past':''}">${esc(cd.text)}</span>
+            <span class="trip-sel-item-cd ${isArchived?'archived':cd.past?'past':''}">${isArchived?'Arquivada':esc(cd.text)}</span>
           </button>`;
       }).join('')}
       <button class="trip-sel-item new" id="btn-new-trip">＋ Nova viagem</button>
@@ -1228,6 +1318,7 @@ function _renderResumo() {
   const isPastTrip = new Date(t.countdown_to) < new Date() && t.status !== 'archived';
 
   return `
+    ${t.status === 'archived' && t.summary ? `<div class="trip-memory-card"><div class="trip-memory-label">Memória da viagem</div><p>${esc(t.summary)}</p></div>` : ''}
     ${isPastTrip ? `<button class="btn-primary btn-fechar-viagem-top" id="btn-fechar-viagem-top">Arquivar viagem ↗</button>` : ''}
     <div class="viagens-legs">
       ${t.legs.length===0

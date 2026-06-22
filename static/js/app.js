@@ -95,6 +95,7 @@ function refreshViagens() {
   const c = document.getElementById('viagens-card');
   if (c) bindViagens(c, refreshViagens);
 }
+window.refreshViagens = refreshViagens;
 
 // ── IOT ────────────────────────────────────────────────────────────────────
 function refreshIot() {
