@@ -21,6 +21,8 @@ let _map          = null;
 let _markersLayer = null;
 let _routeLayer   = null;
 let _mapDay       = null;
+let _despesasMap          = null;
+let _despesasMarkersLayer = null;
 let _editingDayNotes = new Set(); // days currently in note edit mode
 let _showPastDays    = false;     // collapsed by default during trip
 
@@ -247,11 +249,28 @@ export function bindViagens(card, refresh) {
 
   // despesas
   card.querySelector('#btn-add-expense')?.addEventListener('click', () => _openExpenseModal(refresh));
+  card.querySelectorAll('[data-edit-exp]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const exp = (_trip.expenses||[]).find(e => e.id === btn.dataset.editExp);
+      if (exp) _openEditExpenseModal(exp, refresh);
+    });
+  });
   card.querySelectorAll('[data-del-exp]').forEach(btn => {
     btn.addEventListener('click', async () => {
       await _api(`/api/trips/${_trip.id}/expenses/${btn.dataset.delExp}`, 'DELETE');
       _trip = await _api(`/api/trips/${_trip.id}`);
       refresh();
+    });
+  });
+  card.querySelectorAll('[data-toggle-day]').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      const body = card.querySelector(`#expbody-${hdr.dataset.toggleDay}`);
+      const chev = hdr.querySelector('.exp-day-chevron');
+      if (body) {
+        const collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        if (chev) chev.textContent = collapsed ? '▾' : '▸';
+      }
     });
   });
 
@@ -690,6 +709,11 @@ export function bindViagens(card, refresh) {
     const mapEl = card.querySelector('#viagens-map');
     if (_map && mapEl && !mapEl._leaflet_id) { _map.remove(); _map = null; _markersLayer = null; _routeLayer = null; }
     _bindMap(card);
+  }
+  if (_view === 'despesas') {
+    const dMapEl = card.querySelector('#despesas-map');
+    if (_despesasMap && dMapEl && !dMapEl._leaflet_id) { _despesasMap.remove(); _despesasMap = null; _despesasMarkersLayer = null; }
+    _bindDespesasMap(card);
   }
 
   // ORS travel times — lazy fetch for all placeholder pills
@@ -1303,9 +1327,47 @@ function _statusBadge(status, delay) {
 
 // ── DESPESAS ───────────────────────────────────────────────────────────────
 function _renderDespesas() {
-  const t = _trip;
+  const t    = _trip;
+  const exps = (t.expenses || []).slice().sort((a,b) => a.date.localeCompare(b.date));
   const { pedro, ines } = _budgetCalc(t);
-  const exps = t.expenses || [];
+
+  // Totals
+  const comum     = exps.reduce((s,e) => s + (e.split==='comum'  ? e.amount : 0), 0);
+  const pedroSolo = exps.reduce((s,e) => s + (e.split==='pedro'  ? e.amount : 0), 0);
+  const inesSolo  = exps.reduce((s,e) => s + (e.split==='ines'   ? e.amount : 0), 0);
+  const grand     = exps.reduce((s,e) => s + e.amount, 0);
+
+  // Category chart
+  const catTotals = {};
+  exps.forEach(e => { catTotals[e.category] = (catTotals[e.category]||0) + e.amount; });
+  const catSorted = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+  const catMax    = catSorted[0]?.[1] || 1;
+  const CAT_COLORS = {
+    voos:'#7b9fff', alojamento:'#9b7bff', alimentacao:'var(--vg-coral)',
+    actividades:'#7bd4d4', transporte:'#ffb07b', compras:'#c97bff', outros:'#aaa',
+  };
+
+  // Day grouping
+  const dayMap = {};
+  exps.forEach(e => { (dayMap[e.date] = dayMap[e.date]||[]).push(e); });
+  const days = Object.keys(dayMap).sort();
+
+  function _expRow(e) {
+    const pay = e.payment_method === 'cash'
+      ? '<span class="exp-pay-badge exp-pay-cash">💶</span>'
+      : '<span class="exp-pay-badge exp-pay-card">💳</span>';
+    return `<tr>
+      <td class="exp-td-desc">${esc(e.description)}</td>
+      <td class="exp-td-cat">${esc(CATEGORY_LABELS[e.category]||e.category)}</td>
+      <td><span class="exp-split-badge exp-split-${esc(e.split)}">${esc(SPLIT_LABELS[e.split]||e.split)}</span></td>
+      <td>${pay}</td>
+      <td class="exp-td-amt">€${Number(e.amount).toFixed(2)}</td>
+      <td class="exp-td-actions">
+        <button class="exp-edit-btn" data-edit-exp="${esc(e.id)}" title="Editar">✎</button>
+        <button class="exp-del-btn"  data-del-exp="${esc(e.id)}"  title="Eliminar">✕</button>
+      </td>
+    </tr>`;
+  }
 
   return `
     <div class="budget-section">
@@ -1314,29 +1376,52 @@ function _renderDespesas() {
         ${_personBar('Pedro', pedro, t.budget_per_person)}
         ${_personBar('Inês',  ines,  t.budget_per_person)}
       </div>
+      <div class="expense-totals">
+        <div class="exp-total-item"><span class="exp-total-label">Comum</span><span class="exp-total-value">€${comum.toFixed(2)}</span></div>
+        <div class="exp-total-item"><span class="exp-total-label">Pedro solo</span><span class="exp-total-value">€${pedroSolo.toFixed(2)}</span></div>
+        <div class="exp-total-item"><span class="exp-total-label">Inês solo</span><span class="exp-total-value">€${inesSolo.toFixed(2)}</span></div>
+        <div class="exp-total-item exp-total-grand"><span class="exp-total-label">Total</span><span class="exp-total-value">€${grand.toFixed(2)}</span></div>
+      </div>
     </div>
 
-    <table class="expense-table">
-      <thead>
-        <tr>
-          <th>Descrição</th><th>Categoria</th><th>Divisão</th>
-          <th style="text-align:right">Valor</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${exps.length===0
-          ? '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1rem">Sem despesas</td></tr>'
-          : exps.map(e => `
-              <tr>
-                <td>${esc(e.description)}</td>
-                <td style="color:var(--text-dim);font-size:.8rem">${esc(CATEGORY_LABELS[e.category]||e.category)}</td>
-                <td><span class="exp-split-badge exp-split-${esc(e.split)}">${esc(SPLIT_LABELS[e.split]||e.split)}</span></td>
-                <td style="text-align:right;font-weight:600">€${Number(e.amount).toFixed(2)}</td>
-                <td>${e.confirmed?'':`<button class="exp-del-btn" data-del-exp="${esc(e.id)}">✕</button>`}</td>
-              </tr>`).join('')}
-      </tbody>
-    </table>
-    <button class="btn-add-expense" id="btn-add-expense">＋ Adicionar despesa</button>`;
+    <div class="category-chart">
+      <div class="cat-chart-title">Por categoria</div>
+      ${catSorted.map(([cat, amt]) => `
+        <div class="cat-bar-row">
+          <div class="cat-bar-label">${esc(CATEGORY_LABELS[cat]||cat)}</div>
+          <div class="cat-bar-track">
+            <div class="cat-bar-fill" style="width:${Math.round(amt/catMax*100)}%;background:${CAT_COLORS[cat]||'#aaa'}"></div>
+          </div>
+          <div class="cat-bar-amount">€${amt.toFixed(2)}</div>
+        </div>`).join('')}
+    </div>
+
+    ${days.length === 0
+      ? '<p style="color:var(--text-dim);text-align:center;padding:1rem">Sem despesas</p>'
+      : days.map(day => {
+          const d        = new Date(day + 'T12:00:00');
+          const dayLabel = `${d.getDate()} ${MONTHS_PT[d.getMonth()]}`;
+          const dayExps  = dayMap[day];
+          const dayTotal = dayExps.reduce((s,e) => s + e.amount, 0);
+          return `
+            <div class="exp-day-group">
+              <div class="exp-day-header" data-toggle-day="${esc(day)}">
+                <span class="exp-day-chevron">▾</span>
+                <span class="exp-day-label">${dayLabel}</span>
+                <span class="exp-day-meta">${dayExps.length} despesa${dayExps.length!==1?'s':''} · €${dayTotal.toFixed(2)}</span>
+              </div>
+              <table class="expense-table exp-day-body" id="expbody-${esc(day)}">
+                <tbody>${dayExps.map(e => _expRow(e)).join('')}</tbody>
+              </table>
+            </div>`;
+        }).join('')}
+
+    <button class="btn-add-expense" id="btn-add-expense">＋ Adicionar despesa</button>
+
+    <div class="despesas-map-section">
+      <div class="despesas-map-label">Mapa · gastos</div>
+      <div id="despesas-map" class="viagens-map-container"></div>
+    </div>`;
 }
 
 // ── ITINERÁRIO ─────────────────────────────────────────────────────────────
@@ -2009,6 +2094,15 @@ function _openExpenseModal(refresh) {
         <input class="modal-input" id="edt" type="date" value="${new Date().toISOString().slice(0,10)}" />
       </div>
     </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Pagamento</label>
+        <select class="modal-select" id="epm">
+          <option value="card">💳 Cartão</option>
+          <option value="cash">💶 Dinheiro</option>
+        </select>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
       <button class="btn-modal-save"   id="msave">Guardar</button>
@@ -2026,7 +2120,81 @@ function _openExpenseModal(refresh) {
       description: desc, category: overlay.querySelector('#ec').value,
       split: overlay.querySelector('#es').value, amount,
       date: overlay.querySelector('#edt').value,
+      payment_method: overlay.querySelector('#epm').value,
     });
+    _trip = await _api(`/api/trips/${_trip.id}`);
+    close(); _view = 'despesas'; refresh();
+  });
+}
+
+function _openEditExpenseModal(exp, refresh) {
+  const overlay = _overlay(`
+    <div class="modal-title">Editar despesa <button class="modal-close" id="mc">✕</button></div>
+    <div class="modal-field">
+      <label class="modal-label">Descrição</label>
+      <input class="modal-input" id="ed" value="${esc(exp.description)}" />
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Categoria</label>
+        <select class="modal-select" id="ec">
+          ${Object.entries(CATEGORY_LABELS).map(([v,l])=>`<option value="${v}"${v===exp.category?' selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Divisão</label>
+        <select class="modal-select" id="es">
+          <option value="comum"${exp.split==='comum'?' selected':''}>Comum (÷2)</option>
+          <option value="pedro"${exp.split==='pedro'?' selected':''}>Só Pedro</option>
+          <option value="ines"${exp.split==='ines'?' selected':''}>Só Inês</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Valor (€)</label>
+        <input class="modal-input" id="ea" type="number" min="0" step="0.01" value="${Number(exp.amount).toFixed(2)}" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Data</label>
+        <input class="modal-input" id="edt" type="date" value="${esc(exp.date)}" />
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Pagamento</label>
+        <select class="modal-select" id="epm">
+          <option value="card"${(exp.payment_method||'card')==='card'?' selected':''}>💳 Cartão</option>
+          <option value="cash"${exp.payment_method==='cash'?' selected':''}>💶 Dinheiro</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-delete" id="mdelete">Eliminar esta despesa</button>
+      <button class="btn-modal-cancel" id="mcancel">Cancelar</button>
+      <button class="btn-modal-save"   id="msave">Guardar</button>
+    </div>`);
+
+  const close = () => document.body.removeChild(overlay);
+  overlay.querySelector('#mc').addEventListener('click', close);
+  overlay.querySelector('#mcancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target===overlay) close(); });
+  overlay.querySelector('#msave').addEventListener('click', async () => {
+    const desc   = overlay.querySelector('#ed').value.trim();
+    const amount = parseFloat(overlay.querySelector('#ea').value);
+    if (!desc || isNaN(amount) || amount <= 0) return;
+    await _api(`/api/trips/${_trip.id}/expenses/${exp.id}`, 'PATCH', {
+      description: desc, category: overlay.querySelector('#ec').value,
+      split: overlay.querySelector('#es').value, amount,
+      date: overlay.querySelector('#edt').value,
+      payment_method: overlay.querySelector('#epm').value,
+    });
+    _trip = await _api(`/api/trips/${_trip.id}`);
+    close(); _view = 'despesas'; refresh();
+  });
+  overlay.querySelector('#mdelete').addEventListener('click', async () => {
+    if (!confirm(`Eliminar "${exp.description}"?`)) return;
+    await _api(`/api/trips/${_trip.id}/expenses/${exp.id}`, 'DELETE');
     _trip = await _api(`/api/trips/${_trip.id}`);
     close(); _view = 'despesas'; refresh();
   });
@@ -2324,6 +2492,74 @@ function _updateMapMarkers() {
 
   if (bounds.length === 1) _map.setView(bounds[0], 15);
   else if (bounds.length > 1) _map.fitBounds(bounds, { padding:[40,40], maxZoom:16 });
+}
+
+// ── DESPESAS MAP ────────────────────────────────────────────────────────────
+
+function _bindDespesasMap(card) {
+  const container = card.querySelector('#despesas-map');
+  if (!container || typeof L === 'undefined') return;
+
+  const exps = (_trip.expenses||[]).filter(e => e.coords).slice().sort((a,b) => a.date.localeCompare(b.date));
+  const section = card.querySelector('.despesas-map-section');
+  if (!exps.length) {
+    if (section) section.style.display = 'none';
+    return;
+  }
+  if (section) section.style.display = '';
+
+  const DAY_COLORS = ['#7b9fff','#5bc45b','#ff9f40','#ff6b6b','#c97bff'];
+  const days = [...new Set(exps.map(e => e.date))].sort();
+
+  if (!_despesasMap) {
+    const isMobile = window.matchMedia('(max-width: 600px)').matches;
+    _despesasMap = L.map(container, { scrollWheelZoom: false, dragging: !isMobile, tap: !isMobile, touchZoom: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org">OSM</a>', maxZoom: 19,
+    }).addTo(_despesasMap);
+  }
+
+  if (!_despesasMarkersLayer) _despesasMarkersLayer = L.layerGroup().addTo(_despesasMap);
+  else _despesasMarkersLayer.clearLayers();
+
+  const bounds = [];
+
+  // Hotel anchor
+  const city = _trip.cities[0];
+  if (city?.hotel?.coords) {
+    const hc = city.hotel.coords;
+    const ic = L.divIcon({ className:'', html:`<div class="map-pin map-hotel">🏨</div>`, iconSize:[34,34], iconAnchor:[17,34] });
+    L.marker([hc.lat, hc.lon], {icon:ic}).bindPopup(`<b>${city.hotel.name||'Hotel'}</b>`).addTo(_despesasMarkersLayer);
+    bounds.push([hc.lat, hc.lon]);
+  }
+
+  days.forEach((day, di) => {
+    const color   = DAY_COLORS[di % DAY_COLORS.length];
+    const dayExps = exps.filter(e => e.date === day);
+    const d       = new Date(day + 'T12:00:00');
+    const dayLabel = `${d.getDate()} ${MONTHS_PT[d.getMonth()]}`;
+    const routePts = [];
+
+    dayExps.forEach((e, i) => {
+      const ic = L.divIcon({
+        className: '',
+        html: `<div class="map-pin map-exp-pin" style="background:${color}">${i+1}</div>`,
+        iconSize: [28,28], iconAnchor: [14,28],
+      });
+      L.marker([e.coords.lat, e.coords.lon], {icon:ic})
+        .bindPopup(`<b>${e.description}</b><br>${dayLabel} · €${Number(e.amount).toFixed(2)}`)
+        .addTo(_despesasMarkersLayer);
+      bounds.push([e.coords.lat, e.coords.lon]);
+      routePts.push([e.coords.lat, e.coords.lon]);
+    });
+
+    if (routePts.length > 1) {
+      L.polyline(routePts, { color, weight:2, opacity:0.6, dashArray:'5 5' }).addTo(_despesasMarkersLayer);
+    }
+  });
+
+  if (bounds.length === 1) _despesasMap.setView(bounds[0], 15);
+  else if (bounds.length > 1) _despesasMap.fitBounds(bounds, { padding:[30,30], maxZoom:16 });
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────

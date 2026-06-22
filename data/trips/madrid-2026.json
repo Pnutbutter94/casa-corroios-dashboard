@@ -18,7 +18,7 @@
       "departs_local": "13:55",
       "arrives_local": "16:15",
       "airline": "EasyJet",
-      "flight": null,
+      "flight": "EC7653",
       "confirmed": true,
       "buffers": {
         "processing_min": 15,
@@ -86,9 +86,9 @@
             "lon": -3.7038
           },
           "done": false,
-          "assigned_day": "2026-06-19",
-          "assigned_slot": "tarde",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -107,9 +107,9 @@
           "free_entry": "",
           "coords": null,
           "done": false,
-          "assigned_day": "2026-06-19",
-          "assigned_slot": "tarde",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "19:00",
@@ -131,9 +131,9 @@
             "lon": -3.6999
           },
           "done": false,
-          "assigned_day": "2026-06-19",
-          "assigned_slot": "noite",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -152,9 +152,9 @@
           "free_entry": "",
           "coords": null,
           "done": false,
-          "assigned_day": "2026-06-19",
-          "assigned_slot": "noite",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -173,9 +173,9 @@
           "free_entry": "",
           "coords": null,
           "done": false,
-          "assigned_day": "2026-06-19",
-          "assigned_slot": "noite",
-          "assigned_order": 2,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -197,9 +197,9 @@
             "lon": -3.7082
           },
           "done": false,
-          "assigned_day": "2026-06-19",
-          "assigned_slot": "noite",
-          "assigned_order": 3,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -284,9 +284,9 @@
             "lon": -3.7076
           },
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "manha",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -308,9 +308,9 @@
             "lon": -3.701
           },
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "manha",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -332,9 +332,9 @@
             "lon": -3.7038
           },
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "manha",
-          "assigned_order": 2,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -353,9 +353,9 @@
           "free_entry": "",
           "coords": null,
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "tarde",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "16:00",
@@ -377,9 +377,9 @@
             "lon": -3.6922
           },
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "tarde",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "18:00",
@@ -402,9 +402,9 @@
             "lon": -3.7181
           },
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "noite",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "21:00",
@@ -425,9 +425,9 @@
             "lon": -3.7049
           },
           "done": false,
-          "assigned_day": "2026-06-20",
-          "assigned_slot": "noite",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -446,9 +446,9 @@
           "free_entry": "",
           "coords": null,
           "done": false,
-          "assigned_day": "2026-06-21",
-          "assigned_slot": "manha",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -470,9 +470,9 @@
             "lon": -3.7076
           },
           "done": false,
-          "assigned_day": "2026-06-21",
-          "assigned_slot": "manha",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -491,9 +491,9 @@
           "free_entry": "",
           "coords": null,
           "done": false,
-          "assigned_day": "2026-06-21",
-          "assigned_slot": "tarde",
-          "assigned_order": 0,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "14:30",
@@ -515,9 +515,9 @@
             "lon": -3.6844
           },
           "done": false,
-          "assigned_day": "2026-06-21",
-          "assigned_slot": "tarde",
-          "assigned_order": 1,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -539,9 +539,9 @@
             "lon": -3.688
           },
           "done": false,
-          "assigned_day": "2026-06-21",
-          "assigned_slot": "tarde",
-          "assigned_order": 2,
+          "assigned_day": null,
+          "assigned_slot": null,
+          "assigned_order": null,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "18:00",
@@ -569,7 +569,318 @@
       "amount": 312.99,
       "date": "2026-06-19",
       "split": "comum",
-      "confirmed": true
+      "confirmed": true,
+      "coords": {
+        "lat": 40.421945,
+        "lon": -3.707991
+      }
+    },
+    {
+      "id": "exp-6eb7ed5b",
+      "description": "Uber para aeroporto",
+      "category": "transporte",
+      "amount": 13.25,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-5528d6b5",
+      "description": "Levantamento de dinheiro",
+      "category": "outros",
+      "amount": 50.0,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-3674ba39",
+      "description": "Pequeno Almoço Doce Creme",
+      "category": "alimentacao",
+      "amount": 9.1,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-9daf4a3b",
+      "description": "Garrafa de água aeroporto",
+      "category": "alimentacao",
+      "amount": 1.6,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-1baa15c4",
+      "description": "Cartão de Transporte + Adicional Aeroporto",
+      "category": "transporte",
+      "amount": 15.8,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.495227,
+        "lon": -3.573373
+      }
+    },
+    {
+      "id": "exp-cf8abff2",
+      "description": "La Bohemia Madrid",
+      "category": "alimentacao",
+      "amount": 18.0,
+      "date": "2026-06-22",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.430157,
+        "lon": -3.700271
+      }
+    },
+    {
+      "id": "exp-382f9e67",
+      "description": "Takos al Pastor",
+      "category": "alimentacao",
+      "amount": 20.0,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.419252,
+        "lon": -3.703432
+      }
+    },
+    {
+      "id": "exp-33d1fefb",
+      "description": "Hermanos Vinagre",
+      "category": "alimentacao",
+      "amount": 12.15,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.422863,
+        "lon": -3.697006
+      }
+    },
+    {
+      "id": "exp-3a23919f",
+      "description": "La Campana",
+      "category": "alimentacao",
+      "amount": 13.0,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.4157,
+        "lon": -3.7083
+      }
+    },
+    {
+      "id": "exp-f713fd6f",
+      "description": "Garrafa de Agua",
+      "category": "alimentacao",
+      "amount": 2.7,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-8a6e9b8d",
+      "description": "Pez Tortilla",
+      "category": "alimentacao",
+      "amount": 11.3,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.424249,
+        "lon": -3.706491
+      }
+    },
+    {
+      "id": "exp-a1faf144",
+      "description": "Chocolateria San Ginés",
+      "category": "alimentacao",
+      "amount": 8.6,
+      "date": "2026-06-19",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.416771,
+        "lon": -3.706803
+      }
+    },
+    {
+      "id": "exp-845e0321",
+      "description": "Bodega de la Ardosa",
+      "category": "alimentacao",
+      "amount": 25.55,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.423769,
+        "lon": -3.701775
+      }
+    },
+    {
+      "id": "exp-86b5d6a3",
+      "description": "Bel Mondo",
+      "category": "alimentacao",
+      "amount": 58.5,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.426088,
+        "lon": -3.684256
+      }
+    },
+    {
+      "id": "exp-695296f8",
+      "description": "Garrafa de Agua + 2 Cervejas",
+      "category": "alimentacao",
+      "amount": 2.4,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-04d18f8a",
+      "description": "Iman",
+      "category": "compras",
+      "amount": 2.0,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.417261,
+        "lon": -3.706628
+      }
+    },
+    {
+      "id": "exp-75dbc016",
+      "description": "Five Guys",
+      "category": "alimentacao",
+      "amount": 31.65,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.420458,
+        "lon": -3.70557
+      }
+    },
+    {
+      "id": "exp-4ca7af14",
+      "description": "Garrafa de Agua",
+      "category": "alimentacao",
+      "amount": 1.15,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-9a965da4",
+      "description": "Bodega de la Ardosa",
+      "category": "alimentacao",
+      "amount": 25.55,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.423769,
+        "lon": -3.701775
+      }
+    },
+    {
+      "id": "exp-733f04fe",
+      "description": "Taberna El Sur",
+      "category": "alimentacao",
+      "amount": 60.25,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.411045,
+        "lon": -3.699504
+      }
+    },
+    {
+      "id": "exp-363524e4",
+      "description": "McDonald's - Jantar pré ida para aeroporto",
+      "category": "alimentacao",
+      "amount": 8.43,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.489829,
+        "lon": -3.591672
+      }
+    },
+    {
+      "id": "exp-534d2add",
+      "description": "Adicional Aeroporto",
+      "category": "transporte",
+      "amount": 6.0,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-2400d610",
+      "description": "Agua Aeroporto",
+      "category": "alimentacao",
+      "amount": 1.5,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-2f474e19",
+      "description": "Café Aeroporto",
+      "category": "alimentacao",
+      "amount": 2.45,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-9bef1392",
+      "description": "Quiosque Retiro (2 Cervejas + 1 Agua)",
+      "category": "alimentacao",
+      "amount": 16.5,
+      "date": "2026-06-21",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.414946,
+        "lon": -3.683285
+      }
+    },
+    {
+      "id": "exp-19962496",
+      "description": "Uber para casa",
+      "category": "transporte",
+      "amount": 19.29,
+      "date": "2026-06-22",
+      "split": "comum",
+      "confirmed": false
+    },
+    {
+      "id": "exp-680b78e9",
+      "description": "Agua Gran Via",
+      "category": "alimentacao",
+      "amount": 1.0,
+      "date": "2026-06-20",
+      "split": "comum",
+      "confirmed": false,
+      "coords": {
+        "lat": 40.420733,
+        "lon": -3.706657
+      }
     }
   ],
   "tips": [],

@@ -1943,7 +1943,7 @@ def patch_leg(trip_id, leg_id):
 TRIPS_DIR = os.path.join(DATA_DIR, 'trips')
 
 ALLOWED_TRIP_FIELDS    = {'name', 'status', 'countdown_to', 'budget_per_person', 'flag'}
-ALLOWED_EXPENSE_FIELDS = {'description', 'category', 'amount', 'date', 'split'}
+ALLOWED_EXPENSE_FIELDS = {'description', 'category', 'amount', 'date', 'split', 'payment_method', 'coords'}
 ALLOWED_POI_FIELDS     = {'done', 'priority', 'notes', 'duration_h', 'assigned_day',
                            'assigned_slot', 'assigned_order', 'checkin_time', 'checkout_time',
                            'planned_time', 'locked', 'url', 'name', 'type', 'note_post_visit',
@@ -2412,14 +2412,17 @@ def expense_add(trip_id):
     if split not in VALID_SPLITS:
         return jsonify({'error': 'invalid split'}), 400
     exp = {
-        'id':          f'exp-{uuid.uuid4().hex[:8]}',
-        'description': str(body.get('description', ''))[:200],
-        'category':    str(body.get('category', 'outros'))[:50],
-        'amount':      float(body.get('amount', 0)),
-        'date':        str(body.get('date', datetime.date.today().isoformat()))[:10],
-        'split':       split,
-        'confirmed':   False,
+        'id':             f'exp-{uuid.uuid4().hex[:8]}',
+        'description':    str(body.get('description', ''))[:200],
+        'category':       str(body.get('category', 'outros'))[:50],
+        'amount':         float(body.get('amount', 0)),
+        'date':           str(body.get('date', datetime.date.today().isoformat()))[:10],
+        'split':          split,
+        'payment_method': str(body.get('payment_method', 'card'))[:10],
+        'confirmed':      False,
     }
+    if body.get('coords'):
+        exp['coords'] = body['coords']
     t.setdefault('expenses', []).append(exp)
     _save_trip(trip_id, t)
     return jsonify(exp), 201

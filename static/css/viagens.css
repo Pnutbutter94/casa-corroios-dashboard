@@ -2071,3 +2071,170 @@
   transition: opacity .15s;
 }
 .suggestion-add-btn:hover { opacity: .8; }
+
+/* ── DESPESAS — TOTALS ROW ───────────────────────────────────────────────── */
+
+.expense-totals {
+  display: flex;
+  gap: .5rem;
+  margin-top: .75rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.exp-total-item {
+  flex: 1;
+  min-width: 80px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: .45rem .6rem;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.exp-total-grand {
+  background: color-mix(in srgb, var(--vg-rausch) 12%, var(--surface2));
+  border: 1px solid color-mix(in srgb, var(--vg-rausch) 30%, transparent);
+}
+.exp-total-label { font-size: .7rem; color: var(--text-dim); }
+.exp-total-value { font-size: .95rem; font-weight: 700; color: var(--text); }
+
+/* ── DESPESAS — CATEGORY CHART ───────────────────────────────────────────── */
+
+.category-chart {
+  margin: 1rem 0;
+  padding: .75rem .85rem;
+  background: var(--surface2);
+  border-radius: 10px;
+}
+.cat-chart-title {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: .6rem;
+}
+.cat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .35rem;
+}
+.cat-bar-label {
+  font-size: .78rem;
+  color: var(--text-dim);
+  width: 90px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--surface3, #303048);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .3s ease;
+}
+.cat-bar-amount {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text);
+  width: 55px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── DESPESAS — DAY GROUPS ───────────────────────────────────────────────── */
+
+.exp-day-group { margin-bottom: .5rem; }
+.exp-day-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .6rem;
+  background: var(--surface2);
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s;
+}
+.exp-day-header:hover { background: var(--surface3, #303048); }
+.exp-day-chevron { font-size: .75rem; color: var(--text-dim); width: .75rem; }
+.exp-day-label { font-size: .88rem; font-weight: 700; color: var(--text); }
+.exp-day-meta { font-size: .78rem; color: var(--text-dim); margin-left: auto; }
+.exp-day-body { border-radius: 0 0 8px 8px; margin-top: 0; }
+.exp-day-body td { border-top: 1px solid var(--border); }
+
+/* ── DESPESAS — TABLE COLUMNS ────────────────────────────────────────────── */
+
+.exp-td-desc { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-td-cat  { font-size: .78rem; color: var(--text-dim); white-space: nowrap; }
+.exp-td-amt  { text-align: right; font-weight: 600; white-space: nowrap; }
+.exp-td-actions { white-space: nowrap; display: flex; gap: .2rem; align-items: center; }
+
+/* ── DESPESAS — EDIT BUTTON ──────────────────────────────────────────────── */
+
+.exp-edit-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: .95rem;
+  cursor: pointer;
+  opacity: .5;
+  padding: .1rem .25rem;
+  border-radius: 4px;
+  transition: opacity .15s, color .15s;
+}
+.exp-edit-btn:hover { opacity: 1; color: #7b9fff; }
+
+/* ── DESPESAS — PAYMENT BADGE ────────────────────────────────────────────── */
+
+.exp-pay-badge { font-size: .85rem; line-height: 1; }
+.exp-pay-cash  { opacity: 1; }
+.exp-pay-card  { opacity: .55; }
+
+/* ── DESPESAS — MODAL DELETE BUTTON ─────────────────────────────────────── */
+
+.btn-modal-delete {
+  flex: 1;
+  background: color-mix(in srgb, #e05050 15%, var(--surface2));
+  border: 1px solid color-mix(in srgb, #e05050 40%, transparent);
+  color: #e05050;
+  border-radius: 8px;
+  padding: .6rem;
+  cursor: pointer;
+  font-size: .85rem;
+  transition: background .15s;
+}
+.btn-modal-delete:hover { background: color-mix(in srgb, #e05050 25%, var(--surface2)); }
+
+/* ── DESPESAS — MAP ──────────────────────────────────────────────────────── */
+
+.despesas-map-section {
+  margin-top: 1.25rem;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.despesas-map-label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .5rem .6rem;
+  background: var(--surface2);
+}
+.map-exp-pin {
+  width: 28px; height: 28px;
+  color: #fff;
+  border: 2px solid rgba(255,255,255,.7);
+  font-size: .72rem;
+  font-weight: 700;
+}
