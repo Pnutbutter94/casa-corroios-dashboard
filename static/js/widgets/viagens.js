@@ -1343,7 +1343,7 @@ function _renderDespesas() {
   const catSorted = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
   const catMax    = catSorted[0]?.[1] || 1;
   const CAT_COLORS = {
-    voos:'#7b9fff', alojamento:'#9b7bff', alimentacao:'var(--vg-coral)',
+    voos:'#7b9fff', alojamento:'#9b7bff', alimentacao:'#ff6b6b',
     actividades:'#7bd4d4', transporte:'#ffb07b', compras:'#c97bff', outros:'#aaa',
   };
 
@@ -1352,12 +1352,15 @@ function _renderDespesas() {
   exps.forEach(e => { (dayMap[e.date] = dayMap[e.date]||[]).push(e); });
   const days = Object.keys(dayMap).sort();
 
+  const MAPPABLE_CATS = new Set(['alimentacao','compras','actividades']);
   function _expRow(e) {
     const pay = e.payment_method === 'cash'
       ? '<span class="exp-pay-badge exp-pay-cash">💶</span>'
       : '<span class="exp-pay-badge exp-pay-card">💳</span>';
+    const noPin = (!e.coords && MAPPABLE_CATS.has(e.category))
+      ? ' <span class="exp-no-pin" title="Sem localização">📍?</span>' : '';
     return `<tr>
-      <td class="exp-td-desc">${esc(e.description)}</td>
+      <td class="exp-td-desc">${esc(e.description)}${noPin}</td>
       <td class="exp-td-cat">${esc(CATEGORY_LABELS[e.category]||e.category)}</td>
       <td><span class="exp-split-badge exp-split-${esc(e.split)}">${esc(SPLIT_LABELS[e.split]||e.split)}</span></td>
       <td>${pay}</td>
@@ -2168,6 +2171,11 @@ function _openEditExpenseModal(exp, refresh) {
           <option value="cash"${exp.payment_method==='cash'?' selected':''}>💶 Dinheiro</option>
         </select>
       </div>
+      <div class="modal-field">
+        <label class="modal-label">Localização ${exp.coords ? '📍' : '📍?'}</label>
+        <input class="modal-input" id="eaddr" placeholder="Endereço para geocodificar…" value="${exp.coords ? `${exp.coords.lat},${exp.coords.lon}` : ''}" />
+        <div class="modal-hint">${exp.coords ? 'Tem localização · edita para mudar' : 'Sem localização no mapa'}</div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-modal-delete" id="mdelete">Eliminar esta despesa</button>
@@ -2183,11 +2191,13 @@ function _openEditExpenseModal(exp, refresh) {
     const desc   = overlay.querySelector('#ed').value.trim();
     const amount = parseFloat(overlay.querySelector('#ea').value);
     if (!desc || isNaN(amount) || amount <= 0) return;
+    const addr = overlay.querySelector('#eaddr').value.trim();
     await _api(`/api/trips/${_trip.id}/expenses/${exp.id}`, 'PATCH', {
       description: desc, category: overlay.querySelector('#ec').value,
       split: overlay.querySelector('#es').value, amount,
       date: overlay.querySelector('#edt').value,
       payment_method: overlay.querySelector('#epm').value,
+      ...(addr ? { address: addr } : {}),
     });
     _trip = await _api(`/api/trips/${_trip.id}`);
     close(); _view = 'despesas'; refresh();

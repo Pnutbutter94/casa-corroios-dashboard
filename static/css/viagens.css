@@ -222,6 +222,7 @@
 
 /* expense table */
 .expense-table {
+  table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
   font-size: .85rem;
@@ -2174,8 +2175,15 @@
 
 /* ── DESPESAS — TABLE COLUMNS ────────────────────────────────────────────── */
 
-.exp-td-desc { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.exp-td-cat  { font-size: .78rem; color: var(--text-dim); white-space: nowrap; }
+/* Fixed column widths — desc gets remaining space */
+.expense-table td:nth-child(1) { }                     /* description — auto */
+.expense-table td:nth-child(2) { width: 82px; }        /* category */
+.expense-table td:nth-child(3) { width: 60px; }        /* split */
+.expense-table td:nth-child(4) { width: 26px; }        /* pay badge */
+.expense-table td:nth-child(5) { width: 64px; }        /* amount */
+.expense-table td:nth-child(6) { width: 50px; }        /* actions */
+.exp-td-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-td-cat  { font-size: .78rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exp-td-amt  { text-align: right; font-weight: 600; white-space: nowrap; }
 .exp-td-actions { white-space: nowrap; display: flex; gap: .2rem; align-items: center; }
 
@@ -2238,3 +2246,7 @@
   font-size: .72rem;
   font-weight: 700;
 }
+
+/* modal hint line */
+.modal-hint { font-size: .72rem; color: var(--text-dim); margin-top: .25rem; }
+.exp-no-pin { font-size: .7rem; opacity: .5; cursor: default; }

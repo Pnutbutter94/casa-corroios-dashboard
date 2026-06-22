@@ -2428,6 +2428,22 @@ def expense_add(trip_id):
     return jsonify(exp), 201
 
 
+def _nominatim_geocode(query):
+    try:
+        import urllib.request, urllib.parse, json as _json, time as _time
+        url = 'https://nominatim.openstreetmap.org/search?' + urllib.parse.urlencode({
+            'q': query, 'format': 'json', 'limit': 1,
+        })
+        req = urllib.request.Request(url, headers={'User-Agent': 'casaserver-dashboard/1.0'})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            results = _json.loads(r.read())
+        if results:
+            return {'lat': round(float(results[0]['lat']), 6), 'lon': round(float(results[0]['lon']), 6)}
+    except Exception:
+        pass
+    return None
+
+
 @app.route('/api/trips/<trip_id>/expenses/<exp_id>', methods=['PATCH'])
 def expense_update(trip_id, exp_id):
     t = _load_trip(trip_id)
@@ -2437,6 +2453,15 @@ def expense_update(trip_id, exp_id):
     if exp is None:
         return jsonify({'error': 'not found'}), 404
     body = request.get_json(silent=True) or {}
+    # Address geocoding — if address supplied, resolve coords before standard field update
+    if 'address' in body:
+        addr = str(body['address']).strip()
+        if addr:
+            coords = _nominatim_geocode(addr)
+            if coords:
+                exp['coords'] = coords
+        elif addr == '':
+            exp.pop('coords', None)
     for k, v in body.items():
         if k in ALLOWED_EXPENSE_FIELDS:
             if k == 'split' and v not in VALID_SPLITS:
