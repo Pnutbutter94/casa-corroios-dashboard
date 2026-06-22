@@ -2500,6 +2500,20 @@ function _updateMapMarkers() {
     _routeLayer = L.polyline(routePts, { color:'#7c6aff', weight:3, opacity:.7, dashArray:'7 5' }).addTo(_map);
   }
 
+  // Expense pins for this day (supplementary layer — not part of route)
+  const CAT_EMOJI = { alimentacao:'🍽️', compras:'🛍️', actividades:'🎫', transporte:'🚌', hospedagem:'🏨' };
+  const dayExps = (_trip.expenses||[]).filter(e => e.date === _mapDay && e.coords);
+  dayExps.forEach(e => {
+    const emoji = CAT_EMOJI[e.category] || '📍';
+    const ic = L.divIcon({ className:'', html:`<div class="map-pin map-exp-pin">${emoji}</div>`, iconSize:[28,28], iconAnchor:[14,28] });
+    const amt = `€${Number(e.amount).toFixed(2)}`;
+    L.marker([e.coords.lat, e.coords.lon], { icon: ic })
+      .bindPopup(`<b>${e.description}</b><br><small>${amt} · ${e.split}</small>`)
+      .addTo(_markersLayer);
+    // When POIs anchor the day, don't let expense outliers blow out the bounds
+    if (!dayPois.length) bounds.push([e.coords.lat, e.coords.lon]);
+  });
+
   if (bounds.length === 1) _map.setView(bounds[0], 15);
   else if (bounds.length > 1) _map.fitBounds(bounds, { padding:[40,40], maxZoom:16 });
 }

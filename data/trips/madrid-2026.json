@@ -85,16 +85,16 @@
             "lat": 40.4168,
             "lon": -3.7038
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-19",
+          "assigned_slot": "tarde",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Passeio inicial ao chegar - Sol, Mayor, San Miguel."
         },
         {
           "id": "poi-hundred",
@@ -151,10 +151,10 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-19",
+          "assigned_slot": "noite",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -172,10 +172,10 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-19",
+          "assigned_slot": "noite",
+          "assigned_order": 2,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -196,16 +196,16 @@
             "lat": 40.4132,
             "lon": -3.7082
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-19",
+          "assigned_slot": "noite",
+          "assigned_order": 3,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Rua de tapas próxima de La Campana."
         },
         {
           "id": "poi-takos-pastor",
@@ -217,10 +217,10 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": 0,
+          "done": true,
+          "assigned_day": "2026-06-19",
+          "assigned_slot": "noite",
+          "assigned_order": 4,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -238,10 +238,10 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": 1,
+          "done": true,
+          "assigned_day": "2026-06-19",
+          "assigned_slot": "noite",
+          "assigned_order": 5,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -259,10 +259,10 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": 2,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "tarde",
+          "assigned_order": 3,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
@@ -283,16 +283,16 @@
             "lat": 40.4244,
             "lon": -3.7076
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "manha",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Peq almoço. Visitada de novo domingo após Rastro."
         },
         {
           "id": "poi-gran-via-fuencarral",
@@ -307,16 +307,16 @@
             "lat": 40.4195,
             "lon": -3.701
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "tarde",
+          "assigned_order": 2,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Compras (Iman + Five Guys + água)."
         },
         {
           "id": "poi-rooftop-eci",
@@ -352,10 +352,10 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "tarde",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "16:00",
@@ -376,16 +376,16 @@
             "lat": 40.4138,
             "lon": -3.6922
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "tarde",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "18:00",
           "locked": false,
           "url": "https://www.museodelprado.es/",
-          "note_post_visit": null
+          "note_post_visit": "Visitado ao fim do dia (entrada grátis a partir das 18h). Fila moderada."
         },
         {
           "id": "poi-debod",
@@ -401,15 +401,15 @@
             "lat": 40.4238,
             "lon": -3.7181
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "noite",
+          "assigned_order": 2,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "21:00",
           "locked": false,
-          "note_post_visit": null
+          "note_post_visit": "Depois do Prado de autocarro. Cervejas + água com vista para o pôr do sol (~21h30)."
         },
         {
           "id": "poi-malasana",
@@ -424,16 +424,16 @@
             "lat": 40.4252,
             "lon": -3.7049
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "manha",
+          "assigned_order": 2,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Bairro da Bodega La Ardosa."
         },
         {
           "id": "poi-panera-rosa",
@@ -469,16 +469,16 @@
             "lat": 40.4087,
             "lon": -3.7076
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-21",
+          "assigned_slot": "manha",
+          "assigned_order": 2,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "El Rastro só abre ao domingo. La Ardosa após o Rastro."
         },
         {
           "id": "poi-taberna-el-sur",
@@ -490,16 +490,16 @@
           "opening_hours": "",
           "free_entry": "",
           "coords": null,
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-21",
+          "assigned_slot": "tarde",
+          "assigned_order": 2,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "14:30",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Almoço antes do aeroporto."
         },
         {
           "id": "poi-retiro",
@@ -514,16 +514,16 @@
             "lat": 40.4153,
             "lon": -3.6844
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-21",
+          "assigned_slot": "manha",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "Domingo de manhã antes do aeroporto. Quiosque com cervejas + água."
         },
         {
           "id": "poi-jogo-espanha",
@@ -538,16 +538,16 @@
             "lat": 40.4239,
             "lon": -3.688
           },
-          "done": false,
-          "assigned_day": null,
-          "assigned_slot": null,
-          "assigned_order": null,
+          "done": true,
+          "assigned_day": "2026-06-20",
+          "assigned_slot": "noite",
+          "assigned_order": 1,
           "checkin_time": null,
           "checkout_time": null,
           "planned_time": "18:00",
           "locked": false,
           "url": "",
-          "note_post_visit": null
+          "note_post_visit": "⚠️ Confirmar: antes ou depois do Prado?"
         }
       ]
     }
@@ -749,7 +749,11 @@
       "date": "2026-06-20",
       "split": "comum",
       "confirmed": false,
-      "payment_method": "card"
+      "payment_method": "card",
+      "coords": {
+        "lat": 40.4238,
+        "lon": -3.7181
+      }
     },
     {
       "id": "exp-04d18f8a",
@@ -865,8 +869,8 @@
       "split": "comum",
       "confirmed": false,
       "coords": {
-        "lat": 40.414946,
-        "lon": -3.683285
+        "lat": 40.4153,
+        "lon": -3.6844
       },
       "payment_method": "cash"
     },

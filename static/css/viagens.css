@@ -1303,6 +1303,12 @@
   border: 2px solid #fff;
   font-size: .75rem;
 }
+.map-exp-pin {
+  width: 28px; height: 28px;
+  background: #ff9f40;
+  border: 2px solid #fff;
+  font-size: .9rem;
+}
 /* un-rotate the content inside the rotated pin */
 .map-pin > * { transform: rotate(45deg); }
 
