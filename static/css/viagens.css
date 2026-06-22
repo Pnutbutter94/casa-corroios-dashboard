@@ -326,64 +326,6 @@
   margin-bottom: 1rem;
 }
 
-.poi-card {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  background: var(--surface2);
-  border-radius: 10px;
-  padding: .55rem .8rem;
-  cursor: pointer;
-  transition: background .15s;
-}
-.poi-card:hover { background: var(--surface3, #303048); }
-
-.poi-priority-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.poi-priority-dot.must    { background: #e05050; }
-.poi-priority-dot.want    { background: var(--vg-rausch); }
-.poi-priority-dot.backlog { background: var(--text-dim); }
-
-.poi-name {
-  flex: 1;
-  font-size: .9rem;
-  font-weight: 500;
-}
-
-.poi-meta {
-  font-size: .75rem;
-  color: var(--text-dim);
-}
-
-.poi-done .poi-name { text-decoration: line-through; color: var(--text-dim); }
-
-.poi-priority-label {
-  font-size: .7rem;
-  padding: .1rem .4rem;
-  border-radius: 999px;
-  font-weight: 600;
-}
-.poi-priority-label.must    { background: color-mix(in srgb, #e05050 15%, transparent); color: #e05050; }
-.poi-priority-label.want    { background: color-mix(in srgb, var(--vg-rausch) 15%, transparent); color: var(--vg-rausch); }
-.poi-priority-label.backlog { background: color-mix(in srgb, var(--text-dim) 15%, transparent); color: var(--text-dim); }
-
-.poi-checkin-btn {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: .15rem .45rem;
-  font-size: .75rem;
-  cursor: pointer;
-  color: var(--text-dim);
-  transition: color .15s, border-color .15s;
-}
-.poi-checkin-btn:hover { color: #4caf7d; border-color: #4caf7d; }
-.poi-checkin-btn.checked { color: #4caf7d; border-color: #4caf7d; background: color-mix(in srgb, #4caf7d 10%, transparent); }
-
 .poi-delete-btn {
   background: none;
   border: none;
@@ -406,64 +348,6 @@
   border: 1px dashed var(--border);
 }
 
-/* day columns */
-.itinerary-days {
-  display: flex;
-  flex-direction: column;
-  gap: .75rem;
-}
-
-.itinerary-day {
-  background: var(--surface2);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.itinerary-day-header {
-  padding: .5rem .9rem;
-  font-weight: 700;
-  font-size: .9rem;
-  background: var(--surface3, #303048);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.itinerary-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.itinerary-slot {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  padding: .4rem .9rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  font-size: .85rem;
-}
-
-.itinerary-slot:last-child { border-bottom: none; }
-
-.slot-time-label {
-  font-size: .72rem;
-  color: var(--text-dim);
-  min-width: 50px;
-}
-
-.slot-poi-name { flex: 1; }
-
-.slot-checkin {
-  font-size: .72rem;
-  color: #4caf7d;
-}
-
-.slot-empty {
-  color: var(--text-dim);
-  font-size: .8rem;
-  font-style: italic;
-}
 
 /* ── MODAL ───────────────────────────────────────────────────────────────── */
 
@@ -683,18 +567,6 @@
 
 /* ── ITINERARY HEADER & BLOCKS ───────────────────────────────────────────── */
 
-.itinerary-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 1rem 0 .5rem;
-}
-
-.itinerary-hint {
-  font-size: .72rem;
-  color: var(--text-dim);
-}
-
 .itinerary-block {
   display: flex;
   align-items: center;
@@ -751,48 +623,6 @@
   color: #fff;
   letter-spacing: .03em;
 }
-
-/* ── SLOT ENHANCEMENTS ───────────────────────────────────────────────────── */
-
-.slot-blocked {
-  color: var(--text-dim);
-  font-size: .78rem;
-  font-style: italic;
-  opacity: .6;
-}
-
-.slot-pois {
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-  flex: 1;
-}
-
-.slot-poi-row {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .85rem;
-  padding: .15rem 0;
-}
-
-.slot-poi-row.suggested { opacity: .75; }
-.slot-poi-row.confirmed .slot-poi-name { font-weight: 600; }
-
-.slot-poi-icon { font-size: .85rem; }
-
-.btn-confirm-slot {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-dim);
-  font-size: .7rem;
-  padding: .1rem .35rem;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: color .15s, border-color .15s;
-}
-.btn-confirm-slot:hover { color: #4caf7d; border-color: #4caf7d; }
 
 /* ── NEARBY PANEL ────────────────────────────────────────────────────────── */
 
@@ -857,8 +687,6 @@
 .btn-add-nearby:hover { background: color-mix(in srgb, var(--vg-rausch) 12%, transparent); }
 
 /* ── POI ENHANCEMENTS ────────────────────────────────────────────────────── */
-
-.poi-type-icon { font-size: .95rem; flex-shrink: 0; }
 
 .poi-free-badge {
   font-size: .7rem;
@@ -1223,15 +1051,6 @@
   cursor: pointer;
 }
 .modal-check-row input[type="checkbox"] { accent-color: var(--accent, #7c6aff); }
-
-/* ── Hotel day anchor ── */
-.hotel-anchor-block {
-  font-size: .78rem;
-  color: var(--text-dim);
-  padding: .2rem .4rem;
-  border-left: 2px solid var(--border, #333);
-  margin: .15rem 0;
-}
 
 /* ── Map section ── */
 .viagens-map-section {
