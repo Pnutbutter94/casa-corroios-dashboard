@@ -600,7 +600,8 @@
       "amount": 9.1,
       "date": "2026-06-19",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "card"
     },
     {
       "id": "exp-9daf4a3b",
@@ -609,7 +610,8 @@
       "amount": 1.6,
       "date": "2026-06-19",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "card"
     },
     {
       "id": "exp-1baa15c4",
@@ -628,14 +630,15 @@
       "id": "exp-cf8abff2",
       "description": "La Bohemia Madrid",
       "category": "alimentacao",
-      "amount": 18.0,
-      "date": "2026-06-22",
+      "amount": 18,
+      "date": "2026-06-19",
       "split": "comum",
       "confirmed": false,
       "coords": {
         "lat": 40.430157,
         "lon": -3.700271
-      }
+      },
+      "payment_method": "card"
     },
     {
       "id": "exp-382f9e67",
@@ -683,7 +686,12 @@
       "amount": 2.7,
       "date": "2026-06-19",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "coords": {
+        "lat": 40.416863,
+        "lon": -3.703876
+      },
+      "payment_method": "card"
     },
     {
       "id": "exp-8a6e9b8d",
@@ -744,7 +752,8 @@
       "amount": 2.4,
       "date": "2026-06-20",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "card"
     },
     {
       "id": "exp-04d18f8a",
@@ -779,7 +788,8 @@
       "amount": 1.15,
       "date": "2026-06-20",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "card"
     },
     {
       "id": "exp-9a965da4",
@@ -824,10 +834,11 @@
       "id": "exp-534d2add",
       "description": "Adicional Aeroporto",
       "category": "transporte",
-      "amount": 6.0,
+      "amount": 6,
       "date": "2026-06-21",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "cash"
     },
     {
       "id": "exp-2400d610",
@@ -836,7 +847,8 @@
       "amount": 1.5,
       "date": "2026-06-21",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "cash"
     },
     {
       "id": "exp-2f474e19",
@@ -845,7 +857,8 @@
       "amount": 2.45,
       "date": "2026-06-21",
       "split": "comum",
-      "confirmed": false
+      "confirmed": false,
+      "payment_method": "cash"
     },
     {
       "id": "exp-9bef1392",
@@ -858,7 +871,8 @@
       "coords": {
         "lat": 40.414946,
         "lon": -3.683285
-      }
+      },
+      "payment_method": "cash"
     },
     {
       "id": "exp-19962496",
@@ -873,14 +887,15 @@
       "id": "exp-680b78e9",
       "description": "Agua Gran Via",
       "category": "alimentacao",
-      "amount": 1.0,
+      "amount": 1,
       "date": "2026-06-20",
       "split": "comum",
       "confirmed": false,
       "coords": {
         "lat": 40.420733,
         "lon": -3.706657
-      }
+      },
+      "payment_method": "cash"
     }
   ],
   "tips": [],
