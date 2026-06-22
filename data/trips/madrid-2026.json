@@ -687,10 +687,6 @@
       "date": "2026-06-19",
       "split": "comum",
       "confirmed": false,
-      "coords": {
-        "lat": 40.416863,
-        "lon": -3.703876
-      },
       "payment_method": "card"
     },
     {
@@ -764,8 +760,8 @@
       "split": "comum",
       "confirmed": false,
       "coords": {
-        "lat": 40.417261,
-        "lon": -3.706628
+        "lat": 40.4202,
+        "lon": -3.7057
       }
     },
     {
