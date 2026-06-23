@@ -3413,7 +3413,7 @@ def jarvis_capture():
     line = re.sub(r'\s*—\s*$', '', line).strip()
     if not line:
         return jsonify({'error': 'empty'}), 400
-    inbox = os.path.join(JARVIS_VAULT, 'Ideas', 'Inbox.md')
+    inbox = os.path.join(JARVIS_VAULT, 'Ideas', 'captures.md')
     with open(inbox, 'a', encoding='utf-8') as f:
         f.write(line + '\n')
     return jsonify({'ok': True, 'line': line})
