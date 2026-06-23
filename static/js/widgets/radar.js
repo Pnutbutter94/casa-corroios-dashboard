@@ -5,6 +5,8 @@ let _items           = [];
 let _stores          = {};   // item_id → stores array (cached)
 let _open            = new Set();
 let _refreshInterval = null;
+let _historyOpen     = false;
+let _historyItems    = null; // null = not yet loaded
 
 // ── API ────────────────────────────────────────────────────────────────────
 async function _api(path, method = 'GET', body = null) {
@@ -185,6 +187,75 @@ function _renderItem(item) {
   </div>`;
 }
 
+function _renderHistoryItem(item) {
+  const isPurchased = item.status === 'purchased';
+  const badge = isPurchased
+    ? `<div class="rd-history-badge rd-history-badge-purchased">✓</div>`
+    : `<div class="rd-history-badge rd-history-badge-archived">⊘</div>`;
+  const statusTag = isPurchased
+    ? `<span class="rd-history-tag rd-history-tag-purchased">Comprado</span>`
+    : `<span class="rd-history-tag rd-history-tag-archived">Arquivado</span>`;
+  const priceHtml = isPurchased && item.purchased_price_eur != null
+    ? `<div class="rd-history-price">€${_fmt(item.purchased_price_eur)}</div>
+       ${item.purchased_store ? `<div class="rd-history-sub">${esc(item.purchased_store)}</div>` : ''}
+       ${item.savings_eur != null ? `<div class="rd-history-savings">Poupei €${_fmt(item.savings_eur)}</div>` : ''}`
+    : item.best_price_eur != null
+      ? `<div class="rd-history-price rd-history-price-muted">€${_fmt(item.best_price_eur)}</div>`
+      : `<div class="rd-history-price rd-history-price-muted">—</div>`;
+  const scoreHtml = item.last_score != null
+    ? `<span class="rd-history-score">score ${item.last_score}</span>` : '';
+  return `<div class="rd-history-item" data-id="${item.id}">
+    ${badge}
+    <div class="rd-history-info">
+      <div class="rd-history-name">${esc(item.name)}</div>
+      <div class="rd-history-meta">${statusTag}${scoreHtml}</div>
+    </div>
+    <div class="rd-history-right">${priceHtml}</div>
+    <button class="rd-btn rd-btn-ghost rd-btn-xs rd-btn-danger rd-history-del"
+            data-delete-history="${item.id}" data-item-name="${esc(item.name)}"
+            title="Apagar">×</button>
+  </div>`;
+}
+
+function _renderHistorySection() {
+  const count = _historyItems ? _historyItems.length : '';
+  const label = _historyOpen ? '↑ Ocultar arquivados' : `↓ Arquivados${count !== '' ? ` (${count})` : ''}`;
+  const listHtml = _historyOpen
+    ? (_historyItems === null
+        ? '<p class="rd-history-loading">A carregar...</p>'
+        : _historyItems.length === 0
+          ? '<p class="rd-history-empty">Sem itens arquivados ou comprados.</p>'
+          : _historyItems.map(_renderHistoryItem).join(''))
+    : '';
+  return `<div class="rd-history-section">
+    <button class="rd-btn rd-btn-ghost rd-btn-sm rd-history-toggle" id="rd-history-toggle">${label}</button>
+    <div class="rd-history-list" id="rd-history-list" ${_historyOpen ? '' : 'style="display:none"'}>
+      ${listHtml}
+    </div>
+  </div>`;
+}
+
+async function _loadHistory(container) {
+  try {
+    _historyItems = await _api('/api/radar/items/history');
+  } catch (err) {
+    _historyItems = [];
+    console.error('radar history load failed:', err);
+  }
+  _rerender(container);
+}
+
+async function _deleteHistoryItem(itemId, itemName) {
+  if (!confirm(`Apagar "${itemName}" permanentemente?`)) return;
+  try {
+    await _api(`/api/radar/items/${itemId}`, 'DELETE');
+    _historyItems = (_historyItems || []).filter(i => i.id !== itemId);
+    _rerender(document.getElementById('radar-card'));
+  } catch (err) {
+    _showToast(`Erro ao apagar: ${err.message}`);
+  }
+}
+
 export function renderRadar(container) {
   if (!container) return;
   const items      = _items;
@@ -202,7 +273,7 @@ export function renderRadar(container) {
         <p>Nenhum produto em acompanhamento.</p>
         <button class="rd-btn rd-btn-primary" id="rd-add-item-btn-empty">+ Adicionar produto</button>
       </div>`;
-  container.innerHTML = `<div class="card-label">Radar</div>${headerHtml}${body}`;
+  container.innerHTML = `<div class="card-label">Radar</div>${headerHtml}${body}${_renderHistorySection()}`;
 }
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
@@ -590,6 +661,26 @@ export function bindRadar(container) {
           setTimeout(() => errEl?.remove(), 5000);
         }
       }
+    });
+  });
+
+  const historyToggle = container.querySelector('#rd-history-toggle');
+  if (historyToggle) {
+    historyToggle.addEventListener('click', () => {
+      _historyOpen = !_historyOpen;
+      if (_historyOpen && _historyItems === null) {
+        _rerender(container);
+        _loadHistory(container);
+      } else {
+        _rerender(container);
+      }
+    });
+  }
+
+  container.querySelectorAll('[data-delete-history]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _deleteHistoryItem(parseInt(btn.dataset.deleteHistory, 10), btn.dataset.itemName);
     });
   });
 }

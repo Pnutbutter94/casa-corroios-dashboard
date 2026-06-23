@@ -247,3 +247,58 @@
   white-space: nowrap;
 }
 .rd-toast.rd-toast-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── History section ──────────────────────────────────────────────────── */
+.rd-history-section {
+  margin-top: 18px;
+  border-top: 1px solid var(--rd-border);
+  padding-top: 12px;
+}
+.rd-history-toggle {
+  width: 100%;
+  text-align: center;
+  color: var(--rd-ink-muted);
+  font-size: 12px;
+}
+.rd-history-list {
+  margin-top: 10px;
+}
+.rd-history-loading,
+.rd-history-empty {
+  font-size: 13px;
+  color: var(--rd-ink-muted);
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
+}
+.rd-history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--rd-border);
+  opacity: .65;
+}
+.rd-history-item:last-child { border-bottom: none; }
+.rd-history-badge {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  flex-shrink: 0;
+  border: 2px solid;
+}
+.rd-history-badge-purchased { color: var(--rd-green); border-color: var(--rd-green); background: rgba(76,175,80,.1); }
+.rd-history-badge-archived  { color: var(--rd-ink-muted); border-color: var(--rd-border-hi); background: transparent; }
+.rd-history-info  { flex: 1; min-width: 0; }
+.rd-history-name  { font-size: 13px; font-weight: 600; color: var(--rd-ink-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-history-meta  { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.rd-history-tag   { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 5px; border-radius: 3px; }
+.rd-history-tag-purchased { color: var(--rd-green); background: rgba(76,175,80,.12); }
+.rd-history-tag-archived  { color: var(--rd-ink-muted); background: rgba(104,104,136,.15); }
+.rd-history-score { font-size: 11px; color: var(--rd-ink-muted); }
+.rd-history-right { text-align: right; flex-shrink: 0; }
+.rd-history-price { font-size: 15px; font-weight: 700; color: var(--rd-accent); }
+.rd-history-price-muted { color: var(--rd-ink-muted); }
+.rd-history-sub   { font-size: 11px; color: var(--rd-ink-muted); margin-top: 1px; }
+.rd-history-savings { font-size: 11px; color: var(--rd-green); margin-top: 1px; }

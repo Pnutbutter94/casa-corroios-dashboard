@@ -3305,6 +3305,62 @@ def radar_add_store(item_id):
         return jsonify({'error': str(exc)}), 500
 
 
+@app.route('/api/radar/items/history')
+def radar_history():
+    conn = _radar_conn()
+    items = conn.execute("""
+        SELECT i.id, i.name, i.category, i.status, i.created_at,
+               i.purchased_at, i.purchased_price_eur, i.purchased_store, i.savings_eur,
+               MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
+                   THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
+        FROM items i
+        LEFT JOIN item_stores s ON s.item_id = i.id
+        WHERE i.status IN ('archived', 'purchased')
+        GROUP BY i.id
+        ORDER BY COALESCE(i.purchased_at, i.created_at) DESC
+    """).fetchall()
+    signals = {}
+    for row in conn.execute("""
+        SELECT bs.item_id, bs.score
+        FROM buy_signals bs
+        INNER JOIN (
+            SELECT item_id, MAX(computed_at) AS max_at FROM buy_signals GROUP BY item_id
+        ) latest ON bs.item_id = latest.item_id AND bs.computed_at = latest.max_at
+    """).fetchall():
+        signals[row['item_id']] = row['score']
+    conn.close()
+    result = []
+    for item in items:
+        best = item['best_price_eur']
+        result.append({
+            'id': item['id'],
+            'name': item['name'],
+            'category': item['category'],
+            'status': item['status'],
+            'created_at': item['created_at'],
+            'purchased_at': item['purchased_at'],
+            'purchased_price_eur': item['purchased_price_eur'],
+            'purchased_store': item['purchased_store'],
+            'savings_eur': item['savings_eur'],
+            'best_price_eur': round(best, 2) if best is not None else None,
+            'last_score': signals.get(item['id']),
+        })
+    return jsonify(result)
+
+
+@app.route('/api/radar/items/<int:item_id>', methods=['DELETE'])
+def radar_delete_item(item_id):
+    conn = _radar_conn()
+    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    if not item:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    conn.execute("DELETE FROM items WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
 @app.route('/api/radar/run/<int:item_id>', methods=['POST'])
 def radar_run_engine(item_id):
     conn = _radar_conn()
