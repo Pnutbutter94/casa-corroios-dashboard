@@ -3351,10 +3351,13 @@ def radar_history():
 @app.route('/api/radar/items/<int:item_id>', methods=['DELETE'])
 def radar_delete_item(item_id):
     conn = _radar_conn()
-    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    item = conn.execute("SELECT id, status FROM items WHERE id=?", (item_id,)).fetchone()
     if not item:
         conn.close()
         return jsonify({'error': 'not found'}), 404
+    if item['status'] == 'tracking':
+        conn.close()
+        return jsonify({'error': 'cannot delete a tracking item — archive it first'}), 409
     conn.execute("DELETE FROM items WHERE id=?", (item_id,))
     conn.commit()
     conn.close()

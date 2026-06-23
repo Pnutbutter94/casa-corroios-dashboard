@@ -509,6 +509,7 @@ async function _archiveItem(itemId, itemName) {
     _items = _items.filter(i => i.id !== itemId);
     _open.delete(itemId);
     delete _stores[itemId];
+    _historyItems = null; // invalidate cache so history reloads on next open
     _rerender(document.getElementById('radar-card'));
   } catch (err) {
     _showToast(`Erro ao arquivar: ${err.message}`);
@@ -558,6 +559,7 @@ function _openMarkPurchasedModal(itemId) {
       _items = _items.filter(i => i.id !== itemId);
       _open.delete(itemId);
       delete _stores[itemId];
+      _historyItems = null; // invalidate cache so history reloads on next open
       el.remove();
       _showToast('Marcado como comprado!');
       _rerender(document.getElementById('radar-card'));
