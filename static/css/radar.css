@@ -302,3 +302,50 @@
 .rd-history-price-muted { color: var(--rd-ink-muted); }
 .rd-history-sub   { font-size: 11px; color: var(--rd-ink-muted); margin-top: 1px; }
 .rd-history-savings { font-size: 11px; color: var(--rd-green); margin-top: 1px; }
+
+/* ── Breakdown v2 ─────────────────────────────────────────────────── */
+.rd-breakdown-v2      { margin-top: 10px; padding: 10px 12px 4px; background: rgba(11,11,26,.45); border: 1px solid var(--rd-border-hi); border-radius: 8px; }
+.rd-comp-section      { margin-bottom: 6px; }
+.rd-comp-row          { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; cursor: default; }
+.rd-comp-label        { font-size: 11px; color: var(--rd-ink-mid); min-width: 150px; flex-shrink: 0; }
+.rd-comp-bar-wrap     { flex: 1; height: 6px; background: rgba(104,104,136,.2); border-radius: 3px; overflow: hidden; }
+.rd-comp-bar-fill     { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.rd-comp-pts          { font-size: 11px; font-weight: 700; color: var(--rd-ink-mid); min-width: 44px; text-align: right; flex-shrink: 0; }
+.rd-comp-max          { font-weight: 400; opacity: .55; }
+.rd-stats-row         { display: flex; gap: 12px; flex-wrap: wrap; padding: 6px 0 4px; border-top: 1px solid var(--rd-border-hi); margin-top: 4px; }
+.rd-stat-cell         { display: flex; flex-direction: column; gap: 1px; }
+.rd-stat-label        { font-size: 10px; color: var(--rd-ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+.rd-stat-val          { font-size: 12px; font-weight: 700; color: var(--rd-ink-mid); }
+.rd-flash-note        { font-size: 11px; color: var(--rd-yellow); margin-top: 4px; }
+.rd-data-warn         { font-size: 11px; color: var(--rd-red); margin-top: 4px; }
+
+/* methodology collapsible */
+.rd-methodology       { margin-top: 8px; border-top: 1px solid var(--rd-border-hi); padding-top: 6px; }
+.rd-methodology > summary { font-size: 11px; color: var(--rd-ink-muted); cursor: pointer; user-select: none; padding: 2px 0; list-style: none; }
+.rd-methodology > summary::before { content: '▸ '; font-size: 9px; }
+.rd-methodology[open] > summary::before { content: '▾ '; }
+.rd-methodology-body  { font-size: 11px; color: var(--rd-ink-muted); line-height: 1.55; padding: 6px 0 2px; }
+.rd-methodology-body b { color: var(--rd-ink-mid); }
+.rd-methodology-body ul { margin: 4px 0 4px 14px; padding: 0; }
+.rd-methodology-body li { margin-bottom: 2px; }
+
+/* ── Sparkline click button ───────────────────────────────────────── */
+.rd-sparkline-btn     { background: none; border: none; padding: 0; cursor: pointer; border-radius: 4px; transition: opacity .15s; }
+.rd-sparkline-btn:hover { opacity: .75; }
+
+/* ── Edit item button ─────────────────────────────────────────────── */
+.rd-edit-item-btn     { font-size: 14px; line-height: 1; }
+
+/* ── Modal wide (history chart) ───────────────────────────────────── */
+.rd-modal-wide        { max-width: 620px !important; width: 94vw !important; }
+
+/* ── SVG history chart ────────────────────────────────────────────── */
+.rd-chart-wrap        { padding: 4px 0; }
+.rd-chart-legend      { display: flex; flex-wrap: wrap; font-size: 11px; color: var(--rd-ink-muted); margin-top: 6px; padding-left: 52px; gap: 4px; }
+
+/* ── Modal field layout ───────────────────────────────────────────── */
+.rd-field             { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.rd-field label       { font-size: 11px; color: var(--rd-ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+.rd-field input       { background: rgba(11,11,26,.6); border: 1px solid var(--rd-border-hi); border-radius: 6px; padding: 7px 10px; color: var(--rd-ink-hi); font-size: 13px; outline: none; }
+.rd-field input:focus { border-color: var(--rd-accent); }
+.rd-modal-error       { font-size: 12px; color: var(--rd-red); margin-bottom: 6px; }

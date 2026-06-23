@@ -3121,6 +3121,18 @@ def radar_get_item(item_id):
     })
 
 
+@app.route('/api/radar/items/<int:item_id>/history')
+def radar_item_history(item_id):
+    conn = _radar_conn()
+    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    conn.close()
+    if not item:
+        return jsonify({'error': 'not found'}), 404
+    from engine import get_daily_best_series
+    series = get_daily_best_series(item_id)
+    return jsonify(series)
+
+
 @app.route('/api/radar/items/<int:item_id>', methods=['PATCH'])
 def radar_update_item(item_id):
     conn = _radar_conn()
@@ -3129,25 +3141,40 @@ def radar_update_item(item_id):
         conn.close()
         return jsonify({'error': 'not found'}), 404
     data = request.get_json(silent=True, force=True) or {}
+    updates = {}
     status = data.get('status')
-    if status not in ('tracking', 'purchased', 'archived'):
+    if status is not None:
+        if status not in ('tracking', 'purchased', 'archived'):
+            conn.close()
+            return jsonify({'error': 'invalid status'}), 400
+        updates['status'] = status
+        if status == 'purchased':
+            if 'purchased_price_eur' in data:
+                try:
+                    updates['purchased_price_eur'] = float(data['purchased_price_eur'])
+                except (TypeError, ValueError):
+                    pass
+            if 'purchased_store' in data:
+                updates['purchased_store'] = str(data['purchased_store']).strip() or None
+            if 'savings_eur' in data:
+                try:
+                    updates['savings_eur'] = float(data['savings_eur'])
+                except (TypeError, ValueError):
+                    pass
+            updates['purchased_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    if 'name' in data:
+        name = str(data['name']).strip()
+        if not name:
+            conn.close()
+            return jsonify({'error': 'name cannot be empty'}), 400
+        updates['name'] = name
+    if 'category' in data:
+        updates['category'] = str(data['category']).strip() or None
+    if 'notes' in data:
+        updates['notes'] = str(data['notes']).strip() or None
+    if not updates:
         conn.close()
-        return jsonify({'error': 'invalid status'}), 400
-    updates = {'status': status}
-    if status == 'purchased':
-        if 'purchased_price_eur' in data:
-            try:
-                updates['purchased_price_eur'] = float(data['purchased_price_eur'])
-            except (TypeError, ValueError):
-                pass
-        if 'purchased_store' in data:
-            updates['purchased_store'] = str(data['purchased_store']).strip() or None
-        if 'savings_eur' in data:
-            try:
-                updates['savings_eur'] = float(data['savings_eur'])
-            except (TypeError, ValueError):
-                pass
-        updates['purchased_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return jsonify({'error': 'nothing to update'}), 400
     set_clause = ', '.join(f"{k}=?" for k in updates)
     conn.execute(f"UPDATE items SET {set_clause} WHERE id=?", (*updates.values(), item_id))
     conn.commit()

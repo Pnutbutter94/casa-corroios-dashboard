@@ -94,14 +94,63 @@ function _renderSparkline(itemId, series) {
 
 function _renderBreakdown(bd) {
   if (!bd) return '';
-  const parts = [];
-  if (bd.current_landed_eur != null) parts.push(`<span>Atual <b>€${_fmt(bd.current_landed_eur)}</b></span>`);
-  if (bd.p25_eur != null)            parts.push(`<span>P25 <b>€${_fmt(bd.p25_eur)}</b></span>`);
-  if (bd.min90d_eur != null)         parts.push(`<span>Mín 90d <b>€${_fmt(bd.min90d_eur)}</b></span>`);
-  if (bd.data_points != null)        parts.push(`<span>Dados <b>${bd.data_points}d</b></span>`);
-  const warm = (bd.data_points != null && bd.data_points < 3)
+
+  const comps = [
+    {
+      label: 'Posição no historial',
+      pts: bd.position_pts ?? null,
+      max: 50,
+      hint: 'Quão baixo está o preço atual vs. o máximo dos últimos 90 dias. 50 pts = no mínimo histórico.',
+    },
+    {
+      label: 'Vs. preço-alvo (P25)',
+      pts: bd.vs_p25_pts ?? null,
+      max: 30,
+      hint: 'O P25 é o preço abaixo do qual o produto esteve em 25% dos dias. 30 pts = preço atual ≤ P25.',
+    },
+    {
+      label: 'Promoção relâmpago',
+      pts: bd.flash_sale_pts ?? null,
+      max: 20,
+      hint: 'Queda brusca de preço num único dia. 20 pts = queda ≥30%. 10 pts = queda ≥10%.',
+    },
+  ];
+
+  const compHtml = comps.map(c => {
+    const pct      = c.pts !== null ? Math.min(100, Math.round((c.pts / c.max) * 100)) : 0;
+    const barColor = pct >= 60 ? 'var(--rd-green)' : pct >= 30 ? 'var(--rd-yellow)' : 'var(--rd-red)';
+    return `<div class="rd-comp-row" title="${c.hint}">
+      <span class="rd-comp-label">${c.label}</span>
+      <div class="rd-comp-bar-wrap"><div class="rd-comp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <span class="rd-comp-pts">${c.pts !== null ? Math.round(c.pts) : '—'}<span class="rd-comp-max"> / ${c.max}</span></span>
+    </div>`;
+  }).join('');
+
+  const stats = [];
+  if (bd.current_landed_eur != null) stats.push(`Atual <b>€${_fmt(bd.current_landed_eur)}</b>`);
+  if (bd.min90d_eur         != null) stats.push(`Mín 90d <b>€${_fmt(bd.min90d_eur)}</b>`);
+  if (bd.p25_eur            != null) stats.push(`Alvo P25 <b>€${_fmt(bd.p25_eur)}</b>`);
+  if (bd.data_points        != null) stats.push(`Histórico <b>${bd.data_points}d</b>`);
+
+  const warn = (bd.data_points != null && bd.data_points < 3)
     ? `<div class="rd-warning">⚠️ Score provisório — menos de 3 dias de histórico</div>` : '';
-  return parts.length ? `<div class="rd-breakdown">${parts.join('')}</div>${warm}` : warm;
+  const flash = (bd.flash_sale_drop_pct != null && bd.flash_sale_drop_pct > 0)
+    ? `<span class="rd-flash-note"> ⚡ Queda de ${bd.flash_sale_drop_pct}% detectada</span>` : '';
+
+  return `<div class="rd-breakdown-v2">
+    <div class="rd-comp-section">${compHtml}</div>
+    <div class="rd-stats-row">${stats.map(s => `<span>${s}</span>`).join('')}${flash}</div>
+    ${warn}
+    <details class="rd-methodology">
+      <summary>ℹ Como é calculado o score?</summary>
+      <div class="rd-methodology-body">
+        <p><b>Posição no historial (0–50 pts):</b> Compara o preço atual com o intervalo dos últimos 90 dias. 50 pts quando está no mínimo histórico; 0 pts quando está no máximo. Reflete se o preço é bom em termos relativos.</p>
+        <p><b>Vs. preço-alvo P25 (0–30 pts):</b> O P25 é o preço abaixo do qual o produto esteve em 25% dos dias — ou seja, historicamente um bom preço. 30 pts = preço atual ≤ P25. Score diminui à medida que o preço sobe acima desse limiar.</p>
+        <p><b>Promoção relâmpago (0–20 pts):</b> Deteta quedas bruscas de preço num único dia em relação ao dia anterior. 20 pts = queda ≥30%. 10 pts = queda ≥10%. Útil para apanhar promoções de fim-de-semana ou flash sales.</p>
+        <p><b>Score ≥65 → alerta Telegram</b> enviado automaticamente quando o score cruza este limiar (não dispara novamente enquanto o score se mantiver acima).</p>
+      </div>
+    </details>
+  </div>`;
 }
 
 function _renderStoresTable(itemId, stores) {
@@ -144,7 +193,10 @@ function _renderItem(item) {
   const isOpen     = _open.has(item.id);
   const scoreHtml  = _renderScoreBadge(item.score);
   const deltaHtml  = _renderScoreDelta(item.score_delta);
-  const spkHtml    = _renderSparkline(item.id, item.sparkline);
+  const spkInner   = _renderSparkline(item.id, item.sparkline);
+  const spkHtml    = spkInner
+    ? `<button class="rd-sparkline-btn" data-history-item="${item.id}" data-item-name="${esc(item.name)}" title="Ver historial de preços (90 dias)">${spkInner}</button>`
+    : '';
   const storesHtml = isOpen && _stores[item.id]
     ? _renderStoresTable(item.id, _stores[item.id])
     : '<p style="color:#9898b8;font-size:13px;margin:12px 0 4px;">A carregar lojas...</p>';
@@ -172,6 +224,7 @@ function _renderItem(item) {
         <div class="rd-best-price">${item.best_price_eur != null ? `€${_fmt(item.best_price_eur)}` : '—'}</div>
         ${targetHtml}
       </div>
+      <button class="rd-btn rd-btn-ghost rd-btn-xs rd-edit-item-btn" data-edit-item="${item.id}" title="Editar produto">✎</button>
       <button class="rd-btn rd-btn-ghost rd-btn-xs rd-archive-btn" data-archive="${item.id}" data-item-name="${esc(item.name)}" title="Arquivar">⊘</button>
       <div class="rd-chevron">›</div>
     </div>
@@ -571,6 +624,137 @@ function _openMarkPurchasedModal(itemId) {
   };
 }
 
+function _openEditItemModal(itemId) {
+  const item = _items.find(i => i.id === itemId);
+  if (!item) return;
+  const el = document.createElement('div');
+  el.className = 'rd-modal-overlay';
+  el.innerHTML = `<div class="rd-modal">
+    <h3>Editar produto</h3>
+    <div class="rd-field">
+      <label>Nome</label>
+      <input id="rd-ei-name" type="text" value="${esc(item.name)}" />
+    </div>
+    <div class="rd-field">
+      <label>Categoria (opcional)</label>
+      <input id="rd-ei-cat" type="text" value="${esc(item.category || '')}" placeholder="Ex: Electrodomésticos" />
+    </div>
+    <div id="rd-ei-err" class="rd-modal-error" style="display:none"></div>
+    <div class="rd-modal-actions">
+      <button class="rd-btn rd-btn-ghost" id="rd-ei-cancel">Cancelar</button>
+      <button class="rd-btn rd-btn-primary" id="rd-ei-save">Guardar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#rd-ei-name').focus();
+  el.querySelector('#rd-ei-cancel').onclick = () => el.remove();
+  el.onclick = e => { if (e.target === el) el.remove(); };
+  const saveBtn = el.querySelector('#rd-ei-save');
+  const errEl   = el.querySelector('#rd-ei-err');
+  saveBtn.onclick = async () => {
+    const name = el.querySelector('#rd-ei-name').value.trim();
+    const cat  = el.querySelector('#rd-ei-cat').value.trim();
+    if (!name) { errEl.textContent = 'Nome obrigatório.'; errEl.style.display = 'block'; return; }
+    saveBtn.disabled = true; saveBtn.textContent = 'A guardar...';
+    try {
+      await _api(`/api/radar/items/${itemId}`, 'PATCH', { name, category: cat || null });
+      const idx = _items.findIndex(i => i.id === itemId);
+      if (idx >= 0) { _items[idx].name = name; _items[idx].category = cat || null; }
+      el.remove();
+      _rerender(document.getElementById('radar-card'));
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      saveBtn.disabled = false; saveBtn.textContent = 'Guardar';
+    }
+  };
+}
+
+function _renderHistoryChart(series, p25) {
+  const W = 540, H = 180, ML = 52, MR = 20, MT = 14, MB = 34;
+  const CW = W - ML - MR, CH = H - MT - MB;
+
+  const prices = series.map(s => s.price_eur);
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  const pad  = (maxP - minP) * 0.1 || 10;
+  const yMin = minP - pad, yMax = maxP + pad, yRange = yMax - yMin;
+
+  const toX = i  => ML + (i / (series.length - 1)) * CW;
+  const toY = p  => MT + CH - ((p - yMin) / yRange) * CH;
+
+  const pts     = series.map((s, i) => `${toX(i).toFixed(1)},${toY(s.price_eur).toFixed(1)}`).join(' ');
+  const fillPts = `${ML},${(MT + CH).toFixed(1)} ${pts} ${(ML + CW).toFixed(1)},${(MT + CH).toFixed(1)}`;
+
+  const nTicks = 4;
+  const step   = (maxP - minP) / (nTicks - 1) || 1;
+  const yTickHtml = Array.from({ length: nTicks }, (_, i) => {
+    const v = minP + i * step, y = toY(v);
+    return `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${(ML+CW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#1e1e40" stroke-width="1"/>
+            <text x="${(ML-5).toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#686888">€${Math.round(v)}</text>`;
+  }).join('');
+
+  const xLabelHtml = [0, Math.floor(series.length / 2), series.length - 1].map(i => {
+    return `<text x="${toX(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="10" fill="#686888">${series[i].date.slice(5)}</text>`;
+  }).join('');
+
+  const p25Svg = (p25 != null && p25 >= yMin && p25 <= yMax) ? (() => {
+    const yp = toY(p25);
+    return `<line x1="${ML}" y1="${yp.toFixed(1)}" x2="${(ML+CW).toFixed(1)}" y2="${yp.toFixed(1)}" stroke="#4fc3f7" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.8"/>
+            <text x="${(ML+CW+4).toFixed(1)}" y="${(yp+4).toFixed(1)}" font-size="9" fill="#4fc3f7">P25</text>`;
+  })() : '';
+
+  const last = series.length - 1;
+  const dot  = `<circle cx="${toX(last).toFixed(1)}" cy="${toY(series[last].price_eur).toFixed(1)}" r="4" fill="#4fc3f7" stroke="#0b0b1a" stroke-width="1.5"/>`;
+
+  const legend = [`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#4fc3f7" stroke-width="2"/></svg> Preço diário
+  </span>`];
+  if (p25 != null) legend.push(`<span style="display:inline-flex;align-items:center;gap:4px;">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#4fc3f7" stroke-width="1.5" stroke-dasharray="5,3"/></svg> Alvo P25 €${_fmt(p25)}
+  </span>`);
+
+  return `<div class="rd-chart-wrap">
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="hm-grd" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4fc3f7" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#4fc3f7" stop-opacity="0"/>
+      </linearGradient></defs>
+      ${yTickHtml}
+      <polygon points="${fillPts}" fill="url(#hm-grd)"/>
+      <polyline points="${pts}" fill="none" stroke="#4fc3f7" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      ${p25Svg}
+      ${dot}
+      ${xLabelHtml}
+    </svg>
+    <div class="rd-chart-legend">${legend.join('')}</div>
+  </div>`;
+}
+
+async function _openHistoryModal(itemId, itemName) {
+  const el = document.createElement('div');
+  el.className = 'rd-modal-overlay';
+  el.innerHTML = `<div class="rd-modal rd-modal-wide">
+    <h3>${esc(itemName)} — Historial de preços (90 dias)</h3>
+    <div id="rd-hm-body" style="text-align:center;padding:32px;color:var(--rd-ink-mid);">A carregar...</div>
+    <div class="rd-modal-actions"><button class="rd-btn rd-btn-ghost" id="rd-hm-close">Fechar</button></div>
+  </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#rd-hm-close').onclick = () => el.remove();
+  el.onclick = e => { if (e.target === el) el.remove(); };
+  try {
+    const series = await _api(`/api/radar/items/${itemId}/history`);
+    const body   = el.querySelector('#rd-hm-body');
+    if (!series || series.length < 2) {
+      body.innerHTML = '<p>Dados insuficientes — são precisos pelo menos 2 dias de histórico.</p>';
+      return;
+    }
+    const item = _items.find(i => i.id === itemId);
+    body.innerHTML = _renderHistoryChart(series, item?.breakdown?.p25_eur ?? null);
+  } catch (e) {
+    el.querySelector('#rd-hm-body').innerHTML = `<p style="color:var(--rd-red);">Erro: ${esc(e.message)}</p>`;
+  }
+}
+
 // ── EVENTS ─────────────────────────────────────────────────────────────────
 export function bindRadar(container) {
   if (!container) return;
@@ -663,6 +847,20 @@ export function bindRadar(container) {
           setTimeout(() => errEl?.remove(), 5000);
         }
       }
+    });
+  });
+
+  container.querySelectorAll('[data-history-item]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _openHistoryModal(parseInt(btn.dataset.historyItem, 10), btn.dataset.itemName);
+    });
+  });
+
+  container.querySelectorAll('[data-edit-item]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _openEditItemModal(parseInt(btn.dataset.editItem, 10));
     });
   });
 
