@@ -10,8 +10,6 @@ from typing import Optional
 import priceghost
 from db import get_conn
 
-PRICE_MIN = 200.0   # sanity floor — catches garbage scrapes
-PRICE_MAX = 8000.0  # sanity ceiling
 HISTORY_DAYS = 90
 
 
@@ -23,7 +21,7 @@ def sync_prices(item_id: int) -> dict:
     """Pull latest PriceGhost prices into item_stores.last_price_eur.
 
     - Skips if out_of_stock (keeps last known good price, updates last_checked_at)
-    - Skips if price outside PRICE_MIN..PRICE_MAX (garbage scrape)
+    - Skips if price <= 0 (garbage scrape)
     """
     conn = get_conn()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -49,7 +47,7 @@ def sync_prices(item_id: int) -> dict:
             if latest is None:
                 continue
 
-            if not (PRICE_MIN <= latest <= PRICE_MAX):
+            if latest <= 0:
                 skipped_range += 1
                 continue
 
@@ -94,7 +92,7 @@ def get_daily_best_series(item_id: int, days: int = HISTORY_DAYS) -> list[dict]:
 
         for record in priceghost.get_price_history(store["priceghost_product_id"], days=days):
             price = record["price_eur"]
-            if not (PRICE_MIN <= price <= PRICE_MAX):
+            if price <= 0:
                 continue
             if price < floor:
                 continue  # garbage scrape (e.g. sponsored product on page)

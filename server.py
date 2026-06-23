@@ -3018,7 +3018,7 @@ def serve_shortcut(name):
 # ── RADAR ─────────────────────────────────────────────────────────────────────
 
 import sys as _sys
-_sys.path.insert(0, '/opt/casaserver/radar')
+_sys.path.insert(0, '/app/radar')
 import sqlite3 as _sqlite3
 
 RADAR_DB = '/opt/casaserver/data/radar/radar.db'
@@ -3182,9 +3182,9 @@ def radar_update_item(item_id):
         else:
             try:
                 fv = float(v)
-                if not (50.0 <= fv <= 20000.0):
+                if not (0.01 <= fv <= 100_000.0):
                     conn.close()
-                    return jsonify({'error': 'manual_target_eur out of range (50–20000)'}), 400
+                    return jsonify({'error': 'manual_target_eur out of range (0.01–100000)'}), 400
                 updates['manual_target_eur'] = round(fv, 2)
             except (TypeError, ValueError):
                 conn.close()
@@ -3334,8 +3334,8 @@ def radar_add_store(item_id):
     if price_eur is not None:
         try:
             price_eur = float(price_eur)
-            if not (200.0 <= price_eur <= 8000.0):
-                return jsonify({'error': 'price_eur must be between 200 and 8000'}), 400
+            if not (0.01 <= price_eur <= 100_000.0):
+                return jsonify({'error': 'price_eur must be between 0.01 and 100000'}), 400
         except (TypeError, ValueError):
             price_eur = None
     shipping_eur = data.get('shipping_eur')
