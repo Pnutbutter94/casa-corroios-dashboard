@@ -3055,11 +3055,22 @@ def radar_items():
         ) latest ON bs.item_id = latest.item_id AND bs.computed_at = latest.max_at
     """).fetchall():
         signals[row['item_id']] = row
+    prev_scores = {}
+    for row in conn.execute(
+        "SELECT item_id, score FROM buy_signals ORDER BY item_id, computed_at DESC"
+    ).fetchall():
+        ps = prev_scores.setdefault(row['item_id'], [])
+        if len(ps) < 2:
+            ps.append(row['score'])
     conn.close()
     result = []
     for item in items:
         iid = item['id']
         sig = signals.get(iid)
+        bd = json.loads(sig['breakdown_json']) if sig else {}
+        sparkline = bd.pop('series', None)
+        scores = prev_scores.get(iid, [])
+        score_delta = (scores[0] - scores[1]) if len(scores) >= 2 else None
         best = item['best_price_eur']
         result.append({
             'id': iid,
@@ -3068,10 +3079,12 @@ def radar_items():
             'status': item['status'],
             'best_price_eur': round(best, 2) if best is not None else None,
             'score': sig['score'] if sig else None,
-            'breakdown': json.loads(sig['breakdown_json']) if sig else None,
+            'breakdown': bd,
             'signal_computed_at': sig['computed_at'] if sig else None,
             'store_count': item['store_count'],
             'created_at': item['created_at'],
+            'sparkline': sparkline,
+            'score_delta': score_delta,
         })
     return jsonify(result)
 
@@ -3120,7 +3133,23 @@ def radar_update_item(item_id):
     if status not in ('tracking', 'purchased', 'archived'):
         conn.close()
         return jsonify({'error': 'invalid status'}), 400
-    conn.execute("UPDATE items SET status=? WHERE id=?", (status, item_id))
+    updates = {'status': status}
+    if status == 'purchased':
+        if 'purchased_price_eur' in data:
+            try:
+                updates['purchased_price_eur'] = float(data['purchased_price_eur'])
+            except (TypeError, ValueError):
+                pass
+        if 'purchased_store' in data:
+            updates['purchased_store'] = str(data['purchased_store']).strip() or None
+        if 'savings_eur' in data:
+            try:
+                updates['savings_eur'] = float(data['savings_eur'])
+            except (TypeError, ValueError):
+                pass
+        updates['purchased_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    set_clause = ', '.join(f"{k}=?" for k in updates)
+    conn.execute(f"UPDATE items SET {set_clause} WHERE id=?", (*updates.values(), item_id))
     conn.commit()
     conn.close()
     return jsonify({'ok': True})

@@ -79,7 +79,16 @@
 .rd-item-info  { flex: 1; min-width: 0; }
 .rd-item-name  { font-size: 15px; font-weight: 600; color: var(--rd-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-item-meta  { font-size: 12px; color: var(--rd-ink-mid); margin-top: 3px; display: flex; gap: 12px; flex-wrap: wrap; }
-.rd-best-price { font-size: 18px; font-weight: 700; color: var(--rd-accent); flex-shrink: 0; }
+.rd-score-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
+.rd-score-delta { font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.rd-delta-up  { color: var(--rd-green); }
+.rd-delta-dn  { color: var(--rd-red); }
+
+.rd-sparkline { width: 80px; height: 30px; flex-shrink: 0; display: block; }
+
+.rd-price-area { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 2px; }
+.rd-best-price { font-size: 18px; font-weight: 700; color: var(--rd-accent); }
+.rd-target-price { font-size: 11px; color: var(--rd-ink-mid); white-space: nowrap; }
 
 .rd-chevron { font-size: 18px; color: var(--rd-ink-mid); transition: transform .2s; }
 .rd-item.open .rd-chevron { transform: rotate(90deg); }
@@ -147,7 +156,8 @@
 }
 .rd-btn:hover { opacity: .85; }
 .rd-btn-primary { background: var(--rd-accent); color: #000; }
-.rd-btn-ghost   { background: transparent; border: 1px solid var(--rd-border-hi); color: var(--rd-ink-mid); }
+.rd-btn-ghost     { background: transparent; border: 1px solid var(--rd-border-hi); color: var(--rd-ink-mid); }
+.rd-btn-purchased { background: transparent; border: 1px solid var(--rd-green); color: var(--rd-green); }
 .rd-btn-sm      { padding: 5px 10px; font-size: 12px; }
 .rd-store-actions { display: flex; gap: 8px; margin-top: 10px; }
 

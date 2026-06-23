@@ -63,6 +63,33 @@ function _renderScoreBadge(score) {
   </div>`;
 }
 
+function _renderScoreDelta(delta) {
+  if (delta === null || delta === undefined || delta === 0) return '';
+  const up = delta > 0;
+  return `<span class="rd-score-delta ${up ? 'rd-delta-up' : 'rd-delta-dn'}">${up ? '▲' : '▼'}${Math.abs(delta)}</span>`;
+}
+
+function _renderSparkline(itemId, series) {
+  if (!series || series.length < 2) return '';
+  const W = 80, H = 30, PAD = 2;
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const rng = max - min || 1;
+  const xs = series.map((_, i) => PAD + (i / (series.length - 1)) * (W - PAD * 2));
+  const ys = series.map(v => H - PAD - ((v - min) / rng) * (H - PAD * 2));
+  const pts = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const fill = `${xs[0].toFixed(1)},${H - PAD} ${pts} ${xs[xs.length - 1].toFixed(1)},${H - PAD}`;
+  const gid = `spk${itemId}`;
+  return `<svg class="rd-sparkline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4fc3f7" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#4fc3f7" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${fill}" fill="url(#${gid})"/>
+    <polyline points="${pts}" fill="none" stroke="#4fc3f7" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
 function _renderBreakdown(bd) {
   if (!bd) return '';
   const parts = [];
@@ -112,17 +139,24 @@ function _renderStoresTable(itemId, stores) {
 }
 
 function _renderItem(item) {
-  const isOpen    = _open.has(item.id);
-  const scoreHtml = _renderScoreBadge(item.score);
+  const isOpen     = _open.has(item.id);
+  const scoreHtml  = _renderScoreBadge(item.score);
+  const deltaHtml  = _renderScoreDelta(item.score_delta);
+  const spkHtml    = _renderSparkline(item.id, item.sparkline);
   const storesHtml = isOpen && _stores[item.id]
     ? _renderStoresTable(item.id, _stores[item.id])
     : '<p style="color:#9898b8;font-size:13px;margin:12px 0 4px;">A carregar lojas...</p>';
-  const bdHtml   = isOpen ? _renderBreakdown(item.breakdown) : '';
-  const signalAge = item.signal_computed_at
+  const bdHtml     = isOpen ? _renderBreakdown(item.breakdown) : '';
+  const signalAge  = item.signal_computed_at
     ? `<span>Score ${_rel(item.signal_computed_at)}</span>` : '';
+  const targetHtml = item.breakdown?.p25_eur != null
+    ? `<div class="rd-target-price">Alvo €${_fmt(item.breakdown.p25_eur)}</div>` : '';
   return `<div class="rd-item${isOpen ? ' open' : ''}" data-id="${item.id}">
     <div class="rd-item-row" data-toggle="${item.id}">
-      ${scoreHtml}
+      <div class="rd-score-wrap">
+        ${scoreHtml}
+        ${deltaHtml}
+      </div>
       <div class="rd-item-info">
         <div class="rd-item-name">${esc(item.name)}</div>
         <div class="rd-item-meta">
@@ -131,7 +165,11 @@ function _renderItem(item) {
           ${signalAge}
         </div>
       </div>
-      <div class="rd-best-price">${item.best_price_eur != null ? `€${_fmt(item.best_price_eur)}` : '—'}</div>
+      ${spkHtml}
+      <div class="rd-price-area">
+        <div class="rd-best-price">${item.best_price_eur != null ? `€${_fmt(item.best_price_eur)}` : '—'}</div>
+        ${targetHtml}
+      </div>
       <button class="rd-btn rd-btn-ghost rd-btn-xs rd-archive-btn" data-archive="${item.id}" data-item-name="${esc(item.name)}" title="Arquivar">⊘</button>
       <div class="rd-chevron">›</div>
     </div>
@@ -141,6 +179,7 @@ function _renderItem(item) {
       <div class="rd-store-actions" data-actions="${item.id}">
         <button class="rd-btn rd-btn-ghost rd-btn-sm" data-add-store="${item.id}">+ Loja</button>
         <button class="rd-btn rd-btn-ghost rd-btn-sm" data-run="${item.id}">↻ Atualizar</button>
+        <button class="rd-btn rd-btn-purchased rd-btn-sm" data-purchase="${item.id}" data-item-name="${esc(item.name)}">✓ Comprado</button>
       </div>
     </div>
   </div>`;
@@ -405,6 +444,60 @@ async function _archiveItem(itemId, itemName) {
   }
 }
 
+function _openMarkPurchasedModal(itemId) {
+  const item = _items.find(i => i.id === itemId);
+  const el = document.createElement('div');
+  el.className = 'rd-modal-overlay';
+  const defPrice = item?.best_price_eur ?? '';
+  el.innerHTML = `<div class="rd-modal">
+    <h3>Marcar como comprado — ${esc(item?.name || '')}</h3>
+    <div class="rd-field">
+      <label>Preço pago (€)</label>
+      <input id="rd-pur-price" type="number" step="0.01" value="${defPrice}" placeholder="Ex: 1299.00" />
+    </div>
+    <div class="rd-field">
+      <label>Loja</label>
+      <input id="rd-pur-store" type="text" placeholder="Ex: Worten" />
+    </div>
+    <div id="rd-pur-err" class="rd-modal-error" style="display:none"></div>
+    <div class="rd-modal-actions">
+      <button class="rd-btn rd-btn-ghost" id="rd-pur-cancel">Cancelar</button>
+      <button class="rd-btn rd-btn-purchased" id="rd-pur-save">Guardar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#rd-pur-cancel').onclick = () => el.remove();
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+  const saveBtn = el.querySelector('#rd-pur-save');
+  const errEl   = el.querySelector('#rd-pur-err');
+  saveBtn.onclick = async () => {
+    const priceRaw = el.querySelector('#rd-pur-price').value;
+    const store    = el.querySelector('#rd-pur-store').value.trim();
+    const price    = priceRaw !== '' ? parseFloat(priceRaw) : null;
+    saveBtn.disabled = true; saveBtn.textContent = 'A guardar...';
+    const payload = { status: 'purchased' };
+    if (price != null && !isNaN(price)) {
+      payload.purchased_price_eur = price;
+      const target = item?.breakdown?.p25_eur;
+      if (target != null) payload.savings_eur = parseFloat(Math.max(0, target - price).toFixed(2));
+    }
+    if (store) payload.purchased_store = store;
+    try {
+      await _api(`/api/radar/items/${itemId}`, 'PATCH', payload);
+      _items = _items.filter(i => i.id !== itemId);
+      _open.delete(itemId);
+      delete _stores[itemId];
+      el.remove();
+      _showToast('Marcado como comprado!');
+      _rerender(document.getElementById('radar-card'));
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      saveBtn.disabled = false; saveBtn.textContent = 'Guardar';
+    }
+  };
+}
+
 // ── EVENTS ─────────────────────────────────────────────────────────────────
 export function bindRadar(container) {
   if (!container) return;
@@ -462,6 +555,13 @@ export function bindRadar(container) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       _archiveItem(parseInt(btn.dataset.archive, 10), btn.dataset.itemName);
+    });
+  });
+
+  container.querySelectorAll('[data-purchase]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _openMarkPurchasedModal(parseInt(btn.dataset.purchase, 10));
     });
   });
 
