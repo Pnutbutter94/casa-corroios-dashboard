@@ -3015,6 +3015,282 @@ def serve_shortcut(name):
         download_name=f'{name}.shortcut',
     )
 
+# ── RADAR ─────────────────────────────────────────────────────────────────────
+
+import sys as _sys
+_sys.path.insert(0, '/opt/casaserver/radar')
+import sqlite3 as _sqlite3
+
+RADAR_DB = '/opt/casaserver/data/radar/radar.db'
+
+def _radar_conn():
+    conn = _sqlite3.connect(RADAR_DB)
+    conn.row_factory = _sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+@app.route('/api/radar/items')
+def radar_items():
+    conn = _radar_conn()
+    items = conn.execute("""
+        SELECT i.id, i.name, i.category, i.status, i.created_at,
+               COUNT(CASE WHEN s.active=1 THEN 1 END) AS store_count,
+               MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
+                   THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
+        FROM items i
+        LEFT JOIN item_stores s ON s.item_id = i.id
+        WHERE i.status != 'archived'
+        GROUP BY i.id
+        ORDER BY i.id
+    """).fetchall()
+    signals = {}
+    for row in conn.execute("""
+        SELECT bs.item_id, bs.score, bs.breakdown_json, bs.computed_at
+        FROM buy_signals bs
+        INNER JOIN (
+            SELECT item_id, MAX(computed_at) AS max_at FROM buy_signals GROUP BY item_id
+        ) latest ON bs.item_id = latest.item_id AND bs.computed_at = latest.max_at
+    """).fetchall():
+        signals[row['item_id']] = row
+    conn.close()
+    result = []
+    for item in items:
+        iid = item['id']
+        sig = signals.get(iid)
+        best = item['best_price_eur']
+        result.append({
+            'id': iid,
+            'name': item['name'],
+            'category': item['category'],
+            'status': item['status'],
+            'best_price_eur': round(best, 2) if best is not None else None,
+            'score': sig['score'] if sig else None,
+            'breakdown': json.loads(sig['breakdown_json']) if sig else None,
+            'signal_computed_at': sig['computed_at'] if sig else None,
+            'store_count': item['store_count'],
+            'created_at': item['created_at'],
+        })
+    return jsonify(result)
+
+
+@app.route('/api/radar/items/<int:item_id>')
+def radar_get_item(item_id):
+    conn = _radar_conn()
+    item = conn.execute("""
+        SELECT i.id, i.name, i.category, i.status, i.created_at,
+               COUNT(CASE WHEN s.active=1 THEN 1 END) AS store_count,
+               MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
+                   THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
+        FROM items i LEFT JOIN item_stores s ON s.item_id = i.id
+        WHERE i.id=? GROUP BY i.id
+    """, (item_id,)).fetchone()
+    if not item or item['id'] is None:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    sig = conn.execute(
+        "SELECT score, breakdown_json, computed_at FROM buy_signals"
+        " WHERE item_id=? ORDER BY computed_at DESC LIMIT 1",
+        (item_id,),
+    ).fetchone()
+    conn.close()
+    best = item['best_price_eur']
+    return jsonify({
+        'id': item_id, 'name': item['name'], 'category': item['category'],
+        'status': item['status'],
+        'best_price_eur': round(best, 2) if best is not None else None,
+        'score': sig['score'] if sig else None,
+        'breakdown': json.loads(sig['breakdown_json']) if sig else None,
+        'signal_computed_at': sig['computed_at'] if sig else None,
+        'store_count': item['store_count'], 'created_at': item['created_at'],
+    })
+
+
+@app.route('/api/radar/items/<int:item_id>', methods=['PATCH'])
+def radar_update_item(item_id):
+    conn = _radar_conn()
+    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    if not item:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    data = request.get_json(silent=True, force=True) or {}
+    status = data.get('status')
+    if status not in ('tracking', 'purchased', 'archived'):
+        conn.close()
+        return jsonify({'error': 'invalid status'}), 400
+    conn.execute("UPDATE items SET status=? WHERE id=?", (status, item_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/radar/items/<int:item_id>/stores')
+def radar_item_stores(item_id):
+    conn = _radar_conn()
+    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    if not item:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    stores = conn.execute(
+        "SELECT * FROM item_stores WHERE item_id=? ORDER BY last_price_eur ASC NULLS LAST",
+        (item_id,)
+    ).fetchall()
+    conn.close()
+    _PG_DSN = dict(host='172.22.0.2', port=5432, dbname='priceghost', user='priceghost', password='priceghost')
+    stock = {}
+    try:
+        import psycopg2, psycopg2.extras
+        pg_ids = [s['priceghost_product_id'] for s in stores]
+        if pg_ids:
+            with psycopg2.connect(**_PG_DSN) as pgc:
+                with pgc.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT id, stock_status FROM products WHERE id = ANY(%s)", (pg_ids,))
+                    for r in cur.fetchall():
+                        stock[r['id']] = r['stock_status']
+    except Exception:
+        pass
+    result = []
+    for s in stores:
+        landed = None
+        if s['last_price_eur'] is not None:
+            landed = round(s['last_price_eur'] + (s['shipping_eur'] or 0), 2)
+        result.append({
+            'id': s['id'], 'store_name': s['store_name'], 'url': s['url'],
+            'last_price_eur': s['last_price_eur'], 'shipping_eur': s['shipping_eur'],
+            'landed_eur': landed, 'last_checked_at': s['last_checked_at'],
+            'active': bool(s['active']),
+            'stock_status': stock.get(s['priceghost_product_id'], 'unknown'),
+        })
+    return jsonify(result)
+
+
+@app.route('/api/radar/items/<int:item_id>/stores/<int:store_id>', methods=['PATCH'])
+def radar_update_store(item_id, store_id):
+    conn = _radar_conn()
+    store = conn.execute(
+        "SELECT id FROM item_stores WHERE id=? AND item_id=?", (store_id, item_id)
+    ).fetchone()
+    if not store:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    data = request.get_json(silent=True, force=True) or {}
+    updates = {}
+    if 'url' in data:
+        url = (data['url'] or '').strip()
+        if url and not url.startswith(('http://', 'https://')):
+            conn.close()
+            return jsonify({'error': 'url must start with http:// or https://'}), 400
+        if url:
+            updates['url'] = url
+    if 'shipping_eur' in data:
+        try:
+            updates['shipping_eur'] = float(data['shipping_eur'])
+        except (TypeError, ValueError):
+            updates['shipping_eur'] = None
+    if 'active' in data:
+        updates['active'] = 1 if data['active'] else 0
+    if not updates:
+        conn.close()
+        return jsonify({'error': 'nothing to update'}), 400
+    set_clause = ', '.join(f"{k}=?" for k in updates)
+    conn.execute(
+        f"UPDATE item_stores SET {set_clause} WHERE id=?",
+        (*updates.values(), store_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/radar/items/<int:item_id>/stores/<int:store_id>', methods=['DELETE'])
+def radar_delete_store(item_id, store_id):
+    conn = _radar_conn()
+    store = conn.execute(
+        "SELECT id FROM item_stores WHERE id=? AND item_id=?", (store_id, item_id)
+    ).fetchone()
+    if not store:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    conn.execute("DELETE FROM item_stores WHERE id=?", (store_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/radar/items', methods=['POST'])
+def radar_create_item():
+    data = request.get_json(silent=True, force=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'name required'}), 400
+    category = (data.get('category') or '').strip() or None
+    conn = _radar_conn()
+    cur = conn.execute("INSERT INTO items (name, category) VALUES (?, ?)", (name, category))
+    item_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return jsonify({'id': item_id, 'name': name, 'category': category})
+
+
+@app.route('/api/radar/items/<int:item_id>/stores', methods=['POST'])
+def radar_add_store(item_id):
+    data = request.get_json(silent=True, force=True) or {}
+    url = (data.get('url') or '').strip()
+    store_name = (data.get('store_name') or '').strip()
+    if not url or not store_name:
+        return jsonify({'error': 'url and store_name required'}), 400
+    if not url.startswith(('http://', 'https://')):
+        return jsonify({'error': 'url must start with http:// or https://'}), 400
+    price_eur = data.get('price_eur')
+    if price_eur is not None:
+        try:
+            price_eur = float(price_eur)
+            if not (200.0 <= price_eur <= 8000.0):
+                return jsonify({'error': 'price_eur must be between 200 and 8000'}), 400
+        except (TypeError, ValueError):
+            price_eur = None
+    shipping_eur = data.get('shipping_eur')
+    if shipping_eur is not None:
+        try:
+            shipping_eur = float(shipping_eur)
+        except (TypeError, ValueError):
+            shipping_eur = None
+    conn = _radar_conn()
+    item = conn.execute("SELECT name FROM items WHERE id=?", (item_id,)).fetchone()
+    conn.close()
+    if not item:
+        return jsonify({'error': 'item not found'}), 404
+    try:
+        import discovery as _disc
+        pg_name = f"{item['name']} — {store_name}"
+        pg_id = _disc.add_to_priceghost(url=url, name=pg_name, price_eur=price_eur)
+        is_id = _disc.add_store_to_radar(
+            item_id=item_id, priceghost_product_id=pg_id,
+            store_name=store_name, url=url,
+            shipping_eur=shipping_eur, last_price_eur=price_eur,
+        )
+        return jsonify({'id': is_id, 'priceghost_product_id': pg_id})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/radar/run/<int:item_id>', methods=['POST'])
+def radar_run_engine(item_id):
+    conn = _radar_conn()
+    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    conn.close()
+    if not item:
+        return jsonify({'error': 'not found'}), 404
+    try:
+        import engine as _eng
+        result = _eng.run(item_id)
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
 @app.route('/api/jarvis/capture', methods=['POST'])
 def jarvis_capture():
     data = request.get_json(silent=True, force=True) or {}

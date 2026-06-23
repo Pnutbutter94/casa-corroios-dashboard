@@ -24,6 +24,7 @@ import {
 import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, resetTrendFilter,
          fetchDailyHistory, fetchProfile, renderDailyCharts } from './widgets/energia.js';
 import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
+import { initRadar } from './widgets/radar.js';
 import { initCalendar } from './widgets/calendar.js';
 
 let weatherData       = null;
@@ -40,6 +41,7 @@ let bbInitialised       = false;
 let energiaInitialised  = false;
 let refreshEnergia      = null;
 let viagensInitialised  = false;
+let radarInitialised    = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -163,6 +165,9 @@ function initTabs() {
         viagensInitialised = true;
         await initViagens();
         refreshViagens();
+      } else if (activeTab === 'radar' && !radarInitialised) {
+        radarInitialised = true;
+        await initRadar(document.getElementById('radar-card'));
       }
     });
   });
@@ -188,6 +193,7 @@ function render(data) {
   bbInitialised      = false;
   energiaInitialised = false;
   viagensInitialised = false;
+  radarInitialised   = false;
   refreshEnergia     = null;
   const now         = new Date();
   const currentHour = now.getHours();
@@ -331,7 +337,11 @@ function render(data) {
 
     <!-- VIAGENS TAB -->
     <div class="tab-page ${activeTab === 'viagens' ? 'active' : ''}" id="tab-viagens">
-      <div class="loading"><div class="spinner"></div> A carregar...</div>
+    </div>
+
+    <!-- RADAR TAB -->
+    <div class="tab-page ${activeTab === 'radar' ? 'active' : ''}" id="tab-radar">
+      <div class="card fade-in" id="radar-card"></div>
     </div>
 
   `;
@@ -344,7 +354,7 @@ function render(data) {
   }
   // Re-trigger the active tab's init if it's a lazy tab (flags were reset above).
   // The click handler in initTabs() checks the flags and re-runs init.
-  const lazyTabs = ['refeicoes', 'lista', 'iot', 'blockbuster', 'energia', 'viagens'];
+  const lazyTabs = ['refeicoes', 'lista', 'iot', 'blockbuster', 'energia', 'viagens', 'radar'];
   if (lazyTabs.includes(activeTab)) {
     document.querySelector(`[data-tab="${activeTab}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }
