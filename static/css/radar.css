@@ -349,3 +349,6 @@
 .rd-field input       { background: rgba(11,11,26,.6); border: 1px solid var(--rd-border-hi); border-radius: 6px; padding: 7px 10px; color: var(--rd-ink-hi); font-size: 13px; outline: none; }
 .rd-field input:focus { border-color: var(--rd-accent); }
 .rd-modal-error       { font-size: 12px; color: var(--rd-red); margin-bottom: 6px; }
+
+/* ── Manual P25 badge ─────────────────────────────────────────────── */
+.rd-badge-manual      { display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #f59e0b; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); border-radius: 3px; padding: 1px 4px; vertical-align: middle; margin-left: 3px; }

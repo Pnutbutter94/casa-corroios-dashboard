@@ -92,7 +92,7 @@ function _renderSparkline(itemId, series) {
   </svg>`;
 }
 
-function _renderBreakdown(bd) {
+function _renderBreakdown(bd, item) {
   if (!bd) return '';
 
   const comps = [
@@ -129,7 +129,10 @@ function _renderBreakdown(bd) {
   const stats = [];
   if (bd.current_landed_eur != null) stats.push(`Atual <b>€${_fmt(bd.current_landed_eur)}</b>`);
   if (bd.min90d_eur         != null) stats.push(`Mín 90d <b>€${_fmt(bd.min90d_eur)}</b>`);
-  if (bd.p25_eur            != null) stats.push(`Alvo P25 <b>€${_fmt(bd.p25_eur)}</b>`);
+  if (bd.p25_eur            != null) {
+    const p25Badge = bd.p25_source === 'manual' ? ' <span class="rd-badge-manual">manual</span>' : '';
+    stats.push(`Alvo P25 <b>€${_fmt(bd.p25_eur)}</b>${p25Badge}`);
+  }
   if (bd.data_points        != null) stats.push(`Histórico <b>${bd.data_points}d</b>`);
 
   const warn = (bd.data_points != null && bd.data_points < 3)
@@ -147,7 +150,7 @@ function _renderBreakdown(bd) {
         <p><b>Posição no historial (0–50 pts):</b> Compara o preço atual com o intervalo dos últimos 90 dias. 50 pts quando está no mínimo histórico; 0 pts quando está no máximo. Reflete se o preço é bom em termos relativos.</p>
         <p><b>Vs. preço-alvo P25 (0–30 pts):</b> O P25 é o preço abaixo do qual o produto esteve em 25% dos dias — ou seja, historicamente um bom preço. 30 pts = preço atual ≤ P25. Score diminui à medida que o preço sobe acima desse limiar.</p>
         <p><b>Promoção relâmpago (0–20 pts):</b> Deteta quedas bruscas de preço num único dia em relação ao dia anterior. 20 pts = queda ≥30%. 10 pts = queda ≥10%. Útil para apanhar promoções de fim-de-semana ou flash sales.</p>
-        <p><b>Score ≥65 → alerta Telegram</b> enviado automaticamente quando o score cruza este limiar (não dispara novamente enquanto o score se mantiver acima).</p>
+        <p><b>Score ≥${item.alert_threshold ?? 65} → alerta Telegram</b> enviado automaticamente quando o score cruza este limiar (não dispara novamente enquanto o score se mantiver acima).</p>
       </div>
     </details>
   </div>`;
@@ -200,7 +203,7 @@ function _renderItem(item) {
   const storesHtml = isOpen && _stores[item.id]
     ? _renderStoresTable(item.id, _stores[item.id])
     : '<p style="color:#9898b8;font-size:13px;margin:12px 0 4px;">A carregar lojas...</p>';
-  const bdHtml     = isOpen ? _renderBreakdown(item.breakdown) : '';
+  const bdHtml     = isOpen ? _renderBreakdown(item.breakdown, item) : '';
   const signalAge  = item.signal_computed_at
     ? `<span>Score ${_rel(item.signal_computed_at)}</span>` : '';
   const targetHtml = item.breakdown?.p25_eur != null
@@ -639,6 +642,15 @@ function _openEditItemModal(itemId) {
       <label>Categoria (opcional)</label>
       <input id="rd-ei-cat" type="text" value="${esc(item.category || '')}" placeholder="Ex: Electrodomésticos" />
     </div>
+    <div class="rd-field">
+      <label>Preço alvo manual (€) — usado como P25 até haver histórico suficiente</label>
+      <input id="rd-ei-target" type="number" step="0.01" value="${item.manual_target_eur ?? ''}" placeholder="Ex: 900.00" />
+      <div class="rd-hint">Deixar vazio para usar apenas o P25 calculado automaticamente</div>
+    </div>
+    <div class="rd-field">
+      <label>Alerta Telegram quando score ≥</label>
+      <input id="rd-ei-threshold" type="number" min="1" max="100" step="1" value="${item.alert_threshold ?? 65}" />
+    </div>
     <div id="rd-ei-err" class="rd-modal-error" style="display:none"></div>
     <div class="rd-modal-actions">
       <button class="rd-btn rd-btn-ghost" id="rd-ei-cancel">Cancelar</button>
@@ -652,14 +664,27 @@ function _openEditItemModal(itemId) {
   const saveBtn = el.querySelector('#rd-ei-save');
   const errEl   = el.querySelector('#rd-ei-err');
   saveBtn.onclick = async () => {
-    const name = el.querySelector('#rd-ei-name').value.trim();
-    const cat  = el.querySelector('#rd-ei-cat').value.trim();
+    const name        = el.querySelector('#rd-ei-name').value.trim();
+    const cat         = el.querySelector('#rd-ei-cat').value.trim();
+    const targetRaw   = el.querySelector('#rd-ei-target').value.trim();
+    const threshRaw   = el.querySelector('#rd-ei-threshold').value.trim();
     if (!name) { errEl.textContent = 'Nome obrigatório.'; errEl.style.display = 'block'; return; }
     saveBtn.disabled = true; saveBtn.textContent = 'A guardar...';
+    const payload = { name, category: cat || null };
+    payload.manual_target_eur = targetRaw !== '' ? parseFloat(targetRaw) : null;
+    if (threshRaw !== '') {
+      const t = parseInt(threshRaw, 10);
+      if (!isNaN(t)) payload.alert_threshold = t;
+    }
     try {
-      await _api(`/api/radar/items/${itemId}`, 'PATCH', { name, category: cat || null });
+      await _api(`/api/radar/items/${itemId}`, 'PATCH', payload);
       const idx = _items.findIndex(i => i.id === itemId);
-      if (idx >= 0) { _items[idx].name = name; _items[idx].category = cat || null; }
+      if (idx >= 0) {
+        _items[idx].name = name;
+        _items[idx].category = cat || null;
+        _items[idx].manual_target_eur = payload.manual_target_eur;
+        _items[idx].alert_threshold = payload.alert_threshold ?? item.alert_threshold;
+      }
       el.remove();
       _rerender(document.getElementById('radar-card'));
     } catch (e) {

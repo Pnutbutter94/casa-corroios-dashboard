@@ -3037,6 +3037,7 @@ def radar_items():
     conn = _radar_conn()
     items = conn.execute("""
         SELECT i.id, i.name, i.category, i.status, i.created_at,
+               i.manual_target_eur, COALESCE(i.alert_threshold, 65) AS alert_threshold,
                COUNT(CASE WHEN s.active=1 THEN 1 END) AS store_count,
                MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
                    THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
@@ -3085,6 +3086,8 @@ def radar_items():
             'created_at': item['created_at'],
             'sparkline': sparkline,
             'score_delta': score_delta,
+            'manual_target_eur': item['manual_target_eur'],
+            'alert_threshold': item['alert_threshold'],
         })
     return jsonify(result)
 
@@ -3172,6 +3175,34 @@ def radar_update_item(item_id):
         updates['category'] = str(data['category']).strip() or None
     if 'notes' in data:
         updates['notes'] = str(data['notes']).strip() or None
+    if 'manual_target_eur' in data:
+        v = data['manual_target_eur']
+        if v is None:
+            updates['manual_target_eur'] = None
+        else:
+            try:
+                fv = float(v)
+                if not (50.0 <= fv <= 20000.0):
+                    conn.close()
+                    return jsonify({'error': 'manual_target_eur out of range (50–20000)'}), 400
+                updates['manual_target_eur'] = round(fv, 2)
+            except (TypeError, ValueError):
+                conn.close()
+                return jsonify({'error': 'manual_target_eur must be a number'}), 400
+    if 'alert_threshold' in data:
+        v = data['alert_threshold']
+        if v is None:
+            updates['alert_threshold'] = 65
+        else:
+            try:
+                iv = int(v)
+                if not (1 <= iv <= 100):
+                    conn.close()
+                    return jsonify({'error': 'alert_threshold must be 1–100'}), 400
+                updates['alert_threshold'] = iv
+            except (TypeError, ValueError):
+                conn.close()
+                return jsonify({'error': 'alert_threshold must be an integer'}), 400
     if not updates:
         conn.close()
         return jsonify({'error': 'nothing to update'}), 400
