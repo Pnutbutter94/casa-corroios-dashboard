@@ -171,12 +171,19 @@ function _renderStoresTable(itemId, stores) {
       : s.stock_status === 'out_of_stock' ? 'rd-stock-out' : 'rd-stock-unk';
     const stockTxt = s.stock_status === 'in_stock' ? 'Em stock'
       : s.stock_status === 'out_of_stock' ? 'Sem stock' : '?';
-    const ship = s.shipping_eur === null ? '?' : s.shipping_eur === 0 ? 'Grátis' : `€${_fmt(s.shipping_eur)}`;
-    return `<tr class="${isBest ? 'rd-best-row' : ''}">
-      <td><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.store_name)}</a>${isBest ? ' ⭐' : ''}</td>
+    const isCB = s.is_cross_border;
+    const shipUnknownCB = isCB && s.shipping_eur === null;
+    const ship = shipUnknownCB ? 'ver envio PT'
+      : s.shipping_eur === null ? '?' : s.shipping_eur === 0 ? 'Grátis' : `€${_fmt(s.shipping_eur)}`;
+    const cbBadge = isCB ? ' <span class="rd-cross-border" title="Loja internacional — envio para PT pode não estar disponível ao preço indicado">🌍</span>' : '';
+    const landedDisplay = s.landed_eur != null && !shipUnknownCB
+      ? `<b>€${_fmt(s.landed_eur)}</b>`
+      : s.last_price_eur != null ? `<b>€${_fmt(s.last_price_eur)}</b> <span class="rd-cb-note">+ envio</span>` : '—';
+    return `<tr class="${isBest && !shipUnknownCB ? 'rd-best-row' : ''}">
+      <td><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.store_name)}</a>${cbBadge}${isBest && !shipUnknownCB ? ' ⭐' : ''}</td>
       <td>${s.last_price_eur != null ? `€${_fmt(s.last_price_eur)}` : '—'}</td>
       <td>${ship}</td>
-      <td><b>${s.landed_eur != null ? `€${_fmt(s.landed_eur)}` : '—'}</b></td>
+      <td>${landedDisplay}</td>
       <td><span class="${stockCls}">${stockTxt}</span></td>
       <td style="font-size:11px;color:#9898b8;">${_rel(s.last_checked_at)}</td>
       <td class="rd-store-ops">
@@ -794,10 +801,11 @@ function _renderCandidateList(candidates, onAction) {
   }
   return candidates.map(c => {
     const priceHtml = c.price_eur != null ? `<span class="rd-disc-price">€${_fmt(c.price_eur)}</span>` : '';
+    const sourceBadge = c.source === 'broad' ? ` <span class="rd-disc-source-broad" title="Encontrado via pesquisa geral">web</span>` : '';
     const title = c.product_title ? esc(c.product_title.slice(0, 70)) + (c.product_title.length > 70 ? '…' : '') : esc(c.store_name);
     return `<div class="rd-disc-row" data-cid="${c.id}">
       <div class="rd-disc-info">
-        <div class="rd-disc-store">${esc(c.store_name)}${priceHtml}</div>
+        <div class="rd-disc-store">${esc(c.store_name)}${sourceBadge}${priceHtml}</div>
         <div class="rd-disc-title"><a href="${esc(c.url)}" target="_blank" rel="noopener">${title}</a></div>
       </div>
       <div class="rd-disc-btns">

@@ -373,3 +373,10 @@
 .rd-disc-title a:hover { color: var(--rd-accent); }
 .rd-disc-btns         { display: flex; gap: 6px; flex-shrink: 0; }
 .rd-btn-confirm       { background: transparent; border: 1px solid var(--rd-green); color: var(--rd-green); }
+
+/* ── Cross-border store badge ─────────────────────────────────────── */
+.rd-cross-border      { font-size: 12px; cursor: help; }
+.rd-cb-note           { font-size: 11px; color: var(--rd-ink-muted); font-weight: 400; }
+
+/* ── Discovery source badge (broad web) ──────────────────────────── */
+.rd-disc-source-broad { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: rgba(100,181,246,.15); border: 1px solid rgba(100,181,246,.35); color: #64b5f6; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }

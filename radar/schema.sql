@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS items (
     name TEXT NOT NULL,
     category TEXT,
     notes TEXT,
+    search_hint TEXT,                     -- override query for discovery (brand + model)
     status TEXT NOT NULL DEFAULT 'tracking',  -- tracking|purchased|archived
     purchased_at TEXT,
     purchased_price_eur REAL,
@@ -26,7 +27,8 @@ CREATE TABLE IF NOT EXISTS item_stores (
     shipping_last_updated_at TEXT,
     last_price_eur REAL,
     last_checked_at TEXT,
-    active INTEGER NOT NULL DEFAULT 1     -- 1=active, 0=paused
+    active INTEGER NOT NULL DEFAULT 1,    -- 1=active, 0=paused
+    is_cross_border INTEGER NOT NULL DEFAULT 0  -- 1=ships from abroad (unknown PT shipping)
 );
 
 CREATE TABLE IF NOT EXISTS price_targets (
@@ -60,6 +62,7 @@ CREATE TABLE IF NOT EXISTS discovery_candidates (
     product_title TEXT,
     discovered_at TEXT DEFAULT (datetime('now')),
     status TEXT NOT NULL DEFAULT 'pending',  -- pending | confirmed | skipped
+    source TEXT NOT NULL DEFAULT 'registry', -- registry | broad
     UNIQUE(item_id, url)
 );
 

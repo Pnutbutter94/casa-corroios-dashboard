@@ -3041,6 +3041,7 @@ def radar_items():
                i.manual_target_eur, COALESCE(i.alert_threshold, 65) AS alert_threshold,
                COUNT(CASE WHEN s.active=1 THEN 1 END) AS store_count,
                MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
+                        AND NOT (COALESCE(s.is_cross_border,0)=1 AND s.shipping_eur IS NULL)
                    THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur,
                (SELECT COUNT(*) FROM discovery_candidates dc
                 WHERE dc.item_id = i.id AND dc.status = 'pending') AS pending_candidates
@@ -3103,6 +3104,7 @@ def radar_get_item(item_id):
         SELECT i.id, i.name, i.category, i.status, i.created_at,
                COUNT(CASE WHEN s.active=1 THEN 1 END) AS store_count,
                MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
+                        AND NOT (COALESCE(s.is_cross_border,0)=1 AND s.shipping_eur IS NULL)
                    THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
         FROM items i LEFT JOIN item_stores s ON s.item_id = i.id
         WHERE i.id=? GROUP BY i.id
@@ -3252,6 +3254,7 @@ def radar_item_stores(item_id):
             'last_price_eur': s['last_price_eur'], 'shipping_eur': s['shipping_eur'],
             'landed_eur': landed, 'last_checked_at': s['last_checked_at'],
             'active': bool(s['active']),
+            'is_cross_border': bool(s['is_cross_border']),
             'stock_status': stock.get(s['priceghost_product_id'], 'unknown'),
         })
     return jsonify(result)
@@ -3384,6 +3387,7 @@ def radar_history():
         SELECT i.id, i.name, i.category, i.status, i.created_at,
                i.purchased_at, i.purchased_price_eur, i.purchased_store, i.savings_eur,
                MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
+                        AND NOT (COALESCE(s.is_cross_border,0)=1 AND s.shipping_eur IS NULL)
                    THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
         FROM items i
         LEFT JOIN item_stores s ON s.item_id = i.id
@@ -3471,7 +3475,8 @@ def radar_discover(item_id):
 def radar_discover_candidates(item_id):
     conn = _radar_conn()
     rows = conn.execute(
-        """SELECT id, store_name, url, price_eur, product_title, discovered_at
+        """SELECT id, store_name, url, price_eur, product_title, discovered_at,
+                  COALESCE(source, 'registry') AS source
            FROM discovery_candidates
            WHERE item_id=? AND status='pending'
            ORDER BY price_eur NULLS LAST""",
@@ -3506,6 +3511,7 @@ def radar_discover_confirm(item_id):
         domain = host.removeprefix('www.')
         store_meta = STORE_BY_DOMAIN.get(domain, {})
         shipping = store_meta.get('shipping_eur')
+        cross_border = store_meta.get('cross_border', False)
 
         pg_id = _disc.add_to_priceghost(
             url=cand['url'],
@@ -3519,6 +3525,7 @@ def radar_discover_confirm(item_id):
             url=cand['url'],
             shipping_eur=shipping,
             last_price_eur=cand['price_eur'],
+            is_cross_border=cross_border,
         )
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
