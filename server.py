@@ -3020,6 +3020,7 @@ def serve_shortcut(name):
 import sys as _sys
 _sys.path.insert(0, '/app/radar')
 import sqlite3 as _sqlite3
+import threading as _threading
 
 RADAR_DB = '/opt/casaserver/data/radar/radar.db'
 
@@ -3040,7 +3041,9 @@ def radar_items():
                i.manual_target_eur, COALESCE(i.alert_threshold, 65) AS alert_threshold,
                COUNT(CASE WHEN s.active=1 THEN 1 END) AS store_count,
                MIN(CASE WHEN s.active=1 AND s.last_price_eur IS NOT NULL
-                   THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur
+                   THEN s.last_price_eur + COALESCE(s.shipping_eur, 0) END) AS best_price_eur,
+               (SELECT COUNT(*) FROM discovery_candidates dc
+                WHERE dc.item_id = i.id AND dc.status = 'pending') AS pending_candidates
         FROM items i
         LEFT JOIN item_stores s ON s.item_id = i.id
         WHERE i.status != 'archived'
@@ -3088,6 +3091,7 @@ def radar_items():
             'score_delta': score_delta,
             'manual_target_eur': item['manual_target_eur'],
             'alert_threshold': item['alert_threshold'],
+            'pending_candidates': item['pending_candidates'],
         })
     return jsonify(result)
 
@@ -3318,6 +3322,16 @@ def radar_create_item():
     item_id = cur.lastrowid
     conn.commit()
     conn.close()
+
+    def _bg_discover(iid):
+        try:
+            import discovery as _disc
+            _disc.run_discovery(iid)
+        except Exception:
+            pass
+
+    _threading.Thread(target=_bg_discover, args=(item_id,), daemon=True).start()
+
     return jsonify({'id': item_id, 'name': name, 'category': category})
 
 
@@ -3435,6 +3449,105 @@ def radar_run_engine(item_id):
         return jsonify(result)
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/radar/discover/<int:item_id>', methods=['POST'])
+def radar_discover(item_id):
+    conn = _radar_conn()
+    item = conn.execute("SELECT id FROM items WHERE id=?", (item_id,)).fetchone()
+    conn.close()
+    if not item:
+        return jsonify({'error': 'not found'}), 404
+
+    def _run():
+        import discovery as _disc
+        _disc.run_discovery(item_id)
+
+    _threading.Thread(target=_run, daemon=True).start()
+    return jsonify({'job': 'started'})
+
+
+@app.route('/api/radar/discover/<int:item_id>/candidates')
+def radar_discover_candidates(item_id):
+    conn = _radar_conn()
+    rows = conn.execute(
+        """SELECT id, store_name, url, price_eur, product_title, discovered_at
+           FROM discovery_candidates
+           WHERE item_id=? AND status='pending'
+           ORDER BY price_eur NULLS LAST""",
+        (item_id,),
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/radar/discover/<int:item_id>/confirm', methods=['POST'])
+def radar_discover_confirm(item_id):
+    data = request.get_json(silent=True, force=True) or {}
+    candidate_id = data.get('candidate_id')
+    if not isinstance(candidate_id, int):
+        return jsonify({'error': 'candidate_id required'}), 400
+
+    conn = _radar_conn()
+    cand = conn.execute(
+        "SELECT * FROM discovery_candidates WHERE id=? AND item_id=?",
+        (candidate_id, item_id),
+    ).fetchone()
+    conn.close()
+    if not cand:
+        return jsonify({'error': 'not found'}), 404
+
+    try:
+        import discovery as _disc
+        from stores_registry import STORE_BY_DOMAIN
+        from urllib.parse import urlparse as _urlparse
+
+        host = _urlparse(cand['url']).hostname or ''
+        domain = host.removeprefix('www.')
+        store_meta = STORE_BY_DOMAIN.get(domain, {})
+        shipping = store_meta.get('shipping_eur')
+
+        pg_id = _disc.add_to_priceghost(
+            url=cand['url'],
+            name=cand['product_title'] or cand['store_name'],
+            price_eur=cand['price_eur'],
+        )
+        store_id = _disc.add_store_to_radar(
+            item_id=item_id,
+            priceghost_product_id=pg_id,
+            store_name=cand['store_name'],
+            url=cand['url'],
+            shipping_eur=shipping,
+            last_price_eur=cand['price_eur'],
+        )
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+    conn = _radar_conn()
+    conn.execute(
+        "UPDATE discovery_candidates SET status='confirmed' WHERE id=?",
+        (candidate_id,),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True, 'item_store_id': store_id})
+
+
+@app.route('/api/radar/discover/<int:item_id>/skip', methods=['POST'])
+def radar_discover_skip(item_id):
+    data = request.get_json(silent=True, force=True) or {}
+    candidate_id = data.get('candidate_id')
+    if not isinstance(candidate_id, int):
+        return jsonify({'error': 'candidate_id required'}), 400
+
+    conn = _radar_conn()
+    conn.execute(
+        "UPDATE discovery_candidates SET status='skipped' WHERE id=? AND item_id=?",
+        (candidate_id, item_id),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
 
 
 @app.route('/api/jarvis/capture', methods=['POST'])

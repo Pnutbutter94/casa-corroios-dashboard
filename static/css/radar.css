@@ -352,3 +352,24 @@
 
 /* ── Manual P25 badge ─────────────────────────────────────────────── */
 .rd-badge-manual      { display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #f59e0b; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); border-radius: 3px; padding: 1px 4px; vertical-align: middle; margin-left: 3px; }
+
+/* ── Discovery badge (item row) ───────────────────────────────────── */
+.rd-discover-badge    { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; background: rgba(79,195,247,.15); border: 1px solid rgba(79,195,247,.4); color: var(--rd-accent); font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.rd-discover-badge:hover { background: rgba(79,195,247,.25); }
+
+/* ── Discover modal ───────────────────────────────────────────────── */
+.rd-disc-controls     { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.rd-disc-hint         { font-size: 11px; color: var(--rd-ink-muted); }
+.rd-disc-body         { max-height: 340px; overflow-y: auto; }
+.rd-disc-loading      { color: var(--rd-ink-muted); font-size: 13px; padding: 20px 0; text-align: center; }
+.rd-disc-empty        { color: var(--rd-ink-muted); font-size: 13px; padding: 20px 0; text-align: center; }
+.rd-disc-row          { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--rd-border); }
+.rd-disc-row:last-child { border-bottom: none; }
+.rd-disc-info         { flex: 1; min-width: 0; }
+.rd-disc-store        { font-size: 13px; font-weight: 600; color: var(--rd-ink); display: flex; align-items: center; gap: 6px; }
+.rd-disc-price        { font-size: 13px; font-weight: 700; color: var(--rd-green); }
+.rd-disc-title        { font-size: 11px; color: var(--rd-ink-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-disc-title a      { color: var(--rd-ink-muted); text-decoration: none; }
+.rd-disc-title a:hover { color: var(--rd-accent); }
+.rd-disc-btns         { display: flex; gap: 6px; flex-shrink: 0; }
+.rd-btn-confirm       { background: transparent; border: 1px solid var(--rd-green); color: var(--rd-green); }

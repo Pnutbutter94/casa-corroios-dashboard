@@ -7,6 +7,7 @@ let _open            = new Set();
 let _refreshInterval = null;
 let _historyOpen     = false;
 let _historyItems    = null; // null = not yet loaded
+let _pendingCounts   = {};   // item_id → pending candidate count (client-side cache)
 
 // ── API ────────────────────────────────────────────────────────────────────
 async function _api(path, method = 'GET', body = null) {
@@ -200,6 +201,10 @@ function _renderItem(item) {
   const spkHtml    = spkInner
     ? `<button class="rd-sparkline-btn" data-history-item="${item.id}" data-item-name="${esc(item.name)}" title="Ver historial de preços (90 dias)">${spkInner}</button>`
     : '';
+  const pending    = _pendingCounts[item.id] ?? item.pending_candidates ?? 0;
+  const discBadge  = pending > 0
+    ? `<button class="rd-discover-badge" data-discover="${item.id}" title="Ver lojas sugeridas">${pending} nova${pending !== 1 ? 's' : ''}</button>`
+    : '';
   const storesHtml = isOpen && _stores[item.id]
     ? _renderStoresTable(item.id, _stores[item.id])
     : '<p style="color:#9898b8;font-size:13px;margin:12px 0 4px;">A carregar lojas...</p>';
@@ -227,6 +232,7 @@ function _renderItem(item) {
         <div class="rd-best-price">${item.best_price_eur != null ? `€${_fmt(item.best_price_eur)}` : '—'}</div>
         ${targetHtml}
       </div>
+      ${discBadge}
       <button class="rd-btn rd-btn-ghost rd-btn-xs rd-edit-item-btn" data-edit-item="${item.id}" title="Editar produto">✎</button>
       <button class="rd-btn rd-btn-ghost rd-btn-xs rd-archive-btn" data-archive="${item.id}" data-item-name="${esc(item.name)}" title="Arquivar">⊘</button>
       <div class="rd-chevron">›</div>
@@ -236,6 +242,7 @@ function _renderItem(item) {
       ${storesHtml}
       <div class="rd-store-actions" data-actions="${item.id}">
         <button class="rd-btn rd-btn-ghost rd-btn-sm" data-add-store="${item.id}">+ Loja</button>
+        <button class="rd-btn rd-btn-ghost rd-btn-sm" data-find-stores="${item.id}" data-item-name="${esc(item.name)}">🔍 Encontrar lojas</button>
         <button class="rd-btn rd-btn-ghost rd-btn-sm" data-run="${item.id}">↻ Atualizar</button>
         <button class="rd-btn rd-btn-purchased rd-btn-sm" data-purchase="${item.id}" data-item-name="${esc(item.name)}">✓ Comprado</button>
       </div>
@@ -780,6 +787,132 @@ async function _openHistoryModal(itemId, itemName) {
   }
 }
 
+// ── DISCOVER MODAL ─────────────────────────────────────────────────────────
+function _renderCandidateList(candidates, onAction) {
+  if (!candidates.length) {
+    return `<p class="rd-disc-empty">Nenhuma loja nova encontrada.</p>`;
+  }
+  return candidates.map(c => {
+    const priceHtml = c.price_eur != null ? `<span class="rd-disc-price">€${_fmt(c.price_eur)}</span>` : '';
+    const title = c.product_title ? esc(c.product_title.slice(0, 70)) + (c.product_title.length > 70 ? '…' : '') : esc(c.store_name);
+    return `<div class="rd-disc-row" data-cid="${c.id}">
+      <div class="rd-disc-info">
+        <div class="rd-disc-store">${esc(c.store_name)}${priceHtml}</div>
+        <div class="rd-disc-title"><a href="${esc(c.url)}" target="_blank" rel="noopener">${title}</a></div>
+      </div>
+      <div class="rd-disc-btns">
+        <button class="rd-btn rd-btn-sm rd-btn-confirm" data-confirm="${c.id}">✓</button>
+        <button class="rd-btn rd-btn-ghost rd-btn-sm" data-skip="${c.id}">Ignorar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function _openDiscoverModal(itemId, itemName) {
+  const el = document.createElement('div');
+  el.className = 'rd-modal-overlay';
+  el.innerHTML = `<div class="rd-modal rd-modal-wide">
+    <h3>Encontrar lojas — ${esc(itemName)}</h3>
+    <div class="rd-disc-controls">
+      <button class="rd-btn rd-btn-ghost rd-btn-sm" id="rd-disc-search">🔍 Pesquisar agora</button>
+      <span class="rd-disc-hint">Pesquisa ${(typeof STORES !== 'undefined' ? 25 : 25)} lojas em paralelo via Firecrawl</span>
+    </div>
+    <div id="rd-disc-body" class="rd-disc-body"><p class="rd-disc-loading">A carregar...</p></div>
+    <div class="rd-modal-actions">
+      <button class="rd-btn rd-btn-ghost" id="rd-disc-close">Fechar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#rd-disc-close').onclick = () => el.remove();
+  el.onclick = e => { if (e.target === el) el.remove(); };
+
+  let candidates = [];
+
+  async function loadCandidates() {
+    const body = el.querySelector('#rd-disc-body');
+    body.innerHTML = '<p class="rd-disc-loading">A carregar...</p>';
+    try {
+      candidates = await _api(`/api/radar/discover/${itemId}/candidates`);
+      body.innerHTML = _renderCandidateList(candidates);
+      _bindCandidateActions(body, itemId, candidates);
+    } catch (e) {
+      body.innerHTML = `<p style="color:var(--rd-red)">Erro: ${esc(e.message)}</p>`;
+    }
+  }
+
+  el.querySelector('#rd-disc-search').addEventListener('click', async btn => {
+    const searchBtn = el.querySelector('#rd-disc-search');
+    searchBtn.disabled = true;
+    searchBtn.textContent = '↻ A pesquisar...';
+    try {
+      await _api(`/api/radar/discover/${itemId}`, 'POST');
+      await new Promise(r => setTimeout(r, 8000));
+      await loadCandidates();
+    } catch (e) {
+      _showToast(`Erro: ${e.message}`);
+    }
+    searchBtn.disabled = false;
+    searchBtn.textContent = '🔍 Pesquisar novamente';
+  });
+
+  await loadCandidates();
+
+  function _bindCandidateActions(body, itemId, candidates) {
+    body.querySelectorAll('[data-confirm]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const cid = parseInt(btn.dataset.confirm, 10);
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          await _api(`/api/radar/discover/${itemId}/confirm`, 'POST', { candidate_id: cid });
+          candidates = candidates.filter(c => c.id !== cid);
+          _updatePendingCount(itemId, -1);
+          const row = body.querySelector(`[data-cid="${cid}"]`);
+          if (row) row.remove();
+          if (!body.querySelector('.rd-disc-row')) body.innerHTML = '<p class="rd-disc-empty">Nenhuma loja nova encontrada.</p>';
+          _showToast('Loja adicionada. Preço atualizado em breve.');
+          delete _stores[itemId];
+          _refreshItem(itemId);
+        } catch (e) {
+          _showToast(`Erro: ${e.message}`);
+          btn.disabled = false; btn.textContent = '✓';
+        }
+      });
+    });
+
+    body.querySelectorAll('[data-skip]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const cid = parseInt(btn.dataset.skip, 10);
+        btn.disabled = true;
+        try {
+          await _api(`/api/radar/discover/${itemId}/skip`, 'POST', { candidate_id: cid });
+          candidates = candidates.filter(c => c.id !== cid);
+          _updatePendingCount(itemId, -1);
+          const row = body.querySelector(`[data-cid="${cid}"]`);
+          if (row) row.remove();
+          if (!body.querySelector('.rd-disc-row')) body.innerHTML = '<p class="rd-disc-empty">Nenhuma loja nova encontrada.</p>';
+        } catch (e) {
+          _showToast(`Erro: ${e.message}`);
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+}
+
+function _updatePendingCount(itemId, delta) {
+  const item = _items.find(i => i.id === itemId);
+  if (item) {
+    item.pending_candidates = Math.max(0, (item.pending_candidates ?? 0) + delta);
+    _pendingCounts[itemId] = item.pending_candidates;
+  }
+  const badge = document.querySelector(`.rd-discover-badge[data-discover="${itemId}"]`);
+  if (badge) {
+    const n = _pendingCounts[itemId] ?? 0;
+    if (n > 0) { badge.textContent = `${n} nova${n !== 1 ? 's' : ''}`; }
+    else { badge.remove(); }
+  }
+}
+
 // ── EVENTS ─────────────────────────────────────────────────────────────────
 export function bindRadar(container) {
   if (!container) return;
@@ -802,6 +935,22 @@ export function bindRadar(container) {
           _rerender(document.getElementById('radar-card'));
         }
       }
+    });
+  });
+
+  container.querySelectorAll('[data-discover]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.discover, 10);
+      const item = _items.find(i => i.id === id);
+      _openDiscoverModal(id, item?.name || '');
+    });
+  });
+
+  container.querySelectorAll('[data-find-stores]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _openDiscoverModal(parseInt(btn.dataset.findStores, 10), btn.dataset.itemName);
     });
   });
 

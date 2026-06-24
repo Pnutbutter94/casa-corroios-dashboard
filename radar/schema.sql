@@ -50,3 +50,17 @@ CREATE INDEX IF NOT EXISTS idx_item_stores_item ON item_stores(item_id);
 CREATE INDEX IF NOT EXISTS idx_item_stores_pg_id ON item_stores(priceghost_product_id);
 CREATE INDEX IF NOT EXISTS idx_price_targets_item ON price_targets(item_id);
 CREATE INDEX IF NOT EXISTS idx_buy_signals_item_time ON buy_signals(item_id, computed_at DESC);
+
+CREATE TABLE IF NOT EXISTS discovery_candidates (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    store_name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    price_eur REAL,
+    product_title TEXT,
+    discovered_at TEXT DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending | confirmed | skipped
+    UNIQUE(item_id, url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_candidates_item_status ON discovery_candidates(item_id, status);
