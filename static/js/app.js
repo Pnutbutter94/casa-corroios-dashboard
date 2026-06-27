@@ -26,6 +26,7 @@ import { fetchEnergy, renderEnergia, fetchAnalysis, renderTrend, resetTrendFilte
 import { initViagens, renderViagens, bindViagens } from './widgets/viagens.js';
 import { initRadar } from './widgets/radar.js';
 import { initCalendar } from './widgets/calendar.js';
+import { initSistema, updateSistemaBadge } from './widgets/sistema.js';
 
 let weatherData       = null;
 let activeTab         = 'casa';
@@ -42,6 +43,7 @@ let energiaInitialised  = false;
 let refreshEnergia      = null;
 let viagensInitialised  = false;
 let radarInitialised    = false;
+let sistemaInitialised  = false;
 
 // ── PLANNER CALLBACKS ──────────────────────────────────────────────────────
 function refreshPlannerCard() {
@@ -168,6 +170,9 @@ function initTabs() {
       } else if (activeTab === 'radar' && !radarInitialised) {
         radarInitialised = true;
         await initRadar(document.getElementById('radar-card'));
+      } else if (activeTab === 'sistema' && !sistemaInitialised) {
+        sistemaInitialised = true;
+        await initSistema(document.getElementById('tab-sistema'));
       }
     });
   });
@@ -194,6 +199,7 @@ function render(data) {
   energiaInitialised = false;
   viagensInitialised = false;
   radarInitialised   = false;
+  sistemaInitialised = false;
   refreshEnergia     = null;
   const now         = new Date();
   const currentHour = now.getHours();
@@ -344,6 +350,10 @@ function render(data) {
       <div class="card fade-in" id="radar-card"></div>
     </div>
 
+    <!-- SISTEMA TAB -->
+    <div class="tab-page ${activeTab === 'sistema' ? 'active' : ''}" id="tab-sistema">
+    </div>
+
   `;
 
   updateClock();
@@ -354,7 +364,7 @@ function render(data) {
   }
   // Re-trigger the active tab's init if it's a lazy tab (flags were reset above).
   // The click handler in initTabs() checks the flags and re-runs init.
-  const lazyTabs = ['refeicoes', 'lista', 'iot', 'blockbuster', 'energia', 'viagens', 'radar'];
+  const lazyTabs = ['refeicoes', 'lista', 'iot', 'blockbuster', 'energia', 'viagens', 'radar', 'sistema'];
   if (lazyTabs.includes(activeTab)) {
     document.querySelector(`[data-tab="${activeTab}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }
@@ -436,6 +446,7 @@ async function init() {
     maintenanceData = await fetchMaintenance();
     render(weatherData);
     initCalendar();
+    updateSistemaBadge();
   } catch (e) {
     document.getElementById('app').innerHTML = `<div class="loading">❌ Sem dados. A tentar novamente em 5 min...</div>`;
     setTimeout(init, 5 * 60 * 1000);

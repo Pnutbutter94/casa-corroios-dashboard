@@ -1,0 +1,123 @@
+.sistema-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1rem;
+  gap: 0.5rem;
+  color: var(--text-dim);
+}
+
+.sistema-empty-icon { font-size: 2rem; }
+.sistema-empty-text { font-size: 0.9rem; }
+
+.sistema-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.sistema-item {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sistema-item-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sistema-item-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.sistema-item-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sistema-scope {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: rgba(94, 106, 210, 0.15);
+  color: var(--accent2);
+  border-radius: 99px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sistema-date {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.sistema-reason {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.sistema-source {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.sistema-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.sistema-btn {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sistema-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.sistema-btn-approve {
+  background: rgba(39, 166, 68, 0.15);
+  color: var(--good);
+}
+
+.sistema-btn-reject {
+  background: rgba(224, 80, 80, 0.15);
+  color: var(--bad);
+}
+
+.sistema-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bad);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 99px;
+  padding: 0 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+  line-height: 1;
+}

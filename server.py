@@ -3557,6 +3557,94 @@ def radar_discover_skip(item_id):
     return jsonify({'ok': True})
 
 
+# ── SYSTEM / PENDING APPROVALS ───────────────────────────────────────────────
+
+PENDING_APPROVAL_DIR = os.path.join(JARVIS_VAULT, 'QUEUE', 'pending-approval')
+
+def _parse_pending_file(filename, content):
+    lines = content.strip().split('\n')
+    first = lines[0] if lines else ''
+    if '[approved-by-user]' in first:
+        status = 'approved'
+    elif '[dismissed' in first:
+        status = 'dismissed'
+    elif '[pending]' in first:
+        status = 'pending'
+    else:
+        status = 'unknown'
+    title_m = re.match(r'^##\s*\[[^\]]+\]\s*(.+)', first)
+    title = title_m.group(1) if title_m else first.lstrip('#').strip()
+    meta = {}
+    for line in lines[1:]:
+        for key in ('Source', 'Scope', 'Tier', 'Reason', 'Health-check', 'Revert'):
+            if line.startswith(f'{key}:'):
+                meta[key.lower().replace('-', '_')] = line[len(key)+1:].strip()
+    return {
+        'id':           filename.replace('.md', ''),
+        'filename':     filename,
+        'status':       status,
+        'title':        title,
+        'source':       meta.get('source', ''),
+        'scope':        meta.get('scope', ''),
+        'reason':       meta.get('reason', ''),
+        'health_check': meta.get('health_check', ''),
+        'revert':       meta.get('revert', ''),
+    }
+
+@app.route('/api/system/pending-approvals')
+def system_pending_approvals():
+    result = []
+    try:
+        if not os.path.isdir(PENDING_APPROVAL_DIR):
+            return jsonify([])
+        for fname in sorted(os.listdir(PENDING_APPROVAL_DIR)):
+            if not fname.endswith('.md') or fname == 'README.md':
+                continue
+            fpath = os.path.join(PENDING_APPROVAL_DIR, fname)
+            with open(fpath, encoding='utf-8') as f:
+                content = f.read()
+            parsed = _parse_pending_file(fname, content)
+            if parsed['status'] == 'pending':
+                result.append(parsed)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify(result)
+
+@app.route('/api/system/approve/<filename>', methods=['POST'])
+def system_approve(filename):
+    if not filename.endswith('.md') or '/' in filename or '..' in filename:
+        return jsonify({'error': 'invalid filename'}), 400
+    fpath = os.path.join(PENDING_APPROVAL_DIR, filename)
+    if not os.path.isfile(fpath):
+        return jsonify({'error': 'not found'}), 404
+    with open(fpath, encoding='utf-8') as f:
+        content = f.read()
+    lines = content.split('\n')
+    if '[pending]' not in (lines[0] if lines else ''):
+        return jsonify({'error': 'not pending'}), 400
+    lines[0] = lines[0].replace('[pending]', '[approved-by-user]')
+    with open(fpath, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
+    return jsonify({'ok': True})
+
+@app.route('/api/system/reject/<filename>', methods=['POST'])
+def system_reject(filename):
+    if not filename.endswith('.md') or '/' in filename or '..' in filename:
+        return jsonify({'error': 'invalid filename'}), 400
+    fpath = os.path.join(PENDING_APPROVAL_DIR, filename)
+    if not os.path.isfile(fpath):
+        return jsonify({'error': 'not found'}), 404
+    with open(fpath, encoding='utf-8') as f:
+        content = f.read()
+    lines = content.split('\n')
+    if '[pending]' not in (lines[0] if lines else ''):
+        return jsonify({'error': 'not pending'}), 400
+    today = datetime.date.today().isoformat()
+    lines[0] = lines[0].replace('[pending]', f'[dismissed {today}]')
+    with open(fpath, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
+    return jsonify({'ok': True})
+
 @app.route('/api/jarvis/capture', methods=['POST'])
 def jarvis_capture():
     data = request.get_json(silent=True, force=True) or {}
