@@ -4,3 +4,4 @@ __pycache__/
 *.log
 .claude/
 data/trips/*-chatlog.json
+radar/radar.db
