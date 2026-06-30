@@ -20,7 +20,7 @@ Small tweaks and non-urgent items to revisit.
 - [ ] **M5** CATEGORIA select in "Adicionar à lista" modal has no dropdown chevron — looks like a flat label, not a picker. Add `▼` or use consistent select styling to signal it's tappable.
 
 ### Blockbuster
-- [ ] **M6** Movie/series title in detail modal renders as "Gladiator 2000" (title+year run together). Should be "Gladiator · 2000" or "Gladiator (2000)".
+- [x] **M6** Movie/series title in detail modal renders as "Gladiator 2000" (title+year run together). Fixed 2026-06-29: search result modal missing ` · ` separator (blockbuster.js:1088).
 
 ### Energia
 - [ ] **M7** Cost inconsistency: Servidor row shows 0.07 € today but "Dispositivos medidos hoje" total shows 0.05 € for the same 0.32 kWh. One calculation includes extra charges; they should use the same formula or both should be explained.

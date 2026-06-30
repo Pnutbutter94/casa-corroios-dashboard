@@ -1085,7 +1085,7 @@ function _openSearchDetailModal(result) {
     overlay.innerHTML = `
         <div class="bb-modal-panel" id="bb-modal-panel">
             <div class="bb-modal-header">
-                <div class="bb-modal-htitle">${esc(result.title)}${result.year ? ` <span class="bb-modal-year">${esc(String(result.year))}</span>` : ''}</div>
+                <div class="bb-modal-htitle">${esc(result.title)}${result.year ? `<span class="bb-modal-year"> · ${esc(String(result.year))}</span>` : ''}</div>
                 <button class="bb-modal-close" id="bb-modal-close">×</button>
             </div>
             <div class="bb-modal-body" id="bb-modal-body">
