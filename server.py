@@ -1958,6 +1958,8 @@ VALID_LINK_STATUS = {'pending', 'processed', 'discarded'}
 
 JARVIS_VAULT = '/app/jarvis-vault'
 CLAUDE_RELAY  = 'http://127.0.0.1:8765/query'
+TELEGRAM_TOKEN = os.environ.get('CASA_BOT_TOKEN', '')
+TELEGRAM_CHAT  = os.environ.get('CASA_CHAT_ID', '')
 
 _MONTHS_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 _DAYS_PT   = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']  # weekday() 0=Mon
@@ -3645,6 +3647,20 @@ def system_reject(filename):
         f.write('\n'.join(lines))
     return jsonify({'ok': True})
 
+def _telegram(msg):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT:
+        return
+    try:
+        import urllib.request, json as _json
+        payload = _json.dumps({'chat_id': TELEGRAM_CHAT, 'text': msg}).encode()
+        req = urllib.request.Request(
+            f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage',
+            data=payload, headers={'Content-Type': 'application/json'}
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
 @app.route('/api/jarvis/capture', methods=['POST'])
 def jarvis_capture():
     data = request.get_json(silent=True, force=True) or {}
@@ -3652,9 +3668,16 @@ def jarvis_capture():
     line = re.sub(r'\s*—\s*$', '', line).strip()
     if not line:
         return jsonify({'error': 'empty'}), 400
+    from datetime import datetime
+    now = datetime.now()
     inbox = os.path.join(JARVIS_VAULT, 'Ideas', 'captures.md')
+    backup = os.path.join(JARVIS_VAULT, 'Ideas', f'captures-{now.strftime("%Y-%m")}.md')
+    stamped = f'{line}  <!-- {now.strftime("%Y-%m-%d %H:%M")} -->'
     with open(inbox, 'a', encoding='utf-8') as f:
         f.write(line + '\n')
+    with open(backup, 'a', encoding='utf-8') as f:
+        f.write(stamped + '\n')
+    _telegram(f'📥 Captured: {line}')
     return jsonify({'ok': True, 'line': line})
 
 # ── STATIC ────────────────────────────────────────────────────────────────────
